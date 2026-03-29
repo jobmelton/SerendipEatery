@@ -1,0 +1,44 @@
+[build]
+  base = "apps/web"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# Netlify Next.js plugin
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Referral deep link - redirect to app stores or web signup
+[[redirects]]
+  from = "/r/:code"
+  to = "/join/:code"
+  status = 200
+
+# iOS universal link
+[[redirects]]
+  from = "/.well-known/apple-app-site-association"
+  to = "/api/apple-app-site-association"
+  status = 200
+  force = true
+
+# Android app links
+[[redirects]]
+  from = "/.well-known/assetlinks.json"
+  to = "/api/assetlinks"
+  status = 200
+  force = true
+
+# API proxy - forward /api/v1/* to Railway backend
+[[redirects]]
+  from = "/api/v1/*"
+  to = "https://api.serendipeatery.railway.app/v1/:splat"
+  status = 200
+  force = true
+
+[dev]
+  command = "npm run dev"
+  port = 3000
+  targetPort = 3000
