@@ -6,22 +6,33 @@ export default function HomePage() {
 
       {/* Logo */}
       <div className="mb-10 text-center">
-        <div className="font-display font-black text-5xl tracking-tight leading-none mb-1">
-          <span style={{ color: '#F7941D' }}>S</span>
-          <span className="text-white">erendip</span>
-          <span
-            className="inline-block"
-            style={{
-              color: 'rgba(247,148,29,0.45)',
-              transform: 'rotate(180deg)',
-              transformOrigin: 'center',
-              display: 'inline-block',
-            }}
-          >
-            Eatery
-          </span>
+        <div style={{ position: 'relative', display: 'inline-block', minWidth: '300px', minHeight: '80px' }}>
+          {/* Serendip */}
+          <div style={{
+            position: 'relative',
+            left: '15px',
+            top: '-33px',
+            lineHeight: 1,
+            whiteSpace: 'nowrap',
+            display: 'inline-block',
+          }}>
+            <span style={{ fontFamily: 'Arial Black, Arial', fontWeight: 900, fontSize: '48px', letterSpacing: '-1px', color: '#F7941D' }}>S</span>
+            <span style={{ fontFamily: 'Arial Black, Arial', fontWeight: 900, fontSize: '48px', letterSpacing: '-1px', color: '#ffffff' }}>erendip</span>
+          </div>
+          {/* Eatery — rotated 180°, positioned per slider values */}
+          <div style={{
+            position: 'absolute',
+            right: '153px',
+            top: '22px',
+            lineHeight: 1,
+            whiteSpace: 'nowrap',
+            transform: 'rotate(180deg)',
+            transformOrigin: 'right center',
+          }}>
+            <span style={{ fontFamily: 'Arial Black, Arial', fontWeight: 900, fontSize: '48px', letterSpacing: '-1px', color: '#F7941D', opacity: 0.42 }}>Eatery</span>
+          </div>
         </div>
-        <p className="text-xs tracking-widest" style={{ color: 'rgba(247,148,29,0.4)' }}>
+        <p className="text-xs tracking-widest mt-2" style={{ color: 'rgba(247,148,29,0.4)' }}>
           SPIN YOUR NEXT MEAL
         </p>
       </div>

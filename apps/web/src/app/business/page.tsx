@@ -10,8 +10,18 @@ export default function BusinessPage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 py-16">
 
-      <div className="font-display font-black text-4xl mb-2 text-center" style={{ color: '#F7941D' }}>
-        SerendipEatery
+      <div style={{ position: 'relative', display: 'inline-block', minWidth: '260px', minHeight: '70px', marginBottom: '8px' }}>
+        <div style={{ position: 'relative', left: '15px', top: '-33px', lineHeight: 1, whiteSpace: 'nowrap', display: 'inline-block' }}>
+          <span style={{ fontFamily: 'Arial Black, Arial', fontWeight: 900, fontSize: '48px', letterSpacing: '-1px', color: '#F7941D' }}>S</span>
+          <span style={{ fontFamily: 'Arial Black, Arial', fontWeight: 900, fontSize: '48px', letterSpacing: '-1px', color: '#ffffff' }}>erendip</span>
+        </div>
+        <div style={{
+          position: 'absolute', right: '153px', top: '22px',
+          lineHeight: 1, whiteSpace: 'nowrap',
+          transform: 'rotate(180deg)', transformOrigin: 'right center',
+        }}>
+          <span style={{ fontFamily: 'Arial Black, Arial', fontWeight: 900, fontSize: '48px', letterSpacing: '-1px', color: '#F7941D', opacity: 0.42 }}>Eatery</span>
+        </div>
       </div>
       <div className="text-xs tracking-widest mb-10 text-center" style={{ color: 'rgba(247,148,29,0.4)' }}>
         FOR BUSINESSES
