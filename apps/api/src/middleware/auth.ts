@@ -1,9 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
-import { createClerkClient } from '@clerk/backend'
-
-const clerk = createClerkClient({
-  secretKey: process.env.CLERK_SECRET_KEY!,
-})
+import { verifyToken } from '@clerk/backend'
 
 export interface AuthenticatedRequest extends FastifyRequest {
   userId: string
@@ -22,7 +18,8 @@ export async function requireAuth(
   const token = authHeader.slice(7)
 
   try {
-    const { sub, ...claims } = await clerk.verifyToken(token, {
+    const { sub, ...claims } = await verifyToken(token, {
+      secretKey: process.env.CLERK_SECRET_KEY!,
       authorizedParties: [
         process.env.CLERK_WEB_URL!,
         process.env.CLERK_CONSUMER_URL!,
