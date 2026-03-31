@@ -3,12 +3,13 @@ FROM node:20-slim AS builder
 WORKDIR /app
 
 # Copy workspace root files
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json* .npmrc* ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/worker/package.json apps/worker/
+COPY apps/worker/.npmrc apps/worker/
 
 # Install dependencies
-RUN npm install --workspace=apps/worker --include-workspace-root
+RUN npm install --legacy-peer-deps --workspace=apps/worker --include-workspace-root
 
 # Copy source
 COPY packages/shared/ packages/shared/
