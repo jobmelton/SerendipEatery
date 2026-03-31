@@ -41,3 +41,8 @@ coverage
 
 # Misc
 *.tsbuildinfo
+
+*.tar.gz
+*.sh
+CLERK_SETUP.md
+SERENDIPEATERY_CONTEXT.md

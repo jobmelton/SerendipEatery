@@ -217,6 +217,38 @@ export const TIER_BOOST_PCT: Record<ConsumerTier, number> = {
   icon: 65,
 }
 
+// ─── Auth Types ───────────────────────────────────────────────────────────
+
+export type LoyaltyTier = ConsumerTier | BusinessTier
+export type BillingPlan = SubscriptionPlan
+
+export interface ClerkAuthPayload {
+  sub: string
+  email: string
+  firstName: string | null
+  lastName: string | null
+  imageUrl: string | null
+  metadata: Record<string, unknown>
+}
+
+export interface AuthenticatedUser {
+  clerkId: string
+  email: string
+  displayName: string
+  avatarUrl: string | null
+  consumerTier: ConsumerTier
+  points: number
+}
+
+export interface AuthenticatedBusiness {
+  clerkId: string
+  email: string
+  businessId: string
+  businessName: string
+  businessTier: BusinessTier
+  plan: SubscriptionPlan
+}
+
 // ─── API Response Shapes ───────────────────────────────────────────────────
 
 export interface ApiSuccess<T> {
