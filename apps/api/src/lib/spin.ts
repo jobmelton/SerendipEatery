@@ -3,10 +3,10 @@ import { supabase } from './supabase'
 import { AppError } from './errors'
 import {
   EARN_POINTS,
-  TIER_BOOST_PCT,
   type ConsumerTier,
   type SpinResult,
 } from '@serendipeatery/shared'
+import { calculateTierBoost, awardPoints as awardLoyaltyPoints } from './loyalty'
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -70,7 +70,7 @@ function selectPrize(prizes: PrizeRow[], consumerTier: ConsumerTier): {
   const totalBase = baseWeights.reduce((s, w) => s + w, 0)
 
   // Apply loyalty boost: shift weight from common → rare
-  const boostPct = TIER_BOOST_PCT[consumerTier] ?? 0
+  const boostPct = calculateTierBoost(consumerTier)
   const weights = baseWeights.map((w, i) => {
     if (sorted.length === 1) return w
     const position = i / (sorted.length - 1) // 0 = most common, 1 = rarest
@@ -281,15 +281,12 @@ async function recordSpinResult(input: RecordInput): Promise<SpinOutput> {
   // ── Increment spins_used on sale and prize ─────────────────────────
   await supabase.rpc('increment_spins', { p_sale_id: saleId, p_prize_id: winner.id })
 
-  // ── Award spin points with tier boost ──────────────────────────────
+  // ── Award spin points with tier boost via loyalty engine ─────────
   const basePoints = EARN_POINTS.spin
-  const boostPct = TIER_BOOST_PCT[consumerTier] ?? 0
+  const boostPct = calculateTierBoost(consumerTier)
   const pointsEarned = Math.round(basePoints * (1 + boostPct / 100))
 
-  await supabase
-    .from('users')
-    .update({ points: userPoints + pointsEarned })
-    .eq('id', userId)
+  await awardLoyaltyPoints(userId, pointsEarned, 'spin', saleId)
 
   // ── Build updated prize counts ─────────────────────────────────────
   const updatedPrizeCounts = prizes.map((p) => ({

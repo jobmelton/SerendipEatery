@@ -11,6 +11,7 @@ import {
   resolveTransition,
   createBillingEvent,
 } from '../lib/geofence'
+import { awardPoints } from '../lib/loyalty'
 
 const checkinSchema = z.object({
   visitIntentId: z.string().uuid(),
@@ -104,13 +105,10 @@ export async function visitRoutes(app: FastifyInstance) {
 
     if (error) throw new AppError(500, 'CHECKIN_FAILED', 'Failed to confirm visit')
 
-    // 5. Award points and create billing event
+    // 5. Award points via loyalty engine and create billing event
     if (billingEvent) {
       await Promise.all([
-        supabase.rpc('award_points', {
-          p_user_id: userId,
-          p_points: EARN_POINTS.confirmed_visit,
-        }),
+        awardPoints(userId, EARN_POINTS.confirmed_visit, 'confirmed_visit', visitIntentId),
         createBillingEvent(intent.business_id, visitIntentId, newState),
       ])
     }

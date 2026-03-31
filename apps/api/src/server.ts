@@ -7,6 +7,7 @@ import { spinRoutes } from './routes/spin'
 import { visitRoutes } from './routes/visits'
 import { userRoutes } from './routes/users'
 import { businessRoutes } from './routes/businesses'
+import { loyaltyRoutes } from './routes/loyalty'
 
 const app = Fastify({ logger: true })
 
@@ -36,6 +37,7 @@ app.register(async (protectedRoutes) => {
   protectedRoutes.register(visitRoutes)
   protectedRoutes.register(userRoutes)
   protectedRoutes.register(businessRoutes)
+  protectedRoutes.register(loyaltyRoutes)
 })
 
 // ─── Start ────────────────────────────────────────────────────────────────
