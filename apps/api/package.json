@@ -15,7 +15,6 @@
     "@clerk/backend": "^1.20.0",
     "@fastify/cors": "^10.0.0",
     "@fastify/rate-limit": "^10.2.0",
-    "@serendipeatery/shared": "*",
     "@supabase/supabase-js": "^2.101.1",
     "fastify": "^5.2.0",
     "zod": "^3.23.0"

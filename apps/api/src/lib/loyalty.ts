@@ -6,7 +6,7 @@ import {
   type ConsumerTier,
   type BusinessTier,
   type EarnAction,
-} from '@serendipeatery/shared'
+} from '../shared'
 
 // ─── Business Tier Thresholds ─────────────────────────────────────────────
 

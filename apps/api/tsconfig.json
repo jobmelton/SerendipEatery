@@ -11,10 +11,7 @@
     "declaration": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "forceConsistentCasingInFileNames": true,
-    "paths": {
-      "@serendipeatery/shared": ["../../packages/shared/src"]
-    }
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
