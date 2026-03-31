@@ -106,5 +106,21 @@ export function useApi() {
       const token = await getAuthToken()
       return request<any>('GET', '/users/me/stats', token)
     },
+
+    // ─── Referrals ──────────────────────────────────────────────────
+    async myReferralCodes() {
+      const token = await getAuthToken()
+      return request<{ userCode: string | null; bizCode: string | null; referrals: any[] }>('GET', '/referrals/my-code', token)
+    },
+
+    async redeemReferral(code: string) {
+      const token = await getAuthToken()
+      return request<any>('POST', '/referrals/redeem', token, { code })
+    },
+
+    async referralStats() {
+      const token = await getAuthToken()
+      return request<any>('GET', '/referrals/stats', token)
+    },
   }), [getAuthToken])
 }

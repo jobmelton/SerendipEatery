@@ -8,6 +8,7 @@ import { SaleDetailScreen } from '../screens/SaleDetailScreen'
 import { SpinScreen } from '../screens/SpinScreen'
 import { WinScreen } from '../screens/WinScreen'
 import { ProfileScreen } from '../screens/ProfileScreen'
+import { ReferralScreen } from '../screens/ReferralScreen'
 import { SignInScreen } from '../screens/auth/SignInScreen'
 import { SignUpScreen } from '../screens/auth/SignUpScreen'
 
@@ -40,6 +41,7 @@ export type MainStackParamList = {
       visitIntentId: string
     }
   }
+  Referral: undefined
 }
 
 export type AuthStackParamList = {
@@ -125,6 +127,7 @@ function MainNavigator() {
         component={WinScreen}
         options={{ gestureEnabled: false }}
       />
+      <MainStack.Screen name="Referral" component={ReferralScreen} />
     </MainStack.Navigator>
   )
 }
