@@ -96,5 +96,16 @@ export function useApi() {
       const token = await getAuthToken()
       return request<{ imageUrl: string }>('GET', `/share/sale/${saleId}`, token)
     },
+
+    // ─── Evidence / Paywall ─────────────────────────────────────────
+    async evidenceProgress() {
+      const token = await getAuthToken()
+      return request<any>('GET', '/evidence/progress', token)
+    },
+
+    async paywallStatus() {
+      const token = await getAuthToken()
+      return request<any>('GET', '/evidence/paywall-status', token)
+    },
   }), [getAuthToken])
 }

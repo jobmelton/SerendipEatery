@@ -10,6 +10,7 @@ import { businessRoutes } from './routes/businesses'
 import { loyaltyRoutes } from './routes/loyalty'
 import { referralRoutes } from './routes/referrals'
 import { shareRoutes } from './routes/share'
+import { evidenceRoutes } from './routes/evidence'
 
 const app = Fastify({ logger: true })
 
@@ -42,6 +43,7 @@ app.register(async (protectedRoutes) => {
   protectedRoutes.register(loyaltyRoutes)
   protectedRoutes.register(referralRoutes)
   protectedRoutes.register(shareRoutes)
+  protectedRoutes.register(evidenceRoutes)
 })
 
 // ─── Start ────────────────────────────────────────────────────────────────
