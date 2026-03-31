@@ -1,0 +1,15 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm-9_x"]
+
+[phases.install]
+cmds = [
+  "cd ../.. && npm install --workspace=apps/api --workspace=packages/shared --include-workspace-root"
+]
+
+[phases.build]
+cmds = [
+  "cd ../.. && npm run build --workspace=packages/shared 2>/dev/null; npx tsc --project apps/api/tsconfig.json"
+]
+
+[start]
+cmd = "node dist/server.js"
