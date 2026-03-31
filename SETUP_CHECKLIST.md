@@ -108,12 +108,17 @@ STRIPE_PRICE_PRO=price_...
 1. Go to [railway.app](https://railway.app) and create an account (connect GitHub)
 2. **API service**:
    - New Project → Deploy from GitHub → select `serendipeatery`
-   - Set root directory to `apps/api`
+   - **IMPORTANT — Root Directory**: Do NOT set a root directory. Leave it blank (repo root).
+     Railway needs access to the monorepo root `package.json` and `packages/shared/`.
+     The `nixpacks.toml` in `apps/api/` and `railway.json` handle building only the API.
+     If Railway auto-detects and sets a root dir, go to **Settings → Source → Root Directory** and clear it.
    - Add all env vars from steps 1-2 above (Supabase + Clerk)
    - Also set: `PORT=4000`, `HOST=0.0.0.0`, `ADMIN_USER_IDS=user_xxx`
    - After deploy, copy the public URL → this is your **API URL**
 3. **Worker service** (same project, new service):
-   - New Service → Deploy from GitHub → set root directory to `apps/worker`
+   - New Service → Deploy from GitHub
+   - **Root Directory**: Leave blank (same reason — monorepo workspace dependency)
+   - The `Dockerfile` at `apps/worker/Dockerfile` handles the build
    - Add a **Redis** plugin (click Add → Database → Redis)
    - Railway auto-sets `REDIS_URL`
    - Add: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
