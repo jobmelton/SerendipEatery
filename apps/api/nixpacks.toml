@@ -2,7 +2,7 @@
 cmds = ["npm install --legacy-peer-deps"]
 
 [phases.build]
-cmds = ["npx tsc --project apps/api/tsconfig.json"]
+cmds = ["npx tsc"]
 
 [start]
-cmd = "node apps/api/dist/server.js"
+cmd = "node dist/server.js"
