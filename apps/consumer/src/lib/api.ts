@@ -122,5 +122,16 @@ export function useApi() {
       const token = await getAuthToken()
       return request<any>('GET', '/referrals/stats', token)
     },
+
+    // ─── Share Cards ────────────────────────────────────────────────
+    async getShareCard(visitIntentId: string) {
+      const token = await getAuthToken()
+      return request<{ imageUrl: string }>('GET', `/share/win/${visitIntentId}`, token)
+    },
+
+    async getProfileCard(userId: string) {
+      const token = await getAuthToken()
+      return request<{ imageUrl: string }>('GET', `/share/profile/${userId}`, token)
+    },
   }), [getAuthToken])
 }

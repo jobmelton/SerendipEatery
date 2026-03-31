@@ -90,5 +90,11 @@ export function useApi() {
       const token = await getAuthToken()
       return request<any>('POST', '/visits/truck-ping', token, { businessId, saleId, lat, lng })
     },
+
+    // ─── Share Cards ────────────────────────────────────────────────
+    async getSaleShareCard(saleId: string) {
+      const token = await getAuthToken()
+      return request<{ imageUrl: string }>('GET', `/share/sale/${saleId}`, token)
+    },
   }), [getAuthToken])
 }

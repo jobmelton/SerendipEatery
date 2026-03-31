@@ -8,6 +8,7 @@ import { CreateSaleScreen } from '../screens/CreateSaleScreen'
 import { SaleDetailScreen } from '../screens/SaleDetailScreen'
 import { AnalyticsScreen } from '../screens/AnalyticsScreen'
 import { SettingsScreen } from '../screens/SettingsScreen'
+import { ShareSaleScreen } from '../screens/ShareSaleScreen'
 import { SignInScreen } from '../screens/auth/SignInScreen'
 import { SignUpScreen } from '../screens/auth/SignUpScreen'
 
@@ -18,6 +19,7 @@ export type MainStackParamList = {
   CreateSale: { businessId: string }
   SaleDetail: { saleId: string }
   Analytics: { businessId: string }
+  ShareSale: { saleId: string; businessName: string }
 }
 
 export type AuthStackParamList = {
@@ -113,6 +115,7 @@ function MainNavigator() {
       <MainStack.Screen name="CreateSale" component={CreateSaleScreen} />
       <MainStack.Screen name="SaleDetail" component={SaleDetailScreen} />
       <MainStack.Screen name="Analytics" component={AnalyticsScreen} />
+      <MainStack.Screen name="ShareSale" component={ShareSaleScreen} />
     </MainStack.Navigator>
   )
 }
