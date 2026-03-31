@@ -12,6 +12,7 @@ import { referralRoutes } from './routes/referrals'
 import { shareRoutes } from './routes/share'
 import { evidenceRoutes } from './routes/evidence'
 import { analyticsRoutes } from './routes/analytics'
+import { adminRoutes } from './routes/admin'
 import { startFixWorkers } from './lib/fixes'
 
 const app = Fastify({ logger: true })
@@ -47,6 +48,7 @@ app.register(async (protectedRoutes) => {
   protectedRoutes.register(shareRoutes)
   protectedRoutes.register(evidenceRoutes)
   protectedRoutes.register(analyticsRoutes)
+  protectedRoutes.register(adminRoutes, { prefix: '/admin' })
 })
 
 // ─── Start ────────────────────────────────────────────────────────────────
