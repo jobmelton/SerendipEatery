@@ -3,7 +3,7 @@ nixPkgs = ["nodejs_20", "npm-9_x"]
 
 [phases.install]
 cmds = [
-  "cd ../.. && npm install --workspace=apps/api --workspace=packages/shared --include-workspace-root"
+  "cd ../.. && npm install --legacy-peer-deps --workspace=apps/api --workspace=packages/shared --include-workspace-root"
 ]
 
 [phases.build]

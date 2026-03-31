@@ -3,7 +3,7 @@
   "build": {
     "builder": "NIXPACKS",
     "watchPatterns": ["apps/api/**", "packages/shared/**"],
-    "buildCommand": "cd ../.. && npm install --workspace=apps/api --workspace=packages/shared --include-workspace-root && npx tsc --project apps/api/tsconfig.json"
+    "buildCommand": "cd ../.. && npm install --legacy-peer-deps --workspace=apps/api --workspace=packages/shared --include-workspace-root && npx tsc --project apps/api/tsconfig.json"
   },
   "deploy": {
     "startCommand": "node dist/server.js",
