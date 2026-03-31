@@ -1,8 +1,17 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
-import { requireAuth, AuthenticatedRequest } from './middleware/auth'
+import { requireAuth } from './middleware/auth'
+import { errorHandler } from './lib/errors'
+import { salesRoutes } from './routes/sales'
+import { spinRoutes } from './routes/spin'
+import { visitRoutes } from './routes/visits'
+import { userRoutes } from './routes/users'
+import { businessRoutes } from './routes/businesses'
 
 const app = Fastify({ logger: true })
+
+// ─── Error handling ───────────────────────────────────────────────────────
+app.setErrorHandler(errorHandler)
 
 await app.register(cors, {
   origin: [
@@ -16,14 +25,17 @@ await app.register(cors, {
 // ─── Health check (public) ────────────────────────────────────────────────
 app.get('/health', async () => ({ ok: true, ts: Date.now() }))
 
+// ─── Public routes ────────────────────────────────────────────────────────
+app.register(salesRoutes)
+
 // ─── Protected routes ─────────────────────────────────────────────────────
 app.register(async (protectedRoutes) => {
   protectedRoutes.addHook('preHandler', requireAuth)
 
-  protectedRoutes.get('/me', async (request) => {
-    const { userId } = request as AuthenticatedRequest
-    return { ok: true, data: { userId } }
-  })
+  protectedRoutes.register(spinRoutes)
+  protectedRoutes.register(visitRoutes)
+  protectedRoutes.register(userRoutes)
+  protectedRoutes.register(businessRoutes)
 })
 
 // ─── Start ────────────────────────────────────────────────────────────────
@@ -32,7 +44,7 @@ const host = process.env.HOST || '0.0.0.0'
 
 try {
   await app.listen({ port, host })
-  console.log(`🚀 API listening on ${host}:${port}`)
+  console.log(`API listening on ${host}:${port}`)
 } catch (err) {
   app.log.error(err)
   process.exit(1)
