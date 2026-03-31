@@ -5,7 +5,7 @@ import {
   EARN_POINTS,
   type ConsumerTier,
   type SpinResult,
-} from '../shared'
+} from '../types/shared'
 import { calculateTierBoost, awardPoints as awardLoyaltyPoints } from './loyalty'
 
 // ─── Types ────────────────────────────────────────────────────────────────

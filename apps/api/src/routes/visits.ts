@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { validate } from '../lib/validate'
 import { AppError } from '../lib/errors'
 import { AuthenticatedRequest } from '../middleware/auth'
-import { EARN_POINTS } from '../shared'
+import { EARN_POINTS } from '../types/shared'
 import {
   verifyInsideFence,
   processTruckPing,

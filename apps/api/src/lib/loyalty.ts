@@ -6,7 +6,7 @@ import {
   type ConsumerTier,
   type BusinessTier,
   type EarnAction,
-} from '../shared'
+} from '../types/shared'
 
 // ─── Business Tier Thresholds ─────────────────────────────────────────────
 

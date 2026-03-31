@@ -2,7 +2,7 @@ import { randomInt } from 'crypto'
 import { supabase } from './supabase'
 import { AppError } from './errors'
 import { awardPoints, awardBusinessPoints } from './loyalty'
-import type { ReferralType } from '../shared'
+import type { ReferralType } from '../types/shared'
 
 // ─── Code Generation ──────────────────────────────────────────────────────
 
