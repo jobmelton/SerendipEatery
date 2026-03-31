@@ -2,6 +2,8 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { requireAuth } from './middleware/auth'
 import { errorHandler } from './lib/errors'
+import { registerRateLimits } from './lib/rateLimit'
+import { registerSecurityHeaders, getCorsOrigins } from './middleware/security'
 import { salesRoutes } from './routes/sales'
 import { spinRoutes } from './routes/spin'
 import { visitRoutes } from './routes/visits'
@@ -20,12 +22,15 @@ const app = Fastify({ logger: true })
 // ─── Error handling ───────────────────────────────────────────────────────
 app.setErrorHandler(errorHandler)
 
+// ─── Security headers ────────────────────────────────────────────────────
+await registerSecurityHeaders(app)
+
+// ─── Rate limiting ───────────────────────────────────────────────────────
+await registerRateLimits(app)
+
+// ─── CORS (locked to production domains in production) ───────────────────
 await app.register(cors, {
-  origin: [
-    process.env.CLERK_WEB_URL || 'http://localhost:3000',
-    process.env.CLERK_CONSUMER_URL || 'exp://localhost:8081',
-    process.env.CLERK_BUSINESS_URL || 'exp://localhost:8082',
-  ],
+  origin: getCorsOrigins(),
   credentials: true,
 })
 
