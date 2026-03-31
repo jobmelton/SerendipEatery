@@ -11,6 +11,8 @@ import { loyaltyRoutes } from './routes/loyalty'
 import { referralRoutes } from './routes/referrals'
 import { shareRoutes } from './routes/share'
 import { evidenceRoutes } from './routes/evidence'
+import { analyticsRoutes } from './routes/analytics'
+import { startFixWorkers } from './lib/fixes'
 
 const app = Fastify({ logger: true })
 
@@ -44,6 +46,7 @@ app.register(async (protectedRoutes) => {
   protectedRoutes.register(referralRoutes)
   protectedRoutes.register(shareRoutes)
   protectedRoutes.register(evidenceRoutes)
+  protectedRoutes.register(analyticsRoutes)
 })
 
 // ─── Start ────────────────────────────────────────────────────────────────
@@ -53,6 +56,7 @@ const host = process.env.HOST || '0.0.0.0'
 try {
   await app.listen({ port, host })
   console.log(`API listening on ${host}:${port}`)
+  startFixWorkers()
 } catch (err) {
   app.log.error(err)
   process.exit(1)
