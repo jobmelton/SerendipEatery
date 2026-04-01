@@ -1,12 +1,12 @@
 import { randomUUID, randomInt } from 'crypto'
-import { supabase } from './supabase'
-import { AppError } from './errors'
+import { supabase } from './supabase.js'
+import { AppError } from './errors.js'
 import {
   EARN_POINTS,
   type ConsumerTier,
   type SpinResult,
-} from '../types/shared'
-import { calculateTierBoost, awardPoints as awardLoyaltyPoints } from './loyalty'
+} from '../types/shared.js'
+import { calculateTierBoost, awardPoints as awardLoyaltyPoints } from './loyalty.js'
 
 // ─── Types ────────────────────────────────────────────────────────────────
 

@@ -1,12 +1,12 @@
-import { supabase } from './supabase'
-import { AppError } from './errors'
+import { supabase } from './supabase.js'
+import { AppError } from './errors.js'
 import {
   CONSUMER_TIER_THRESHOLDS,
   TIER_BOOST_PCT,
   type ConsumerTier,
   type BusinessTier,
   type EarnAction,
-} from '../types/shared'
+} from '../types/shared.js'
 
 // ─── Business Tier Thresholds ─────────────────────────────────────────────
 

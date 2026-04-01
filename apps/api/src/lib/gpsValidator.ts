@@ -1,5 +1,5 @@
-import { supabase } from './supabase'
-import { AppError } from './errors'
+import { supabase } from './supabase.js'
+import { AppError } from './errors.js'
 
 const MAX_SPEED_KMH = 500 // flag if user moves faster than this between pings
 const EARTH_RADIUS_KM = 6371

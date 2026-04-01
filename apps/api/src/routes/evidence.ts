@@ -1,9 +1,9 @@
 import { FastifyInstance } from 'fastify'
-import { supabase } from '../lib/supabase'
-import { AppError } from '../lib/errors'
-import { AuthenticatedRequest } from '../middleware/auth'
-import { getEvidenceProgress, checkEvidenceThresholds } from '../lib/evidence'
-import { checkPaywallStatus } from '../lib/paywall'
+import { supabase } from '../lib/supabase.js'
+import { AppError } from '../lib/errors.js'
+import { AuthenticatedRequest } from '../middleware/auth.js'
+import { getEvidenceProgress, checkEvidenceThresholds } from '../lib/evidence.js'
+import { checkPaywallStatus } from '../lib/paywall.js'
 
 export async function evidenceRoutes(app: FastifyInstance) {
   // GET /evidence/progress — business's evidence progress

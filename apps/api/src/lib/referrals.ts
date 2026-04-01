@@ -1,8 +1,8 @@
 import { randomInt } from 'crypto'
-import { supabase } from './supabase'
-import { AppError } from './errors'
-import { awardPoints, awardBusinessPoints } from './loyalty'
-import type { ReferralType } from '../types/shared'
+import { supabase } from './supabase.js'
+import { AppError } from './errors.js'
+import { awardPoints, awardBusinessPoints } from './loyalty.js'
+import type { ReferralType } from '../types/shared.js'
 
 // ─── Code Generation ──────────────────────────────────────────────────────
 

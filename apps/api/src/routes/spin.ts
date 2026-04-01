@@ -1,8 +1,8 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { validate } from '../lib/validate'
-import { AuthenticatedRequest } from '../middleware/auth'
-import { executeSpin } from '../lib/spin'
+import { validate } from '../lib/validate.js'
+import { AuthenticatedRequest } from '../middleware/auth.js'
+import { executeSpin } from '../lib/spin.js'
 
 const spinSchema = z.object({
   saleId: z.string().uuid(),

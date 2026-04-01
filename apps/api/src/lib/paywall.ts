@@ -1,5 +1,5 @@
-import { supabase } from './supabase'
-import { getEvidenceProgress } from './evidence'
+import { supabase } from './supabase.js'
+import { getEvidenceProgress } from './evidence.js'
 
 // ─── Paywall States ───────────────────────────────────────────────────────
 

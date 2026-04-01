@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
-import { AuthenticatedRequest } from './auth'
+import { AuthenticatedRequest } from './auth.js'
 
 const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS ?? '')
   .split(',')

@@ -1,10 +1,10 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { supabase } from '../lib/supabase'
-import { validate } from '../lib/validate'
-import { AppError } from '../lib/errors'
-import { requireAdmin } from '../middleware/adminAuth'
-import { getPlatformStats } from '../lib/analytics'
+import { supabase } from '../lib/supabase.js'
+import { validate } from '../lib/validate.js'
+import { AppError } from '../lib/errors.js'
+import { requireAdmin } from '../middleware/adminAuth.js'
+import { getPlatformStats } from '../lib/analytics.js'
 
 const overrideSchema = z.object({
   plan: z.enum(['trial', 'starter', 'growth', 'pro']).optional(),

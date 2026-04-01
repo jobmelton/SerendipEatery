@@ -10,19 +10,19 @@ process.on('unhandledRejection', (reason) => {
 
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
-import { requireAuth } from './middleware/auth'
-import { errorHandler } from './lib/errors'
-import { salesRoutes } from './routes/sales'
-import { spinRoutes } from './routes/spin'
-import { visitRoutes } from './routes/visits'
-import { userRoutes } from './routes/users'
-import { businessRoutes } from './routes/businesses'
-import { loyaltyRoutes } from './routes/loyalty'
-import { referralRoutes } from './routes/referrals'
-import { shareRoutes } from './routes/share'
-import { evidenceRoutes } from './routes/evidence'
-import { analyticsRoutes } from './routes/analytics'
-import { adminRoutes } from './routes/admin'
+import { requireAuth } from './middleware/auth.js'
+import { errorHandler } from './lib/errors.js'
+import { salesRoutes } from './routes/sales.js'
+import { spinRoutes } from './routes/spin.js'
+import { visitRoutes } from './routes/visits.js'
+import { userRoutes } from './routes/users.js'
+import { businessRoutes } from './routes/businesses.js'
+import { loyaltyRoutes } from './routes/loyalty.js'
+import { referralRoutes } from './routes/referrals.js'
+import { shareRoutes } from './routes/share.js'
+import { evidenceRoutes } from './routes/evidence.js'
+import { analyticsRoutes } from './routes/analytics.js'
+import { adminRoutes } from './routes/admin.js'
 
 const app = Fastify({ logger: true })
 
@@ -48,7 +48,7 @@ try {
 
 // ─── Rate limiting ───────────────────────────────────────────────────────
 try {
-  const { registerRateLimits } = await import('./lib/rateLimit')
+  const { registerRateLimits } = await import('./lib/rateLimit.js')
   await registerRateLimits(app)
 } catch (err) {
   console.error('Rate limiting failed:', err)
@@ -85,7 +85,7 @@ try {
 
 // ─── Fix workers (non-fatal, after server is listening) ──────────────────
 try {
-  const { startFixWorkers } = await import('./lib/fixes')
+  const { startFixWorkers } = await import('./lib/fixes.js')
   startFixWorkers()
 } catch (err) {
   console.error('Fix workers failed:', err)

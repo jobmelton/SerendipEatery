@@ -1,10 +1,10 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { supabase } from '../lib/supabase'
-import { validate } from '../lib/validate'
-import { AppError } from '../lib/errors'
-import { AuthenticatedRequest } from '../middleware/auth'
-import { getTierProgress, crossConvert } from '../lib/loyalty'
+import { supabase } from '../lib/supabase.js'
+import { validate } from '../lib/validate.js'
+import { AppError } from '../lib/errors.js'
+import { AuthenticatedRequest } from '../middleware/auth.js'
+import { getTierProgress, crossConvert } from '../lib/loyalty.js'
 
 const convertSchema = z.object({
   businessId: z.string().uuid(),

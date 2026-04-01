@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase } from './supabase.js'
 
 // ─── Fix Stuck Visits ─────────────────────────────────────────────────────
 // Finds visit_intents stuck in spun_away past their 60min window, marks expired

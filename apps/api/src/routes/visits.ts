@@ -1,17 +1,17 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { supabase } from '../lib/supabase'
-import { validate } from '../lib/validate'
-import { AppError } from '../lib/errors'
-import { AuthenticatedRequest } from '../middleware/auth'
-import { EARN_POINTS } from '../types/shared'
+import { supabase } from '../lib/supabase.js'
+import { validate } from '../lib/validate.js'
+import { AppError } from '../lib/errors.js'
+import { AuthenticatedRequest } from '../middleware/auth.js'
+import { EARN_POINTS } from '../types/shared.js'
 import {
   verifyInsideFence,
   processTruckPing,
   resolveTransition,
   createBillingEvent,
-} from '../lib/geofence'
-import { awardPoints } from '../lib/loyalty'
+} from '../lib/geofence.js'
+import { awardPoints } from '../lib/loyalty.js'
 
 const checkinSchema = z.object({
   visitIntentId: z.string().uuid(),

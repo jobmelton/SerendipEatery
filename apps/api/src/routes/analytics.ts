@@ -1,13 +1,13 @@
 import { FastifyInstance } from 'fastify'
-import { supabase } from '../lib/supabase'
-import { AppError } from '../lib/errors'
-import { AuthenticatedRequest } from '../middleware/auth'
+import { supabase } from '../lib/supabase.js'
+import { AppError } from '../lib/errors.js'
+import { AuthenticatedRequest } from '../middleware/auth.js'
 import {
   getBusinessAnalytics,
   getConsumerAnalytics,
   getSaleAnalytics,
   getPlatformStats,
-} from '../lib/analytics'
+} from '../lib/analytics.js'
 
 export async function analyticsRoutes(app: FastifyInstance) {
   // GET /analytics/business — business dashboard analytics

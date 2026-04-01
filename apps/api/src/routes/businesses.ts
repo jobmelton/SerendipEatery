@@ -1,9 +1,9 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { supabase } from '../lib/supabase'
-import { validate } from '../lib/validate'
-import { AppError } from '../lib/errors'
-import { AuthenticatedRequest } from '../middleware/auth'
+import { supabase } from '../lib/supabase.js'
+import { validate } from '../lib/validate.js'
+import { AppError } from '../lib/errors.js'
+import { AuthenticatedRequest } from '../middleware/auth.js'
 
 const createBusinessSchema = z.object({
   name: z.string().min(1).max(200),

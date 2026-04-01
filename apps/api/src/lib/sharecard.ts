@@ -1,5 +1,5 @@
-import { supabase } from './supabase'
-import { AppError } from './errors'
+import { supabase } from './supabase.js'
+import { AppError } from './errors.js'
 
 // ─── Brand Constants ──────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
-import { AppError } from '../lib/errors'
-import { AuthenticatedRequest } from '../middleware/auth'
-import { getWinCardData, getSaleCardData, getProfileCardData } from '../lib/sharecard'
+import { AppError } from '../lib/errors.js'
+import { AuthenticatedRequest } from '../middleware/auth.js'
+import { getWinCardData, getSaleCardData, getProfileCardData } from '../lib/sharecard.js'
 
 export async function shareRoutes(app: FastifyInstance) {
   // GET /share/win/:visitIntentId — win share card data

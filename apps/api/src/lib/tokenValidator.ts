@@ -1,5 +1,5 @@
-import { supabase } from './supabase'
-import { AppError } from './errors'
+import { supabase } from './supabase.js'
+import { AppError } from './errors.js'
 
 const EXPO_TOKEN_RE = /^ExponentPushToken\[[a-zA-Z0-9_-]+\]$/
 
