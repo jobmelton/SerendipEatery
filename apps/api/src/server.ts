@@ -57,8 +57,8 @@ app.register(async (protectedRoutes) => {
 })
 
 // ─── Start ────────────────────────────────────────────────────────────────
-const port = Number(process.env.PORT) || 4000
-const host = process.env.HOST || '0.0.0.0'
+const port = Number(process.env.PORT ?? 3001)
+const host = '0.0.0.0'
 
 try {
   await app.listen({ port, host })
