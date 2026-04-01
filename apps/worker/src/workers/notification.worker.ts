@@ -1,9 +1,9 @@
 import { Worker, Job } from 'bullmq'
-import { redis } from '../lib/redis'
-import { supabase } from '../lib/supabase'
-import { sendPush } from '../lib/push'
-import { checkRules, recordSent } from '../lib/rules'
-import type { NotificationJobData } from '../queues/notification.queue'
+import { redis } from '../lib/redis.js'
+import { supabase } from '../lib/supabase.js'
+import { sendPush } from '../lib/push.js'
+import { checkRules, recordSent } from '../lib/rules.js'
+import type { NotificationJobData } from '../queues/notification.queue.js'
 
 // ─── Message Templates ────────────────────────────────────────────────────
 

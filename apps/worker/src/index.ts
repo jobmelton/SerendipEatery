@@ -1,4 +1,4 @@
-import { createNotificationWorker } from './workers/notification.worker'
+import { createNotificationWorker } from './workers/notification.worker.js'
 
 console.log('Starting SerendipEatery notification worker...')
 

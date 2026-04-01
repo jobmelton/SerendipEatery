@@ -1,6 +1,6 @@
 import { Queue } from 'bullmq'
-import { redis } from '../lib/redis'
-import type { NotifType } from '../types/shared'
+import { redis } from '../lib/redis.js'
+import type { NotifType } from '../types/shared.js'
 
 // ─── Job Data Shape ───────────────────────────────────────────────────────
 
