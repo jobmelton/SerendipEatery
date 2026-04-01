@@ -5,15 +5,15 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+  console.error('WARNING: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY — database calls will fail');
 }
 
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
+export const supabase: SupabaseClient = createClient(supabaseUrl ?? '', supabaseServiceKey ?? '', {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
 export function supabaseForUser(clerkId: string): SupabaseClient {
-  return createClient(supabaseUrl!, supabaseServiceKey!, {
+  return createClient(supabaseUrl ?? '', supabaseServiceKey ?? '', {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { 'x-clerk-user-id': clerkId } },
   });
