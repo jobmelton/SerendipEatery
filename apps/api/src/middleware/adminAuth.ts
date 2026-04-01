@@ -10,7 +10,7 @@ export async function requireAdmin(
   request: FastifyRequest,
   reply: FastifyReply,
 ) {
-  const { userId } = request as AuthenticatedRequest
+  const { userId } = (request as AuthenticatedRequest).auth
 
   if (!userId || !ADMIN_USER_IDS.includes(userId)) {
     return reply.code(403).send({

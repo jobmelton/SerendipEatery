@@ -15,7 +15,7 @@ export async function spinRoutes(app: FastifyInstance) {
   app.post('/spin', {
     preHandler: validate(spinSchema),
   }, async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const { saleId, spinLat, spinLng } = request.body as z.infer<typeof spinSchema>
 
     const { result, animationSeed, updatedPrizeCounts } = await executeSpin({

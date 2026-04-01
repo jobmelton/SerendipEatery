@@ -13,7 +13,7 @@ const redeemSchema = z.object({
 export async function referralRoutes(app: FastifyInstance) {
   // GET /referrals/my-code — get user's referral codes
   app.get('/referrals/my-code', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
 
     // Fetch user's existing referral codes
     const { data: existing } = await supabase
@@ -86,7 +86,7 @@ export async function referralRoutes(app: FastifyInstance) {
   app.post('/referrals/redeem', {
     preHandler: validate(redeemSchema),
   }, async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const { code } = request.body as z.infer<typeof redeemSchema>
 
     const result = await redeemReferral(code, userId)
@@ -107,7 +107,7 @@ export async function referralRoutes(app: FastifyInstance) {
 
   // GET /referrals/stats — referral performance stats
   app.get('/referrals/stats', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const stats = await getReferralStats(userId)
     return { ok: true, data: stats }
   })

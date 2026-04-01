@@ -14,7 +14,7 @@ const convertSchema = z.object({
 export async function loyaltyRoutes(app: FastifyInstance) {
   // GET /loyalty/me — points balance, tier, progress, boost
   app.get('/loyalty/me', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
 
     const { data: user, error } = await supabase
       .from('users')
@@ -87,7 +87,7 @@ export async function loyaltyRoutes(app: FastifyInstance) {
   app.post('/loyalty/convert', {
     preHandler: validate(convertSchema),
   }, async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const { businessId, amount } = request.body as z.infer<typeof convertSchema>
 
     const result = await crossConvert(userId, businessId, amount)

@@ -25,7 +25,7 @@ const updateBusinessSchema = z.object({
 export async function businessRoutes(app: FastifyInstance) {
   // GET /businesses/mine — get businesses owned by current user
   app.get('/businesses/mine', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
 
     const { data, error } = await supabase
       .from('businesses')
@@ -55,7 +55,7 @@ export async function businessRoutes(app: FastifyInstance) {
   app.post('/businesses', {
     preHandler: validate(createBusinessSchema),
   }, async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const body = request.body as z.infer<typeof createBusinessSchema>
 
     const referralCode = `BIZ-${userId.slice(0, 4).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
@@ -94,7 +94,7 @@ export async function businessRoutes(app: FastifyInstance) {
   app.patch('/businesses/:id', {
     preHandler: validate(updateBusinessSchema),
   }, async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const { id } = request.params as { id: string }
     const body = request.body as z.infer<typeof updateBusinessSchema>
 

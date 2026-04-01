@@ -8,7 +8,7 @@ import { checkPaywallStatus } from '../lib/paywall'
 export async function evidenceRoutes(app: FastifyInstance) {
   // GET /evidence/progress — business's evidence progress
   app.get('/evidence/progress', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
 
     const { data: biz } = await supabase
       .from('businesses')
@@ -27,7 +27,7 @@ export async function evidenceRoutes(app: FastifyInstance) {
 
   // GET /evidence/paywall-status — current paywall state
   app.get('/evidence/paywall-status', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
 
     const { data: biz } = await supabase
       .from('businesses')

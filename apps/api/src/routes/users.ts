@@ -6,7 +6,7 @@ import { AuthenticatedRequest } from '../middleware/auth'
 export async function userRoutes(app: FastifyInstance) {
   // GET /users/me — get current user's profile
   app.get('/users/me', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
 
     const { data, error } = await supabase
       .from('users')
@@ -20,7 +20,7 @@ export async function userRoutes(app: FastifyInstance) {
 
   // GET /users/me/stats — get user's loyalty stats
   app.get('/users/me/stats', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
 
     const { data: user } = await supabase
       .from('users')
@@ -54,7 +54,7 @@ export async function userRoutes(app: FastifyInstance) {
 
   // PATCH /users/me — update display name or avatar
   app.patch('/users/me', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const { displayName, avatarUrl } = request.body as {
       displayName?: string
       avatarUrl?: string

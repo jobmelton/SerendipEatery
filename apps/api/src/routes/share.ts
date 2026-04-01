@@ -6,7 +6,7 @@ import { generateWinCard, generateSaleCard, generateProfileCard } from '../lib/s
 export async function shareRoutes(app: FastifyInstance) {
   // GET /share/win/:visitIntentId — generate win share card
   app.get('/share/win/:visitIntentId', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const { visitIntentId } = request.params as { visitIntentId: string }
 
     const url = await generateWinCard(userId, '', visitIntentId)
@@ -23,7 +23,7 @@ export async function shareRoutes(app: FastifyInstance) {
 
   // GET /share/profile/:userId — generate user stats card
   app.get('/share/profile/:userId', async (request) => {
-    const { userId: requesterId } = request as AuthenticatedRequest
+    const { userId: requesterId } = (request as AuthenticatedRequest).auth
     const { userId } = request.params as { userId: string }
 
     // Users can only generate their own profile card

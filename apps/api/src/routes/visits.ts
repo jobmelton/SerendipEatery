@@ -44,7 +44,7 @@ export async function visitRoutes(app: FastifyInstance) {
   app.post('/visits/checkin', {
     preHandler: validate(checkinSchema),
   }, async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const { visitIntentId, lat, lng } = request.body as z.infer<typeof checkinSchema>
 
     // 1. Fetch the visit intent
@@ -120,7 +120,7 @@ export async function visitRoutes(app: FastifyInstance) {
   app.post('/visits/truck-ping', {
     preHandler: validate(truckPingSchema),
   }, async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const { businessId, saleId, lat, lng } = request.body as z.infer<typeof truckPingSchema>
 
     // Verify ownership
@@ -154,7 +154,7 @@ export async function visitRoutes(app: FastifyInstance) {
   app.post('/visits/influenced', {
     preHandler: validate(influencedSchema),
   }, async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const { saleId, lat, lng } = request.body as z.infer<typeof influencedSchema>
 
     // Verify the sale exists and has ended
@@ -232,7 +232,7 @@ export async function visitRoutes(app: FastifyInstance) {
   app.post('/visits/passive', {
     preHandler: validate(passiveSchema),
   }, async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const { saleId, notificationId, lat, lng } = request.body as z.infer<typeof passiveSchema>
 
     // Fetch the notification to get its timestamp
@@ -316,7 +316,7 @@ export async function visitRoutes(app: FastifyInstance) {
 
   // ─── GET /visits/mine — user's visit history ──────────────────────────
   app.get('/visits/mine', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
 
     const { data, error } = await supabase
       .from('visit_intents')

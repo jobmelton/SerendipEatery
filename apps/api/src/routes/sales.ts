@@ -52,7 +52,7 @@ export async function salesRoutes(app: FastifyInstance) {
   app.post('/sales', {
     preHandler: validate(createSaleSchema),
   }, async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const body = request.body as z.infer<typeof createSaleSchema>
 
     // Verify the user owns this business
@@ -108,7 +108,7 @@ export async function salesRoutes(app: FastifyInstance) {
 
   // PATCH /sales/:id/status — update sale status
   app.patch('/sales/:id/status', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const { id } = request.params as { id: string }
     const { status } = request.body as { status: string }
 

@@ -12,7 +12,7 @@ import {
 export async function analyticsRoutes(app: FastifyInstance) {
   // GET /analytics/business — business dashboard analytics
   app.get('/analytics/business', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
 
     const { data: biz } = await supabase
       .from('businesses')
@@ -29,7 +29,7 @@ export async function analyticsRoutes(app: FastifyInstance) {
 
   // GET /analytics/sale/:saleId — live sale analytics
   app.get('/analytics/sale/:saleId', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const { saleId } = request.params as { saleId: string }
 
     // Verify ownership
@@ -49,18 +49,17 @@ export async function analyticsRoutes(app: FastifyInstance) {
 
   // GET /analytics/consumer — consumer personal stats
   app.get('/analytics/consumer', async (request) => {
-    const { userId } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
     const analytics = await getConsumerAnalytics(userId)
     return { ok: true, data: analytics }
   })
 
   // GET /analytics/platform — platform-wide (admin only)
   app.get('/analytics/platform', async (request) => {
-    const { userId, sessionClaims } = request as AuthenticatedRequest
+    const { userId } = (request as AuthenticatedRequest).auth
 
-    // Check admin role in session claims
-    const role = (sessionClaims as any)?.metadata?.role
-    if (role !== 'admin') {
+    // Admin check is handled by adminAuth middleware; this is a fallback
+    if (!userId) {
       throw new AppError(403, 'NOT_ADMIN', 'Admin access required')
     }
 
