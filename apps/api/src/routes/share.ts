@@ -1,37 +1,36 @@
 import { FastifyInstance } from 'fastify'
 import { AppError } from '../lib/errors'
 import { AuthenticatedRequest } from '../middleware/auth'
-import { generateWinCard, generateSaleCard, generateProfileCard } from '../lib/sharecard'
+import { getWinCardData, getSaleCardData, getProfileCardData } from '../lib/sharecard'
 
 export async function shareRoutes(app: FastifyInstance) {
-  // GET /share/win/:visitIntentId — generate win share card
+  // GET /share/win/:visitIntentId — win share card data
   app.get('/share/win/:visitIntentId', async (request) => {
     const { userId } = (request as AuthenticatedRequest).auth
     const { visitIntentId } = request.params as { visitIntentId: string }
 
-    const url = await generateWinCard(userId, '', visitIntentId)
-    return { ok: true, data: { imageUrl: url } }
+    const card = await getWinCardData(userId, visitIntentId)
+    return { ok: true, data: card }
   })
 
-  // GET /share/sale/:saleId — generate sale promo card
+  // GET /share/sale/:saleId — sale promo card data
   app.get('/share/sale/:saleId', async (request) => {
     const { saleId } = request.params as { saleId: string }
 
-    const url = await generateSaleCard(saleId)
-    return { ok: true, data: { imageUrl: url } }
+    const card = await getSaleCardData(saleId)
+    return { ok: true, data: card }
   })
 
-  // GET /share/profile/:userId — generate user stats card
+  // GET /share/profile/:userId — user stats card data
   app.get('/share/profile/:userId', async (request) => {
     const { userId: requesterId } = (request as AuthenticatedRequest).auth
     const { userId } = request.params as { userId: string }
 
-    // Users can only generate their own profile card
     if (requesterId !== userId) {
       throw new AppError(403, 'FORBIDDEN', 'You can only generate your own profile card')
     }
 
-    const url = await generateProfileCard(userId)
-    return { ok: true, data: { imageUrl: url } }
+    const card = await getProfileCardData(userId)
+    return { ok: true, data: card }
   })
 }
