@@ -2,7 +2,7 @@
   "name": "consumer",
   "version": "0.0.1",
   "private": true,
-  "main": "expo-router/entry",
+  "main": "App.tsx",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
