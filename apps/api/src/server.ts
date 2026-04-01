@@ -1,72 +1,92 @@
 import Fastify from 'fastify'
-import cors from '@fastify/cors'
-import { requireAuth } from './middleware/auth'
-import { errorHandler } from './lib/errors'
-import { registerRateLimits } from './lib/rateLimit'
-import { registerSecurityHeaders, getCorsOrigins } from './middleware/security'
-import { salesRoutes } from './routes/sales'
-import { spinRoutes } from './routes/spin'
-import { visitRoutes } from './routes/visits'
-import { userRoutes } from './routes/users'
-import { businessRoutes } from './routes/businesses'
-import { loyaltyRoutes } from './routes/loyalty'
-import { referralRoutes } from './routes/referrals'
-import { shareRoutes } from './routes/share'
-import { evidenceRoutes } from './routes/evidence'
-import { analyticsRoutes } from './routes/analytics'
-import { adminRoutes } from './routes/admin'
-import { startFixWorkers } from './lib/fixes'
 
 const app = Fastify({ logger: true })
 
-// ─── Error handling ───────────────────────────────────────────────────────
-app.setErrorHandler(errorHandler)
+// ─── Health check FIRST — before any plugins that might fail ─────────────
+app.get('/health', async () => ({ status: 'ok' }))
 
-// ─── Security headers ────────────────────────────────────────────────────
-await registerSecurityHeaders(app)
+async function start() {
+  try {
+    // ─── Error handling ──────────────────────────────────────────────
+    const { errorHandler } = await import('./lib/errors.js')
+    app.setErrorHandler(errorHandler)
 
-// ─── Rate limiting ───────────────────────────────────────────────────────
-await registerRateLimits(app)
+    // ─── Security headers ────────────────────────────────────────────
+    try {
+      const { registerSecurityHeaders, getCorsOrigins } = await import('./middleware/security.js')
+      await registerSecurityHeaders(app)
 
-// ─── CORS (locked to production domains in production) ───────────────────
-await app.register(cors, {
-  origin: getCorsOrigins(),
-  credentials: true,
-})
+      const cors = (await import('@fastify/cors')).default
+      await app.register(cors, {
+        origin: getCorsOrigins(),
+        credentials: true,
+      })
+    } catch (err) {
+      console.error('CORS/Security setup failed (non-fatal):', err)
+    }
 
-// ─── Health check (public) ────────────────────────────────────────────────
-app.get('/health', async () => ({ ok: true, ts: Date.now() }))
+    // ─── Rate limiting ───────────────────────────────────────────────
+    try {
+      const { registerRateLimits } = await import('./lib/rateLimit.js')
+      await registerRateLimits(app)
+    } catch (err) {
+      console.error('Rate limiting setup failed (non-fatal):', err)
+    }
 
-// ─── Public routes ────────────────────────────────────────────────────────
-app.register(salesRoutes)
+    // ─── Routes ──────────────────────────────────────────────────────
+    const { requireAuth } = await import('./middleware/auth.js')
+    const { salesRoutes } = await import('./routes/sales.js')
+    const { spinRoutes } = await import('./routes/spin.js')
+    const { visitRoutes } = await import('./routes/visits.js')
+    const { userRoutes } = await import('./routes/users.js')
+    const { businessRoutes } = await import('./routes/businesses.js')
+    const { loyaltyRoutes } = await import('./routes/loyalty.js')
+    const { referralRoutes } = await import('./routes/referrals.js')
+    const { shareRoutes } = await import('./routes/share.js')
+    const { evidenceRoutes } = await import('./routes/evidence.js')
+    const { analyticsRoutes } = await import('./routes/analytics.js')
+    const { adminRoutes } = await import('./routes/admin.js')
 
-// ─── Protected routes ─────────────────────────────────────────────────────
-app.register(async (protectedRoutes) => {
-  protectedRoutes.addHook('preHandler', requireAuth)
+    // Public routes
+    app.register(salesRoutes)
 
-  protectedRoutes.register(spinRoutes)
-  protectedRoutes.register(visitRoutes)
-  protectedRoutes.register(userRoutes)
-  protectedRoutes.register(businessRoutes)
-  protectedRoutes.register(loyaltyRoutes)
-  protectedRoutes.register(referralRoutes)
-  protectedRoutes.register(shareRoutes)
-  protectedRoutes.register(evidenceRoutes)
-  protectedRoutes.register(analyticsRoutes)
-  protectedRoutes.register(adminRoutes, { prefix: '/admin' })
-})
+    // Protected routes
+    app.register(async (protectedRoutes) => {
+      protectedRoutes.addHook('preHandler', requireAuth)
 
-// ─── Start ────────────────────────────────────────────────────────────────
-const port = Number(process.env.PORT ?? 3001)
-const host = '0.0.0.0'
+      protectedRoutes.register(spinRoutes)
+      protectedRoutes.register(visitRoutes)
+      protectedRoutes.register(userRoutes)
+      protectedRoutes.register(businessRoutes)
+      protectedRoutes.register(loyaltyRoutes)
+      protectedRoutes.register(referralRoutes)
+      protectedRoutes.register(shareRoutes)
+      protectedRoutes.register(evidenceRoutes)
+      protectedRoutes.register(analyticsRoutes)
+      protectedRoutes.register(adminRoutes, { prefix: '/admin' })
+    })
 
-try {
-  await app.listen({ port, host })
-  console.log(`API listening on ${host}:${port}`)
-  startFixWorkers()
-} catch (err) {
-  app.log.error(err)
-  process.exit(1)
+    // ─── Fix workers (non-fatal) ─────────────────────────────────────
+    try {
+      const { startFixWorkers } = await import('./lib/fixes.js')
+      startFixWorkers()
+    } catch (err) {
+      console.error('Fix workers failed to start (non-fatal):', err)
+    }
+
+    // ─── Listen ──────────────────────────────────────────────────────
+    const port = Number(process.env.PORT ?? 3001)
+    const host = '0.0.0.0'
+
+    await app.listen({ port, host })
+    console.log(`API listening on ${host}:${port}`)
+  } catch (err) {
+    console.error('FATAL: Server failed to start:', err)
+    app.log.error(err)
+    process.exit(1)
+  }
 }
+
+start()
 
 export default app
