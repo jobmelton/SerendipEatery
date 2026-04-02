@@ -19,6 +19,7 @@ interface Prize {
   type: string
   value: string
   couponType: 'flash' | 'long-term'
+  probability: number // 5-95, increments of 5
 }
 
 export default function BusinessSetupPage() {
@@ -37,8 +38,9 @@ export default function BusinessSetupPage() {
 
   // Step 3
   const [prizes, setPrizes] = useState<Prize[]>([
-    { name: '', type: PRIZE_TYPES[0], value: '', couponType: 'flash' },
+    { name: '', type: PRIZE_TYPES[0], value: '', couponType: 'flash', probability: 15 },
   ])
+  const [confirmNoTryAgain, setConfirmNoTryAgain] = useState(false)
 
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [verifyStatus, setVerifyStatus] = useState<'unverified' | 'pending' | 'verified' | 'rejected'>('unverified')
@@ -46,9 +48,26 @@ export default function BusinessSetupPage() {
   const [verifyError, setVerifyError] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // Probability helpers
+  const assignedTotal = prizes.reduce((s, p) => s + p.probability, 0)
+  const tryAgainPct = Math.max(0, 100 - assignedTotal)
+
   const addPrize = () => {
-    if (prizes.length >= 5) return
-    setPrizes([...prizes, { name: '', type: PRIZE_TYPES[0], value: '', couponType: 'flash' }])
+    if (prizes.length >= 19) return // max 19 + Try Again = 20
+    const remaining = 100 - assignedTotal
+    const newProb = Math.min(Math.max(5, remaining - 5), 95) // leave room for Try Again
+    if (assignedTotal + 5 > 100) return // can't add if no room
+    setPrizes([...prizes, { name: '', type: PRIZE_TYPES[0], value: '', couponType: 'flash', probability: Math.min(newProb, 5) > 0 ? 5 : 5 }])
+  }
+
+  const adjustProbability = (i: number, delta: number) => {
+    const updated = [...prizes]
+    const newVal = updated[i].probability + delta
+    if (newVal < 5 || newVal > 95) return
+    const newTotal = assignedTotal + delta
+    if (newTotal > 100) return // would exceed 100%
+    updated[i] = { ...updated[i], probability: newVal }
+    setPrizes(updated)
   }
 
   const updatePrize = (i: number, field: keyof Prize, val: string) => {
@@ -149,16 +168,14 @@ export default function BusinessSetupPage() {
           </div>
         )}
 
-        {/* ─── Step 3: Prizes ─── */}
+        {/* ─── Step 3: Prizes with Probability ─── */}
         {step === 3 && (
           <div className="space-y-4">
             {prizes.map((prize, i) => (
               <div key={i} className="bg-[#1a1230] rounded-xl p-4 space-y-3" style={{ border: '1px solid rgba(247,148,29,0.1)' }}>
                 <div className="flex items-center justify-between">
                   <span className="text-btc text-sm font-bold">Prize {i + 1}</span>
-                  {prizes.length > 1 && (
-                    <button onClick={() => removePrize(i)} className="text-red-400 text-xs hover:underline">Remove</button>
-                  )}
+                  <button onClick={() => removePrize(i)} className="text-red-400 text-xs hover:underline">Remove</button>
                 </div>
                 <input value={prize.name} onChange={(e) => updatePrize(i, 'name', e.target.value)} placeholder="Free Taco"
                   className="w-full bg-night text-surface border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-btc focus:outline-none" />
@@ -178,16 +195,81 @@ export default function BusinessSetupPage() {
                     </button>
                   ))}
                 </div>
+                {/* Probability control */}
+                <div className="flex items-center gap-3 pt-1">
+                  <span className="text-surface/40 text-xs">Chance:</span>
+                  <button
+                    onClick={() => adjustProbability(i, -5)}
+                    disabled={prize.probability <= 5}
+                    className="w-8 h-8 rounded-lg bg-night border border-white/10 text-surface/50 font-bold text-sm disabled:opacity-20"
+                  >−</button>
+                  <span className="text-btc font-bold text-sm w-12 text-center">{prize.probability}%</span>
+                  <button
+                    onClick={() => adjustProbability(i, 5)}
+                    disabled={prize.probability >= 95 || assignedTotal >= 100}
+                    className="w-8 h-8 rounded-lg bg-night border border-white/10 text-surface/50 font-bold text-sm disabled:opacity-20"
+                  >+</button>
+                </div>
               </div>
             ))}
-            {prizes.length < 5 && (
+
+            {/* Try Again (auto-filled) */}
+            <div className="bg-[#1a1230] rounded-xl p-4" style={{ border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="flex items-center justify-between">
+                <span className="text-surface/40 text-sm font-bold">Try Again</span>
+                <span className="text-surface/30 text-xs">Cannot be removed</span>
+              </div>
+              <p className="text-surface/30 text-xs mt-1">
+                {tryAgainPct > 0 ? `${tryAgainPct}% (auto-filled remainder)` : 'Removed — 0%'}
+              </p>
+            </div>
+
+            {/* Probability total */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-surface/40">Total assigned: {assignedTotal}%</span>
+                <span className="text-surface/30">Try Again: {tryAgainPct}%</span>
+              </div>
+              <div className="h-2.5 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all" style={{
+                  width: `${Math.min(assignedTotal, 100)}%`,
+                  background: assignedTotal > 100 ? '#E53E3E' : '#F7941D',
+                }} />
+              </div>
+              {assignedTotal > 100 && (
+                <p className="text-red-400 text-xs font-bold">Over 100% — reduce prize chances</p>
+              )}
+              {assignedTotal <= 100 && tryAgainPct > 0 && (
+                <div className="flex items-center gap-1 text-teal text-xs">
+                  <span>✅</span>
+                  <span>100% assigned ({tryAgainPct}% Try Again)</span>
+                </div>
+              )}
+              {tryAgainPct === 0 && assignedTotal === 100 && !confirmNoTryAgain && (
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 text-xs">
+                  <p className="text-yellow-400 font-bold mb-2">Try Again removed — are you sure?</p>
+                  <p className="text-surface/40 mb-2">Players always expect a chance to spin again.</p>
+                  <button onClick={() => setConfirmNoTryAgain(true)} className="text-btc font-bold hover:underline">Yes, I'm sure</button>
+                </div>
+              )}
+              {tryAgainPct === 0 && confirmNoTryAgain && (
+                <p className="text-yellow-400 text-xs">⚠️ No Try Again — every spin wins a prize</p>
+              )}
+            </div>
+
+            {assignedTotal < 100 && (
               <button onClick={addPrize} className="w-full border border-btc/30 border-dashed text-btc text-sm font-bold py-3 rounded-xl hover:border-btc transition">
-                + Add Prize
+                + Add Prize ({100 - assignedTotal}% remaining)
               </button>
             )}
+
             <div className="flex gap-3 mt-4">
               <button onClick={() => setStep(2)} className="flex-1 border border-surface/20 text-surface/60 py-3 rounded-xl font-bold">Back</button>
-              <button onClick={() => setStep(4)} className="flex-1 bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition">Preview</button>
+              <button
+                onClick={() => setStep(4)}
+                disabled={assignedTotal > 100 || (tryAgainPct === 0 && !confirmNoTryAgain)}
+                className="flex-1 bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition disabled:opacity-40"
+              >Preview</button>
             </div>
           </div>
         )}
