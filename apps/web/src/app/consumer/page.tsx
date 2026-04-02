@@ -233,96 +233,257 @@ function SpinWheel({
 }
 
 /* ─── Pick a Place Roulette ─── */
+const CUISINE_EMOJI: Record<string, string> = {
+  Mexican: '🌮', Italian: '🍝', American: '🍔', Asian: '🥡', Coffee: '☕',
+  Pizza: '🍕', BBQ: '🔥', Sushi: '🍣', Thai: '🍜', Other: '🍽️',
+}
+
 const DEMO_PLACES = [
-  { name: 'Fuego Tacos', cuisine: 'Mexican', dist: '0.3mi' },
-  { name: 'Coffee Corner', cuisine: 'Coffee', dist: '0.5mi' },
-  { name: 'Pizza Palace', cuisine: 'Pizza', dist: '0.8mi' },
-  { name: 'Sushi Haven', cuisine: 'Sushi', dist: '1.2mi' },
-  { name: 'BBQ Pit', cuisine: 'BBQ', dist: '0.6mi' },
-  { name: 'Thai Orchid', cuisine: 'Thai', dist: '1.5mi' },
-  { name: 'Bella Italia', cuisine: 'Italian', dist: '0.9mi' },
-  { name: 'Burger Barn', cuisine: 'American', dist: '0.4mi' },
+  { name: 'Fuego Tacos', cuisine: 'Mexican', distMi: 0.3 },
+  { name: 'Coffee Corner', cuisine: 'Coffee', distMi: 0.4 },
+  { name: 'Pizza Palace', cuisine: 'Pizza', distMi: 0.8 },
+  { name: 'Sushi Haven', cuisine: 'Sushi', distMi: 1.2 },
+  { name: 'BBQ Pit', cuisine: 'BBQ', distMi: 0.6 },
+  { name: 'Thai Orchid', cuisine: 'Thai', distMi: 1.5 },
+  { name: 'Bella Italia', cuisine: 'Italian', distMi: 0.9 },
+  { name: 'Burger Barn', cuisine: 'American', distMi: 0.4 },
+  { name: 'Taco Truck', cuisine: 'Mexican', distMi: 1.8 },
+  { name: 'Noodle House', cuisine: 'Asian', distMi: 2.1 },
+  { name: 'Espresso Lab', cuisine: 'Coffee', distMi: 3.2 },
+  { name: 'Grill Master', cuisine: 'BBQ', distMi: 4.0 },
 ]
 
+const RADII = [
+  { label: '🚶 Walking', value: 0.5 },
+  { label: '🚗 Short drive', value: 2 },
+  { label: '🛣️ Road trip', value: 5 },
+  { label: '🌍 Surprise me', value: 999 },
+]
+
+const CUISINES = ['All', 'Mexican', 'Italian', 'American', 'Asian', 'Coffee', 'Pizza', 'BBQ', 'Sushi', 'Thai']
+
+const PICK_WHL_SZ = 260
+const PICK_R = 105
+const PICK_CX = 130
+const PICK_ORBIT = (PICK_R + 8) * (PICK_WHL_SZ / (PICK_CX * 2))
+const PICK_SETTLE = (PICK_R * 0.5) * (PICK_WHL_SZ / (PICK_CX * 2))
+
 function PickAPlaceRoulette() {
+  const [radius, setRadius] = useState(2)
   const [cuisine, setCuisine] = useState('All')
-  const [distance, setDistance] = useState('Any')
   const [rot, setRot] = useState(0)
   const [spinning, setSpinning] = useState(false)
   const [winner, setWinner] = useState<typeof DEMO_PLACES[0] | null>(null)
+  const [power, setPower] = useState(0)
+  const [holding, setHolding] = useState(false)
+  const ballRef = useRef<HTMLDivElement>(null)
+  const pwrRef = useRef(0)
+  const pwrInt = useRef<ReturnType<typeof setInterval> | null>(null)
+  const ballAnim = useRef(0)
 
-  const filtered = DEMO_PLACES.filter((p) => cuisine === 'All' || p.cuisine === cuisine)
-  const places = filtered.length > 0 ? filtered : [{ name: 'Try different criteria', cuisine: '', dist: '' }]
-  const count = Math.max(places.length, 4)
+  // Filter places
+  const filtered = DEMO_PLACES.filter((p) =>
+    p.distMi <= radius && (cuisine === 'All' || p.cuisine === cuisine)
+  )
+
+  // Pad to at least 8 segments
+  const padded: typeof DEMO_PLACES = []
+  if (filtered.length === 0) {
+    padded.push({ name: 'No matches', cuisine: 'Other', distMi: 0 })
+  } else {
+    while (padded.length < 8) {
+      for (const p of filtered) {
+        padded.push(p)
+        if (padded.length >= Math.max(8, filtered.length)) break
+      }
+    }
+  }
+  const count = padded.length
   const seg = 360 / count
 
-  const spinWheel = () => {
+  function pol(d: number, r: number) {
+    const rad = ((d - 90) * Math.PI) / 180
+    return { x: PICK_CX + r * Math.cos(rad), y: PICK_CX + r * Math.sin(rad) }
+  }
+
+  function animBall(dur: number) {
+    const el = ballRef.current
+    if (!el) return
+    const start = performance.now()
+    const halfW = PICK_WHL_SZ / 2
+    const startA = Math.random() * 360
+    const totalOrbit = -(1800 + Math.random() * 1080)
+    const offsetInSeg = (Math.random() - 0.5) * 0.6 * seg
+    const finalA = offsetInSeg
+
+    function tick(now: number) {
+      const t = Math.min((now - start) / dur, 1)
+      const orbitT = 1 - Math.pow(1 - t, 3)
+      let angle = startA + totalOrbit * orbitT
+      let r = PICK_ORBIT
+      if (t > 0.6) {
+        const ft = (t - 0.6) / 0.4
+        const e = ft < 0.85 ? ft / 0.85 : 1 + Math.sin((ft - 0.85) / 0.15 * Math.PI) * 0.08
+        r = PICK_ORBIT + (PICK_SETTLE - PICK_ORBIT) * e
+      }
+      if (t > 0.85) {
+        const bt = (t - 0.85) / 0.15
+        const e = bt * bt * (3 - 2 * bt)
+        const norm = ((angle % 360) + 360) % 360
+        let diff = finalA - norm
+        if (diff > 180) diff -= 360
+        if (diff < -180) diff += 360
+        angle = norm + diff * e
+      }
+      const rad = ((angle - 90) * Math.PI) / 180
+      el.style.left = `${halfW + r * Math.cos(rad) - 5}px`
+      el.style.top = `${halfW + r * Math.sin(rad) - 5}px`
+      if (t < 1) ballAnim.current = requestAnimationFrame(tick)
+    }
+    ballAnim.current = requestAnimationFrame(tick)
+  }
+
+  const startHold = () => {
     if (spinning) return
-    setSpinning(true)
-    setWinner(null)
-    const winIdx = Math.floor(Math.random() * places.length)
-    const target = 360 - (winIdx * seg + seg / 2)
-    setRot((prev) => prev + (5 + Math.random() * 3) * 360 + target - (prev % 360))
+    setHolding(true); pwrRef.current = 0; setPower(0)
+    pwrInt.current = setInterval(() => { pwrRef.current = Math.min(pwrRef.current + 100 / 30, 100); setPower(pwrRef.current) }, 100)
+  }
+
+  const releaseHold = () => {
+    if (!holding || spinning) return
+    setHolding(false)
+    if (pwrInt.current) { clearInterval(pwrInt.current); pwrInt.current = null }
+
+    const pwr = Math.max(pwrRef.current, 15) / 100
+    setPower(0); setSpinning(true); setWinner(null)
+
+    const winIdx = Math.floor(Math.random() * filtered.length) % padded.length
+    const segCenter = winIdx * seg + seg / 2
+    const jitter = (Math.random() - 0.5) * 0.6 * seg
+    const target = 360 - segCenter + jitter
+    const fullSpins = Math.ceil(3 + pwr * 5) * 360
+    const curMod = ((rot % 360) + 360) % 360
+    let delta = fullSpins + target - curMod
+    if (delta < fullSpins) delta += 360
+
+    setRot((prev) => prev + delta)
+
+    const dur = 3000 + pwr * 2000
+    animBall(dur)
+
     setTimeout(() => {
       setSpinning(false)
-      if (places[winIdx].dist) setWinner(places[winIdx])
-    }, 4000)
+      const w = padded[winIdx]
+      if (w && w.distMi > 0) setWinner(w)
+    }, dur)
   }
 
   return (
     <div className="mt-10 w-full rounded-2xl p-6" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.1)' }}>
-      <h3 className="text-lg font-bold text-surface mb-1">Can't decide where to eat?</h3>
-      <p className="text-surface/40 text-sm mb-4">Let the wheel decide.</p>
+      <h3 className="text-lg font-bold text-surface mb-4">Can't decide where to eat?</h3>
 
-      <div className="flex flex-wrap gap-2 mb-4">
-        {['All', 'Mexican', 'Italian', 'American', 'Asian', 'Coffee', 'Pizza', 'BBQ', 'Sushi', 'Thai'].map((c) => (
-          <button key={c} onClick={() => setCuisine(c)}
-            className={`px-3 py-1 rounded-full text-xs font-bold transition ${cuisine === c ? 'bg-btc text-night' : 'bg-white/5 text-surface/40 hover:text-surface/60'}`}>
-            {c}
+      {/* Step 1: Radius */}
+      <p className="text-surface/50 text-xs font-bold mb-2 uppercase tracking-wider">How far will you go?</p>
+      <div className="flex flex-wrap gap-2 mb-5">
+        {RADII.map((r) => (
+          <button key={r.value} onClick={() => setRadius(r.value)}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition ${radius === r.value ? 'bg-btc text-night' : 'bg-white/5 text-surface/40 border border-white/10 hover:text-surface/60'}`}>
+            {r.label}
           </button>
         ))}
       </div>
 
-      <div className="flex justify-center mb-4">
-        <div className="relative cursor-pointer" style={{ width: 200, height: 200 }} onClick={spinWheel}>
-          <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-10">
-            <div style={{ width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: '12px solid #FFD700' }} />
+      {/* Step 2: Cuisine */}
+      <p className="text-surface/50 text-xs font-bold mb-2 uppercase tracking-wider">What are you feeling?</p>
+      <div className="flex flex-wrap gap-2 mb-6">
+        {CUISINES.map((c) => (
+          <button key={c} onClick={() => setCuisine(c)}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition ${cuisine === c ? 'bg-btc text-night' : 'bg-white/5 text-surface/40 border border-white/10 hover:text-surface/60'}`}>
+            {c !== 'All' ? `${CUISINE_EMOJI[c] ?? '🍽️'} ` : ''}{c}
+          </button>
+        ))}
+      </div>
+
+      {/* Wheel */}
+      <div className="flex justify-center">
+        <div className="relative cursor-pointer select-none" style={{ width: PICK_WHL_SZ, height: PICK_WHL_SZ }}
+          onMouseDown={startHold} onMouseUp={releaseHold}
+          onMouseLeave={() => { if (holding) releaseHold() }}
+          onTouchStart={startHold} onTouchEnd={releaseHold}>
+
+          <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-20">
+            <div style={{ width: 0, height: 0, borderLeft: '9px solid transparent', borderRight: '9px solid transparent', borderTop: '15px solid #FFD700' }} />
           </div>
-          <svg viewBox="0 0 200 200" width="200" height="200"
-            style={{ transform: `rotate(${rot}deg)`, transition: spinning ? 'transform 4s cubic-bezier(0.12,0.6,0.07,1)' : 'none' }}>
-            <circle cx="100" cy="100" r="96" fill="none" stroke="#D4AF37" strokeWidth="2" />
+
+          {/* rAF ball */}
+          <div ref={ballRef} className="absolute pointer-events-none z-10"
+            style={{ width: 10, height: 10, borderRadius: '50%',
+              background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.7)',
+              left: PICK_WHL_SZ / 2 - 5, top: PICK_WHL_SZ / 2 - PICK_ORBIT - 5 }} />
+
+          <svg viewBox={`0 0 ${PICK_CX * 2} ${PICK_CX * 2}`} width={PICK_WHL_SZ} height={PICK_WHL_SZ}
+            style={{ transform: `rotate(${rot}deg)`, transition: spinning ? 'transform 4.2s cubic-bezier(0.12,0.6,0.07,1)' : 'none' }}>
+            <circle cx={PICK_CX} cy={PICK_CX} r={PICK_R + 12} fill="none" stroke="#D4AF37" strokeWidth="3" />
             {Array.from({ length: count }, (_, i) => {
-              const place = places[i % places.length]
+              const place = padded[i]
               const a1 = i * seg, a2 = a1 + seg
-              const r1 = ((a1 - 90) * Math.PI) / 180, r2 = ((a2 - 90) * Math.PI) / 180
-              const mid = ((a1 + seg / 2 - 90) * Math.PI) / 180
+              const p1 = pol(a1, PICK_R), p2 = pol(a2, PICK_R)
+              const midA = a1 + seg / 2
+              const lp = pol(midA, PICK_R * 0.6)
+              const isO = i % 2 === 0
+              const emoji = CUISINE_EMOJI[place.cuisine] ?? '🍽️'
               return (
                 <g key={i}>
-                  <path d={`M100,100 L${100 + 90 * Math.cos(r1)},${100 + 90 * Math.sin(r1)} A90,90 0 0 1 ${100 + 90 * Math.cos(r2)},${100 + 90 * Math.sin(r2)} Z`}
-                    fill={i % 2 === 0 ? '#F7941D' : '#1a0e00'} stroke="#2a1400" strokeWidth="0.5" />
-                  <text x={100 + 55 * Math.cos(mid)} y={100 + 55 * Math.sin(mid)} fill={i % 2 === 0 ? '#1a0e00' : '#F7941D'}
-                    fontSize="6" fontWeight="bold" textAnchor="middle" dominantBaseline="central"
-                    transform={`rotate(${a1 + seg / 2},${100 + 55 * Math.cos(mid)},${100 + 55 * Math.sin(mid)})`}>
-                    {(place?.name || '').slice(0, 10)}
+                  <path d={`M${PICK_CX},${PICK_CX} L${p1.x},${p1.y} A${PICK_R},${PICK_R} 0 0 1 ${p2.x},${p2.y} Z`}
+                    fill={isO ? '#F7941D' : '#1a0e00'} stroke="#2a1400" strokeWidth="0.5" />
+                  <text x={lp.x} y={lp.y} fill={isO ? '#1a0e00' : '#F7941D'} fontSize="7" fontWeight="bold"
+                    textAnchor="middle" dominantBaseline="central" transform={`rotate(${midA},${lp.x},${lp.y})`}>
+                    {`${emoji} ${place.name.slice(0, 8)}`}
                   </text>
                 </g>
               )
             })}
-            <circle cx="100" cy="100" r="12" fill="#1a0e00" stroke="#D4AF37" strokeWidth="2" />
-            <text x="100" y="100" fill="#F7941D" fontSize="10" fontWeight="900" textAnchor="middle" dominantBaseline="central">?</text>
+            {/* Divider lines */}
+            {Array.from({ length: count }, (_, i) => {
+              const a = i * seg
+              const o = pol(a, PICK_R), inn = pol(a, 16)
+              return <line key={`d${i}`} x1={inn.x} y1={inn.y} x2={o.x} y2={o.y} stroke="#D4AF37" strokeWidth="0.6" opacity="0.4" />
+            })}
+            <circle cx={PICK_CX} cy={PICK_CX} r="16" fill="#1a0e00" stroke="#D4AF37" strokeWidth="2" />
+            <text x={PICK_CX} y={PICK_CX} fill="#F7941D" fontSize="14" fontWeight="900" textAnchor="middle" dominantBaseline="central">?</text>
           </svg>
         </div>
       </div>
 
-      {!spinning && !winner && <p className="text-surface/30 text-xs text-center">Tap to spin</p>}
+      {/* Power meter */}
+      <div className="w-48 h-1.5 bg-white/10 rounded-full overflow-hidden mx-auto mt-2 mb-1">
+        <div className="h-full rounded-full" style={{ width: `${power}%`, background: power > 70 ? '#1D9E75' : '#F7941D', transition: holding ? 'none' : 'width 0.3s' }} />
+      </div>
+      <p className="text-surface/30 text-xs text-center mb-4">
+        {spinning ? '\u00A0' : holding ? 'Release to spin!' : winner ? 'Hold to spin again' : 'Hold and release to spin'}
+      </p>
 
+      {/* Winner card */}
       {winner && (
-        <div className="rounded-xl p-4 text-center" style={{ background: 'rgba(29,158,117,0.1)', border: '1px solid rgba(29,158,117,0.2)' }}>
-          <p className="text-teal font-bold text-lg">{winner.name}</p>
-          <p className="text-surface/40 text-sm">{winner.cuisine} • {winner.dist}</p>
-          <button className="mt-2 bg-btc text-night font-bold px-5 py-2 rounded-full text-xs hover:bg-btc-dark transition">
-            Get Directions
-          </button>
+        <div className="rounded-xl p-5 text-center" style={{ background: 'rgba(29,158,117,0.1)', border: '1px solid rgba(29,158,117,0.2)' }}>
+          <p className="text-3xl mb-1">{CUISINE_EMOJI[winner.cuisine] ?? '🍽️'}</p>
+          <p className="text-teal font-black text-xl">{winner.name}</p>
+          <p className="text-surface/50 text-sm">{winner.cuisine} • {winner.distMi} mi away</p>
+          <div className="flex gap-3 justify-center mt-3">
+            <a
+              href={`https://www.google.com/maps/search/${encodeURIComponent(winner.name)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-btc text-night font-bold px-5 py-2 rounded-full text-sm hover:bg-btc-dark transition"
+            >
+              Get Directions
+            </a>
+            <button onClick={() => setWinner(null)}
+              className="border border-surface/20 text-surface/50 font-bold px-5 py-2 rounded-full text-sm hover:text-surface/70 transition">
+              Spin Again
+            </button>
+          </div>
         </div>
       )}
     </div>
