@@ -132,6 +132,43 @@ export function DashboardScreen() {
         </>
       )}
 
+      {/* Battle Station */}
+      {business && (
+        <>
+          <Text style={styles.sectionTitle}>Battle Station</Text>
+          <View style={styles.battleStationCard}>
+            <View style={styles.battleStationHeader}>
+              <Text style={styles.battleStationIcon}>⚔️</Text>
+              <View>
+                <Text style={styles.battleStationTitle}>Customer Battle QR</Text>
+                <Text style={styles.battleStationSub}>Customers scan and play RPS for prizes</Text>
+              </View>
+            </View>
+            <View style={styles.battleStatsRow}>
+              <View style={styles.battleStat}>
+                <Text style={styles.battleStatValue}>{business.battle_station_plays ?? 0}</Text>
+                <Text style={styles.battleStatLabel}>Plays</Text>
+              </View>
+              <View style={styles.battleStat}>
+                <Text style={styles.battleStatValue}>{business.battle_station_wins ?? 0}</Text>
+                <Text style={styles.battleStatLabel}>Wins</Text>
+              </View>
+              <View style={styles.battleStat}>
+                <Text style={[styles.battleStatValue, { color: colors.success }]}>
+                  {business.battle_station_plays > 0
+                    ? `${Math.round((business.battle_station_wins / business.battle_station_plays) * 100)}%`
+                    : '—'}
+                </Text>
+                <Text style={styles.battleStatLabel}>Win Rate</Text>
+              </View>
+            </View>
+            <Text style={styles.battleStationUrl}>
+              serendipeatery.com/battle/business/{business.id?.slice(0, 8)}...
+            </Text>
+          </View>
+        </>
+      )}
+
       <Text style={styles.sectionTitle}>Recent Sales</Text>
       {sales.length === 0 ? (
         <Text style={styles.emptyText}>No sales yet. Create your first flash sale!</Text>
@@ -189,4 +226,14 @@ const styles = StyleSheet.create({
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   statusText: { color: '#fff', fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
   emptyText: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', paddingTop: 20 },
+  battleStationCard: { backgroundColor: colors.surfaceDim, borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(247,148,29,0.15)' },
+  battleStationHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  battleStationIcon: { fontSize: 28 },
+  battleStationTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  battleStationSub: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+  battleStatsRow: { flexDirection: 'row', gap: 12, marginBottom: 10 },
+  battleStat: { flex: 1, backgroundColor: colors.night, borderRadius: 10, padding: 10, alignItems: 'center' },
+  battleStatValue: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
+  battleStatLabel: { fontSize: 10, color: colors.textSecondary, marginTop: 2 },
+  battleStationUrl: { fontSize: 11, color: colors.textMuted, textAlign: 'center', marginTop: 4 },
 })

@@ -409,4 +409,132 @@ export async function battleRoutes(app: FastifyInstance) {
 
     return { ok: true, data: results }
   })
+
+  // ─── Business Battle Station: get config ──────────────────────────
+  app.get('/battles/business-station/:businessId', async (request) => {
+    const { businessId } = request.params as { businessId: string }
+
+    const { data: station } = await supabase
+      .from('business_battle_stations')
+      .select('*')
+      .eq('business_id', businessId)
+      .single()
+
+    if (!station || !station.is_enabled) {
+      throw new AppError(404, 'STATION_NOT_FOUND', 'Battle station not found or disabled')
+    }
+
+    const { data: business } = await supabase
+      .from('businesses')
+      .select('name, slug')
+      .eq('id', businessId)
+      .single()
+
+    // Get prize info if configured
+    let prize = null
+    if (station.prize_id) {
+      const { data: p } = await supabase
+        .from('prizes')
+        .select('id, label, emoji')
+        .eq('id', station.prize_id)
+        .single()
+      prize = p
+    }
+
+    return {
+      ok: true,
+      data: {
+        businessId,
+        businessName: business?.name ?? 'Unknown',
+        isEnabled: station.is_enabled,
+        prize,
+        stats: {
+          totalScans: station.total_scans,
+          totalPlays: station.total_plays,
+          totalWins: station.total_wins,
+        },
+      },
+    }
+  })
+
+  // ─── Business Battle Station: play a round ────────────────────────
+  app.post('/battles/business-station/:businessId', async (request) => {
+    const { businessId } = request.params as { businessId: string }
+    const body = request.body as { moves: string[]; sessionId: string }
+
+    if (!body.moves || body.moves.length !== 3 || !body.sessionId) {
+      throw new AppError(400, 'INVALID_INPUT', 'Provide 3 moves and a sessionId')
+    }
+
+    const validMoves = ['rock', 'paper', 'scissors']
+    if (!body.moves.every((m: string) => validMoves.includes(m))) {
+      throw new AppError(400, 'INVALID_MOVES', 'Moves must be rock, paper, or scissors')
+    }
+
+    // Get station config
+    const { data: station } = await supabase
+      .from('business_battle_stations')
+      .select('*')
+      .eq('business_id', businessId)
+      .single()
+
+    if (!station || !station.is_enabled) {
+      throw new AppError(404, 'STATION_NOT_FOUND', 'Battle station not found or disabled')
+    }
+
+    // Generate house moves — biased to let player win ~60% of time
+    const winProb = (station.win_probability ?? 60) / 100
+    const playerMoves = body.moves as Move[]
+    const houseMoves: Move[] = playerMoves.map((pm) => {
+      const roll = Math.random()
+      if (roll < winProb) {
+        // Let player win this round — pick the move that loses to player
+        const beats: Record<string, Move> = { rock: 'scissors', paper: 'rock', scissors: 'paper' }
+        return beats[pm]
+      } else {
+        // House wins or draws — pick randomly from winning/drawing moves
+        const loses: Record<string, Move> = { rock: 'paper', paper: 'scissors', scissors: 'rock' }
+        return Math.random() < 0.7 ? loses[pm] : pm // 70% win, 30% draw
+      }
+    })
+
+    // Resolve
+    const result = resolveBattle(playerMoves, houseMoves, 'player', 'house')
+    const winner = result.winnerId === 'player' ? 'player' as const
+      : result.winnerId === 'house' ? 'house' as const
+      : 'draw' as const
+
+    // Generate prize code if player wins
+    let prizeCode: string | null = null
+    if (winner === 'player') {
+      prizeCode = `WIN-${businessId.slice(0, 4).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+    }
+
+    // Save to guest_battles
+    await supabase.from('guest_battles').insert({
+      business_id: businessId,
+      session_id: body.sessionId,
+      player_moves: playerMoves,
+      house_moves: houseMoves,
+      winner,
+      prize_code: prizeCode,
+    })
+
+    // Update station stats
+    await supabase.from('business_battle_stations').update({
+      total_plays: (station.total_plays ?? 0) + 1,
+      total_wins: (station.total_wins ?? 0) + (winner === 'player' ? 1 : 0),
+    }).eq('business_id', businessId)
+
+    return {
+      ok: true,
+      data: {
+        winner,
+        rounds: result.rounds,
+        playerMoves,
+        houseMoves,
+        prizeCode,
+      },
+    }
+  })
 }
