@@ -126,7 +126,11 @@ export default function BusinessBattlePage() {
   const initial = bizName ? bizName[0].toUpperCase() : '?'
 
   return (
-    <main className="min-h-screen bg-night flex flex-col items-center justify-center px-6">
+    <main className="min-h-screen bg-night flex flex-col items-center justify-center px-6 relative">
+      {/* Exit button — always visible, no confirmation */}
+      <Link href="/" className="fixed top-4 left-4 z-40" style={{ color: '#a09080', fontSize: '0.9rem' }}>
+        ← Back
+      </Link>
       {phase === 'loading' && (
         <p className="text-surface/50 animate-pulse">Loading...</p>
       )}
@@ -238,13 +242,13 @@ export default function BusinessBattlePage() {
                 </div>
               )}
 
-              <div className="flex gap-3 justify-center mb-10">
-                <button
-                  onClick={startGame}
-                  className="bg-btc text-night font-bold px-6 py-3 rounded-full hover:bg-btc-dark transition"
-                >
-                  Play Again
+              <div className="flex flex-col gap-3 items-center mb-10 w-full max-w-xs mx-auto">
+                <button onClick={startGame} className="w-full bg-btc text-night font-bold py-3 rounded-full hover:bg-btc-dark transition">
+                  Try Again
                 </button>
+                <Link href="/" className="w-full text-center py-3 rounded-full text-sm" style={{ color: '#a09080' }}>
+                  ← Home
+                </Link>
               </div>
 
               <div

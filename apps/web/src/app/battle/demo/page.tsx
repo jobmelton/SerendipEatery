@@ -32,6 +32,14 @@ export default function DemoBattlePage() {
   const [winner, setWinner] = useState<string | null>(null)
   const [showDropped, setShowDropped] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [showLeaveModal, setShowLeaveModal] = useState(false)
+
+  const isMidGame = phase === 'waiting' || phase === 'countdown' || phase === 'reveal' || phase === 'roundResult'
+
+  const handleExit = () => {
+    if (isMidGame) { setShowLeaveModal(true); return }
+    window.location.href = '/'
+  }
 
   const filledCount = myMoves.filter(Boolean).length
 
@@ -157,6 +165,25 @@ export default function DemoBattlePage() {
 
   return (
     <main className="min-h-screen bg-night flex flex-col items-center justify-center px-6 relative">
+      {/* Exit button */}
+      <button onClick={handleExit} className="fixed top-4 left-4 z-40" style={{ color: '#a09080', fontSize: '0.9rem' }}>
+        ← Home
+      </button>
+
+      {/* Leave confirmation modal */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setShowLeaveModal(false)} />
+          <div className="relative rounded-2xl p-6 max-w-xs w-full text-center" style={{ background: '#1a1230' }}>
+            <p className="text-surface font-bold mb-4">Leave battle?</p>
+            <div className="flex gap-3">
+              <button onClick={() => { window.location.href = '/' }} className="flex-1 bg-red-500/20 text-red-400 font-bold py-2.5 rounded-xl text-sm">Yes, leave</button>
+              <button onClick={() => setShowLeaveModal(false)} className="flex-1 bg-btc text-night font-bold py-2.5 rounded-xl text-sm">Stay</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Dropped notification */}
       {showDropped && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-btc text-night px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-bounce">
@@ -308,11 +335,14 @@ export default function DemoBattlePage() {
 
           {phase === 'done' && (
             <div>
-              <div className="flex gap-3 justify-center mb-6">
-                <button onClick={startGame} className="bg-btc text-night font-bold px-6 py-3 rounded-full hover:bg-btc-dark transition">Play Again</button>
-                <button onClick={dropChallenge} className="border border-btc text-btc font-bold px-6 py-3 rounded-full hover:bg-btc/10 transition">
-                  ✌️ Drop YOUR Challenge
+              <div className="flex flex-col gap-3 items-center mb-6 w-full max-w-xs mx-auto">
+                <button onClick={startGame} className="w-full bg-btc text-night font-bold py-3 rounded-full hover:bg-btc-dark transition">Play Again</button>
+                <button onClick={dropChallenge} className="w-full border border-btc text-btc font-bold py-3 rounded-full hover:bg-btc/10 transition">
+                  ✌️ Drop a Challenge
                 </button>
+                <Link href="/" className="w-full text-center py-3 rounded-full text-sm" style={{ color: '#a09080' }}>
+                  ← Home
+                </Link>
               </div>
 
               <div className="rounded-2xl p-5 max-w-sm mx-auto text-center" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.1)' }}>

@@ -32,6 +32,7 @@ type Phase = 'intro' | 'picking' | 'reveal' | 'done'
 export default function BattlePage() {
   const { id } = useParams<{ id: string }>()
   const [phase, setPhase] = useState<Phase>('intro')
+  const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [challenger, setChallenger] = useState<{
     name: string; avatarUrl: string | null; provider: string | null; tagline: string | null
   } | null>(null)
@@ -96,7 +97,33 @@ export default function BattlePage() {
   }
 
   return (
-    <main className="min-h-screen bg-night flex flex-col items-center justify-center px-6">
+    <main className="min-h-screen bg-night flex flex-col items-center justify-center px-6 relative">
+      {/* Exit button */}
+      <button
+        onClick={() => {
+          if (phase === 'reveal') { setShowLeaveModal(true); return }
+          window.location.href = '/'
+        }}
+        className="fixed top-4 left-4 z-40" style={{ color: '#a09080', fontSize: '0.9rem' }}
+      >
+        ← Home
+      </button>
+
+      {/* Forfeit confirmation */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setShowLeaveModal(false)} />
+          <div className="relative rounded-2xl p-6 max-w-xs w-full text-center" style={{ background: '#1a1230' }}>
+            <p className="text-surface font-bold mb-2">Leave battle?</p>
+            <p className="text-red-400 text-sm mb-4">Leaving now forfeits the match. Your challenger wins.</p>
+            <div className="flex gap-3">
+              <button onClick={() => { window.location.href = '/' }} className="flex-1 bg-red-500/20 text-red-400 font-bold py-2.5 rounded-xl text-sm">Forfeit</button>
+              <button onClick={() => setShowLeaveModal(false)} className="flex-1 bg-btc text-night font-bold py-2.5 rounded-xl text-sm">Stay</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {phase === 'intro' && (
         <div className="text-center max-w-md">
           {/* Challenger identity */}
@@ -203,9 +230,18 @@ export default function BattlePage() {
               <p className="text-4xl font-black mb-6" style={{ color: result === 'win' ? '#1D9E75' : result === 'lose' ? '#E53E3E' : '#F7941D' }}>
                 {result === 'win' ? '🎉 Victory!' : result === 'lose' ? '💀 Defeated' : '🤝 Draw'}
               </p>
-              <button onClick={startGame} className="bg-btc text-night font-bold px-6 py-3 rounded-full hover:bg-btc-dark transition mb-8">
-                Play Again
-              </button>
+              <div className="flex flex-col gap-3 items-center mb-6 w-full max-w-xs mx-auto">
+                <button onClick={startGame} className="w-full bg-btc text-night font-bold py-3 rounded-full hover:bg-btc-dark transition">Play Again</button>
+                <button
+                  onClick={() => {
+                    const sd = { title: 'SerendipEatery RPS', text: "I just dropped a Rock Paper Scissors challenge. Winner takes deals. You in? 👊", url: typeof window !== 'undefined' ? window.location.href : '' }
+                    if (navigator.share) navigator.share(sd).catch(() => {})
+                    else navigator.clipboard.writeText(sd.url)
+                  }}
+                  className="w-full border border-btc text-btc font-bold py-3 rounded-full hover:bg-btc/10 transition"
+                >✌️ Drop a Challenge</button>
+                <Link href="/" className="w-full text-center py-3 rounded-full text-sm" style={{ color: '#a09080' }}>← Home</Link>
+              </div>
               <div className="rounded-2xl p-6 text-center max-w-sm mx-auto" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.1)' }}>
                 <p className="text-surface font-bold mb-1">Want to keep playing?</p>
                 <p className="text-surface/40 text-sm mb-4">Download the app to battle for real prizes</p>
