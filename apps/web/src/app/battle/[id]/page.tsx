@@ -1,8 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
+const PLATFORM_ICONS: Record<string, string> = {
+  google: '🔵', apple: '🍎', facebook: '📘', instagram: '📸',
+  tiktok: '🎵', twitter: '🐦', snapchat: '👻', discord: '💬',
+  spotify: '🎧', github: '🐱', linkedin: '💼', email: '✉️',
+}
 
 type Move = 'rock' | 'paper' | 'scissors'
 
@@ -24,6 +32,9 @@ type Phase = 'intro' | 'picking' | 'reveal' | 'done'
 export default function BattlePage() {
   const { id } = useParams<{ id: string }>()
   const [phase, setPhase] = useState<Phase>('intro')
+  const [challenger, setChallenger] = useState<{
+    name: string; avatarUrl: string | null; provider: string | null; tagline: string | null
+  } | null>(null)
   const [myMoves, setMyMoves] = useState<(Move | null)[]>([null, null, null])
   const [cpuMoves, setCpuMoves] = useState<Move[]>([])
   const [revealIdx, setRevealIdx] = useState(-1)
@@ -88,8 +99,25 @@ export default function BattlePage() {
     <main className="min-h-screen bg-night flex flex-col items-center justify-center px-6">
       {phase === 'intro' && (
         <div className="text-center max-w-md">
-          <div className="text-6xl mb-6">✊✋✌️</div>
-          <h1 className="text-3xl font-black text-surface mb-3">You've been challenged!</h1>
+          {/* Challenger identity */}
+          {challenger?.avatarUrl ? (
+            <div className="relative inline-block mb-4">
+              <img src={challenger.avatarUrl} alt="" className="w-20 h-20 rounded-2xl object-cover mx-auto" />
+              {challenger.provider && (
+                <span className="absolute -bottom-1 -right-1 text-sm bg-night rounded-full w-7 h-7 flex items-center justify-center border border-white/10">
+                  {PLATFORM_ICONS[challenger.provider] ?? '✉️'}
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="text-6xl mb-4">✊✋✌️</div>
+          )}
+          <h1 className="text-3xl font-black text-surface mb-1">
+            {challenger ? `${challenger.name} dropped a challenge` : "You've been challenged!"}
+          </h1>
+          {challenger?.tagline && (
+            <p className="text-btc text-sm font-bold mb-2">"{challenger.tagline}"</p>
+          )}
           <p className="text-surface/50 text-lg mb-2">Rock Paper Scissors</p>
           <p className="text-surface/30 text-sm mb-10">Winner loots the loser's deals</p>
           <button onClick={startGame} className="bg-btc text-night font-bold text-xl px-10 py-4 rounded-full hover:bg-btc-dark transition">

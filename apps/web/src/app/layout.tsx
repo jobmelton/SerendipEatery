@@ -39,6 +39,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           colorInputBackground: '#1a1230',
           colorInputText: '#fff8f2',
         },
+        elements: {
+          socialButtonsBlockButton: {
+            // Provider order is set in Clerk Dashboard.
+            // Recommended order: Google, Apple, Facebook, Instagram,
+            // TikTok, Twitter/X, Snapchat, Discord, Spotify, GitHub, LinkedIn
+          },
+          socialButtonsBlockButtonText: { fontWeight: '600' },
+          card: { borderRadius: '1rem' },
+        },
       }}
     >
       <html lang="en">

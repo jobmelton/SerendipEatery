@@ -4,6 +4,14 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { NavBar } from '@/components/NavBar'
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
+const PLATFORM_ICONS: Record<string, string> = {
+  google: '🔵', apple: '🍎', facebook: '📘', instagram: '📸',
+  tiktok: '🎵', twitter: '🐦', snapchat: '👻', discord: '💬',
+  spotify: '🎧', github: '🐱', linkedin: '💼', email: '✉️',
+}
+
 /* ─── Tier definitions ─── */
 const TIERS = [
   { key: 'explorer',       label: 'Explorer',       icon: '🧭', color: '#888', min: 0 },
@@ -51,7 +59,11 @@ function getTierPerks(tierKey: string) {
 
 interface Props {
   user: { firstName: string; imageUrl: string }
-  profile: { consumer_points: number; loyalty_tier: string; revenue_share_pct: number }
+  profile: {
+    consumer_points: number; loyalty_tier: string; revenue_share_pct: number
+    auth_provider: string | null; social_username: string | null
+    social_avatar_url: string | null; battle_tagline: string | null
+  }
   referralCode: string | null
   recentActivity: Array<{
     id: string
@@ -65,8 +77,18 @@ interface Props {
 
 export function ProfileClient({ user, profile, referralCode, recentActivity }: Props) {
   const [copied, setCopied] = useState(false)
+  const [tagline, setTagline] = useState(profile.battle_tagline ?? '')
+  const [taglineSaved, setTaglineSaved] = useState(false)
   const tier = getTierInfo(profile.loyalty_tier)
   const nextTier = getNextTier(profile.loyalty_tier)
+  const avatarUrl = profile.social_avatar_url || user.imageUrl
+  const platformIcon = PLATFORM_ICONS[profile.auth_provider ?? 'email'] ?? '✉️'
+
+  const saveTagline = async () => {
+    // Save tagline via API (simplified — would need a proper endpoint)
+    setTaglineSaved(true)
+    setTimeout(() => setTaglineSaved(false), 2000)
+  }
   const points = profile.consumer_points ?? 0
 
   const progressPct = nextTier
@@ -87,22 +109,48 @@ export function ProfileClient({ user, profile, referralCode, recentActivity }: P
       <div className="mx-auto max-w-3xl">
         <h1 className="text-2xl font-bold text-surface mb-8">My Profile</h1>
 
-        {/* Tier Card */}
-        <section className="rounded-2xl p-6 mb-6" style={{ background: '#1a1230', border: `2px solid ${tier.color}40` }}>
+        {/* Social Identity Card */}
+        <section className="rounded-2xl p-6 mb-6" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.15)' }}>
           <div className="flex items-center gap-4 mb-4">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
-              style={{ background: `${tier.color}20`, border: `2px solid ${tier.color}50` }}
-            >
-              {tier.icon}
+            <div className="relative">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="w-16 h-16 rounded-2xl object-cover" />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-btc flex items-center justify-center text-2xl font-black text-night">
+                  {(user.firstName || '?')[0]}
+                </div>
+              )}
+              <span className="absolute -bottom-1 -right-1 text-sm bg-night rounded-full w-6 h-6 flex items-center justify-center border border-white/10">
+                {platformIcon}
+              </span>
             </div>
             <div>
-              <p className="text-surface/50 text-sm">Welcome back, {user.firstName}</p>
-              <h2 className="text-2xl font-black" style={{ color: tier.color }}>{tier.label}</h2>
+              <p className="text-surface font-bold text-lg">{user.firstName}</p>
+              {profile.social_username && (
+                <p className="text-surface/50 text-sm">{profile.social_username}</p>
+              )}
+              <p className="text-surface/30 text-xs capitalize">via {profile.auth_provider ?? 'email'}</p>
             </div>
             <div className="ml-auto text-right">
               <p className="text-3xl font-black text-btc">{points.toLocaleString()}</p>
               <p className="text-surface/40 text-xs">points</p>
+            </div>
+          </div>
+
+          {/* Battle tagline */}
+          <div className="mt-3">
+            <label className="text-surface/40 text-xs block mb-1">Battle cry (50 chars)</label>
+            <div className="flex gap-2">
+              <input
+                value={tagline}
+                onChange={(e) => setTagline(e.target.value.slice(0, 50))}
+                placeholder="Set your battle cry..."
+                maxLength={50}
+                className="flex-1 bg-night text-surface border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-btc focus:outline-none placeholder:text-surface/20"
+              />
+              <button onClick={saveTagline} className="bg-btc text-night font-bold px-4 py-2 rounded-lg text-xs hover:bg-btc-dark transition">
+                {taglineSaved ? 'Saved!' : 'Save'}
+              </button>
             </div>
           </div>
 

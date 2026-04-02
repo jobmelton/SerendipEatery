@@ -16,7 +16,7 @@ export default async function ProfilePage() {
   // Get user record
   const { data: profile } = await supabase
     .from('users')
-    .select('clerk_id, display_name, email, consumer_points, loyalty_tier, revenue_share_pct, created_at')
+    .select('clerk_id, display_name, email, consumer_points, loyalty_tier, revenue_share_pct, auth_provider, social_username, social_avatar_url, battle_tagline, created_at')
     .eq('clerk_id', user.id)
     .limit(1)
     .single()
@@ -52,6 +52,10 @@ export default async function ProfilePage() {
         consumer_points: 0,
         loyalty_tier: 'explorer',
         revenue_share_pct: 0,
+        auth_provider: null,
+        social_username: null,
+        social_avatar_url: null,
+        battle_tagline: null,
       }}
       referralCode={referral?.code ?? null}
       recentActivity={recentVisits ?? []}

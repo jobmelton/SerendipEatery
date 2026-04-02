@@ -24,6 +24,7 @@ import { evidenceRoutes } from './routes/evidence.js'
 import { analyticsRoutes } from './routes/analytics.js'
 import { adminRoutes } from './routes/admin.js'
 import { battleRoutes } from './routes/battles.js'
+import { clerkWebhookRoutes } from './routes/webhooks/clerk.js'
 
 const app = Fastify({ logger: true })
 
@@ -57,6 +58,7 @@ try {
 
 // ─── Public routes ───────────────────────────────────────────────────────
 app.register(salesRoutes)
+app.register(clerkWebhookRoutes)
 
 // ─── Protected routes ────────────────────────────────────────────────────
 app.register(async (protectedRoutes) => {
