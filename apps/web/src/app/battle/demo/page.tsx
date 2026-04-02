@@ -1,0 +1,288 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
+type Move = 'rock' | 'paper' | 'scissors'
+const MOVES: { key: Move; icon: string; label: string }[] = [
+  { key: 'rock', icon: '✊', label: 'Rock' },
+  { key: 'paper', icon: '✋', label: 'Paper' },
+  { key: 'scissors', icon: '✌️', label: 'Scissors' },
+]
+const BEATS: Record<Move, Move> = { rock: 'scissors', scissors: 'paper', paper: 'rock' }
+
+type Phase = 'intro' | 'picking' | 'waiting' | 'reveal' | 'done'
+
+function resolveIcon(a: Move, b: Move) {
+  if (a === b) return { color: '#888', text: '—' }
+  return BEATS[a] === b ? { color: '#1D9E75', text: 'W' } : { color: '#E53E3E', text: 'L' }
+}
+
+export default function DemoBattlePage() {
+  const [phase, setPhase] = useState<Phase>('intro')
+  const [myMoves, setMyMoves] = useState<(Move | null)[]>([null, null, null])
+  const [houseMoves, setHouseMoves] = useState<Move[]>([])
+  const [revealIdx, setRevealIdx] = useState(-1)
+  const [winner, setWinner] = useState<string | null>(null)
+  const [showDropped, setShowDropped] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+
+  const filledCount = myMoves.filter(Boolean).length
+
+  // Show "challenge dropped" notification if opened from shared link
+  useEffect(() => {
+    if (typeof window !== 'undefined' && document.referrer) {
+      setShowDropped(true)
+      setTimeout(() => setShowDropped(false), 4000)
+    }
+  }, [])
+
+  const startGame = () => {
+    setMyMoves([null, null, null])
+    setHouseMoves([])
+    setRevealIdx(-1)
+    setWinner(null)
+    setPhase('picking')
+  }
+
+  const pickMove = (move: Move) => {
+    const nextSlot = myMoves.findIndex((m) => m === null)
+    if (nextSlot === -1) return
+    const updated = [...myMoves]
+    updated[nextSlot] = move
+    setMyMoves(updated as (Move | null)[])
+  }
+
+  const undoSlot = (idx: number) => {
+    if (!myMoves[idx]) return
+    const updated = [...myMoves]
+    updated[idx] = null
+    setMyMoves(updated)
+  }
+
+  const submitMoves = async () => {
+    const moves = myMoves.filter(Boolean) as Move[]
+    if (moves.length !== 3) return
+    setPhase('waiting')
+
+    try {
+      const res = await fetch(`${API_URL}/battles/demo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ moves }),
+      })
+      const data = await res.json()
+
+      setTimeout(() => {
+        if (data.ok) {
+          setHouseMoves(data.data.houseMoves)
+          setPhase('reveal')
+          let idx = 0
+          const timer = setInterval(() => {
+            setRevealIdx(idx)
+            idx++
+            if (idx >= 3) {
+              clearInterval(timer)
+              setTimeout(() => {
+                setWinner(data.data.winner)
+                setPhase('done')
+              }, 800)
+            }
+          }, 1000)
+        }
+      }, 1000) // fake wait
+    } catch {
+      // Fallback: local resolution
+      const cpu: Move[] = ['rock', 'paper', 'scissors'].sort(() => Math.random() - 0.5).slice(0, 3) as Move[]
+      setTimeout(() => {
+        setHouseMoves(cpu)
+        setPhase('reveal')
+        let idx = 0
+        const timer = setInterval(() => {
+          setRevealIdx(idx)
+          idx++
+          if (idx >= 3) {
+            clearInterval(timer)
+            setTimeout(() => { setWinner('draw'); setPhase('done') }, 800)
+          }
+        }, 1000)
+      }, 1000)
+    }
+  }
+
+  const dropChallenge = async () => {
+    const url = `${window.location.origin}/battle/demo`
+    const shareData = {
+      title: 'SerendipEatery RPS Challenge',
+      text: "I just dropped a Rock Paper Scissors challenge at SerendipEatery. Winner takes deals. You in? 👊",
+      url,
+    }
+    if (navigator.share) {
+      await navigator.share(shareData).catch(() => {})
+    } else {
+      setShowShareModal(true)
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-night flex flex-col items-center justify-center px-6 relative">
+      {/* Dropped notification */}
+      {showDropped && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-btc text-night px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-bounce">
+          Someone dropped a challenge nearby!
+        </div>
+      )}
+
+      {/* Players display */}
+      <div className="flex items-center gap-8 mb-8">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-full bg-surface/20 flex items-center justify-center text-2xl mb-1">👤</div>
+          <p className="text-surface/50 text-xs">You</p>
+        </div>
+        <span className="text-btc text-2xl font-black">VS</span>
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-full bg-btc flex items-center justify-center text-xl font-black text-night mb-1">S</div>
+          <p className="text-surface/50 text-xs">The House</p>
+        </div>
+      </div>
+
+      {/* Intro */}
+      {phase === 'intro' && (
+        <div className="text-center max-w-md">
+          <h1 className="text-3xl font-black text-surface mb-3">Rock Paper Scissors</h1>
+          <p className="text-surface/50 mb-8">Best 2 of 3 — winner takes deals</p>
+          <button onClick={startGame} className="bg-btc text-night font-bold text-xl px-10 py-4 rounded-full hover:bg-btc-dark transition">
+            Play Now
+          </button>
+        </div>
+      )}
+
+      {/* Picking */}
+      {phase === 'picking' && (
+        <div className="text-center">
+          <p className="text-surface/50 text-sm mb-2">{filledCount}/3 chosen</p>
+
+          {/* 3 slots */}
+          <div className="flex justify-center gap-4 mb-8">
+            {myMoves.map((m, i) => (
+              <button
+                key={i}
+                onClick={() => undoSlot(i)}
+                className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl transition"
+                style={{
+                  background: m ? '#1a1230' : 'transparent',
+                  border: m ? '2px solid #F7941D' : '2px dashed rgba(255,248,242,0.15)',
+                  cursor: m ? 'pointer' : 'default',
+                }}
+                title={m ? 'Tap to undo' : ''}
+              >
+                {m ? MOVES.find((mv) => mv.key === m)?.icon : <span className="text-surface/15 text-sm">{i + 1}</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Move buttons */}
+          <div className="flex gap-5 justify-center mb-6">
+            {MOVES.map((move) => (
+              <button
+                key={move.key}
+                onClick={() => pickMove(move.key)}
+                disabled={filledCount >= 3}
+                className="w-24 h-28 rounded-2xl flex flex-col items-center justify-center gap-1 transition hover:bg-white/10 disabled:opacity-30"
+                style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.15)' }}
+              >
+                <span className="text-4xl">{move.icon}</span>
+                <span className="text-surface/50 text-xs font-bold">{move.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {filledCount === 3 && (
+            <button onClick={submitMoves} className="bg-btc text-night font-bold text-lg px-10 py-4 rounded-full hover:bg-btc-dark transition">
+              Ready!
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Waiting */}
+      {phase === 'waiting' && (
+        <div className="text-center">
+          <div className="text-4xl animate-pulse mb-4">⏳</div>
+          <p className="text-surface/50">The House is choosing...</p>
+        </div>
+      )}
+
+      {/* Reveal + Done */}
+      {(phase === 'reveal' || phase === 'done') && (
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-surface mb-6">
+            {phase === 'reveal' ? 'Revealing...' : winner === 'player' ? '🎉 You Win!' : winner === 'house' ? '💀 House Wins' : '🤝 Draw'}
+          </h2>
+
+          <div className="space-y-4 mb-8">
+            {[0, 1, 2].map((i) => {
+              const shown = i <= revealIdx && houseMoves[i]
+              const myMove = myMoves[i] as Move
+              const ri = shown ? resolveIcon(myMove, houseMoves[i]) : null
+              return (
+                <div key={i} className="flex items-center justify-center gap-6" style={{ opacity: shown ? 1 : 0.2 }}>
+                  <span className="text-3xl w-12 text-right">{MOVES.find((m) => m.key === myMove)?.icon}</span>
+                  <span className="text-surface/30 text-sm">vs</span>
+                  <span className="text-3xl w-12">{shown ? MOVES.find((m) => m.key === houseMoves[i])?.icon : '❓'}</span>
+                  <span className="text-sm font-bold w-10" style={{ color: ri?.color ?? '#888' }}>{ri?.text ?? ''}</span>
+                </div>
+              )
+            })}
+          </div>
+
+          {phase === 'done' && (
+            <div>
+              <div className="flex gap-3 justify-center mb-6">
+                <button onClick={startGame} className="bg-btc text-night font-bold px-6 py-3 rounded-full hover:bg-btc-dark transition">Play Again</button>
+                <button onClick={dropChallenge} className="border border-btc text-btc font-bold px-6 py-3 rounded-full hover:bg-btc/10 transition">
+                  ✌️ Drop YOUR Challenge
+                </button>
+              </div>
+
+              <div className="rounded-2xl p-5 max-w-sm mx-auto text-center" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.1)' }}>
+                <p className="text-surface font-bold mb-1">
+                  {winner === 'player' ? 'Sign up to keep your prize' : 'Sign up for a rematch'}
+                </p>
+                <p className="text-surface/40 text-sm mb-3">Battle real people for real deals</p>
+                <Link href="/sign-up" className="inline-block bg-btc text-night font-bold px-6 py-2.5 rounded-full text-sm hover:bg-btc-dark transition">
+                  Sign Up Free
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Share modal (desktop fallback) */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={() => setShowShareModal(false)}>
+          <div className="absolute inset-0 bg-black/70" />
+          <div className="relative rounded-2xl p-6 max-w-sm w-full text-center" style={{ background: '#1a1230' }} onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowShareModal(false)} className="absolute top-3 right-3 text-surface/30 hover:text-surface text-lg">&times;</button>
+            <p className="text-surface font-bold mb-3">Share this challenge</p>
+            <div className="bg-night rounded-xl px-4 py-3 mb-4">
+              <p className="text-btc text-sm font-mono break-all">{typeof window !== 'undefined' ? `${window.location.origin}/battle/demo` : ''}</p>
+            </div>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/battle/demo`)
+                setShowShareModal(false)
+              }}
+              className="bg-btc text-night font-bold px-6 py-2.5 rounded-full text-sm hover:bg-btc-dark transition"
+            >
+              Copy Link
+            </button>
+          </div>
+        </div>
+      )}
+    </main>
+  )
+}

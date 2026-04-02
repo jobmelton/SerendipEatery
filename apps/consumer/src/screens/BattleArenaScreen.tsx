@@ -25,7 +25,7 @@ export function BattleArenaScreen() {
   const { battleId } = route.params
 
   const [phase, setPhase] = useState<Phase>('selecting')
-  const [myMoves, setMyMoves] = useState<Move[]>([])
+  const [myMoves, setMyMoves] = useState<(Move | null)[]>([null, null, null])
   const [battle, setBattle] = useState<any>(null)
   const [result, setResult] = useState<any>(null)
   const [lootResult, setLootResult] = useState<any>(null)
@@ -85,14 +85,28 @@ export function BattleArenaScreen() {
     return () => clearInterval(timer)
   }, [phase, result])
 
+  const filledCount = myMoves.filter(Boolean).length
+
   const addMove = (move: Move) => {
-    if (myMoves.length >= 3) return
-    setMyMoves([...myMoves, move])
+    const nextSlot = myMoves.findIndex((m) => m === null)
+    if (nextSlot === -1) return
+    const updated = [...myMoves]
+    updated[nextSlot] = move
+    setMyMoves(updated)
+  }
+
+  const undoSlot = (idx: number) => {
+    if (!myMoves[idx]) return
+    const updated = [...myMoves]
+    updated[idx] = null
+    setMyMoves(updated as (Move | null)[])
   }
 
   const submitMoves = async () => {
+    const moves = myMoves.filter(Boolean) as Move[]
+    if (moves.length !== 3) return
     try {
-      const data = await api.submitMoves(battleId, myMoves)
+      const data = await api.submitMoves(battleId, moves)
       if (data.result) {
         setBattle(data.battle)
         setResult(data)
@@ -150,16 +164,18 @@ export function BattleArenaScreen() {
       {phase === 'selecting' && (
         <View style={styles.selectSection}>
           <Text style={styles.selectTitle}>Choose 3 moves</Text>
+          <Text style={styles.selectCounter}>{filledCount}/3 chosen</Text>
 
-          {/* Move dots */}
+          {/* Move slots — tap to undo */}
           <View style={styles.dotsRow}>
-            {[0, 1, 2].map((i) => (
-              <View
+            {myMoves.map((m, i) => (
+              <Pressable
                 key={i}
-                style={[styles.dot, myMoves[i] ? styles.dotFilled : styles.dotEmpty]}
+                onPress={() => undoSlot(i)}
+                style={[styles.dot, m ? styles.dotFilled : styles.dotEmpty]}
               >
-                {myMoves[i] && <Text style={styles.dotIcon}>{MOVE_ICONS[myMoves[i]]}</Text>}
-              </View>
+                {m ? <Text style={styles.dotIcon}>{MOVE_ICONS[m]}</Text> : <Text style={styles.dotNum}>{i + 1}</Text>}
+              </Pressable>
             ))}
           </View>
 
@@ -168,9 +184,9 @@ export function BattleArenaScreen() {
             {(['rock', 'paper', 'scissors'] as Move[]).map((move) => (
               <Pressable
                 key={move}
-                style={[styles.moveBtn, myMoves.length >= 3 && styles.moveBtnDisabled]}
+                style={[styles.moveBtn, filledCount >= 3 && styles.moveBtnDisabled]}
                 onPress={() => addMove(move)}
-                disabled={myMoves.length >= 3}
+                disabled={filledCount >= 3}
               >
                 <Text style={styles.moveIcon}>{MOVE_ICONS[move]}</Text>
                 <Text style={styles.moveLabel}>{MOVE_LABELS[move]}</Text>
@@ -178,13 +194,7 @@ export function BattleArenaScreen() {
             ))}
           </View>
 
-          {myMoves.length > 0 && myMoves.length < 3 && (
-            <Pressable onPress={() => setMyMoves([])} style={styles.resetBtn}>
-              <Text style={styles.resetText}>Reset</Text>
-            </Pressable>
-          )}
-
-          {myMoves.length === 3 && (
+          {filledCount === 3 && (
             <Pressable style={styles.readyBtn} onPress={submitMoves}>
               <Text style={styles.readyText}>Ready!</Text>
             </Pressable>
@@ -263,7 +273,7 @@ export function BattleArenaScreen() {
             <Pressable
               style={styles.rematchBtn}
               onPress={() => {
-                setMyMoves([])
+                setMyMoves([null, null, null])
                 setResult(null)
                 setLootResult(null)
                 setRevealIndex(-1)
@@ -298,7 +308,9 @@ const styles = StyleSheet.create({
   vs: { color: colors.primary, fontSize: 24, fontWeight: '900' },
   // Selection
   selectSection: { alignItems: 'center', paddingTop: 20 },
-  selectTitle: { color: colors.textPrimary, fontSize: 22, fontWeight: '800', marginBottom: 20 },
+  selectTitle: { color: colors.textPrimary, fontSize: 22, fontWeight: '800', marginBottom: 4 },
+  selectCounter: { color: colors.textMuted, fontSize: 14, marginBottom: 16 },
+  dotNum: { color: 'rgba(255,248,242,0.15)', fontSize: 14 },
   dotsRow: { flexDirection: 'row', gap: 16, marginBottom: 32 },
   dot: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center' },
   dotEmpty: { borderWidth: 2, borderColor: colors.textMuted, borderStyle: 'dashed' },

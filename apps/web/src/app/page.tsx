@@ -394,12 +394,46 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* P2P teaser */}
-      <div className="w-full max-w-lg rounded-2xl p-6 mb-14 text-center" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.1)' }}>
-        <h3 className="text-xl font-black text-surface mb-2">Your next friend is 10 feet away.</h3>
-        <p className="text-surface/50 text-sm mb-2">Battle nearby strangers in rock paper scissors. Winner loots the loser's deals.</p>
-        <p className="text-surface/30 text-xs">Turn strangers into friends, one battle at a time.</p>
+      {/* Live challenge card */}
+      <div
+        className="w-full max-w-lg rounded-2xl p-6 mb-6 text-center animate-[challengePulse_2s_ease-in-out_infinite]"
+        style={{ background: '#1a1230' }}
+      >
+        <p className="text-3xl mb-3">✌️</p>
+        <h3 className="text-xl font-black text-surface mb-1">RPS Challenge Dropped</h3>
+        <p className="text-surface/50 text-sm mb-5">Someone nearby dropped a challenge. Accept or back down.</p>
+        <div className="flex gap-3 justify-center">
+          <Link href="/battle/demo" className="bg-btc text-night font-bold px-6 py-3 rounded-full hover:bg-btc-dark transition text-sm">
+            Accept Challenge
+          </Link>
+          <button className="border border-surface/20 text-surface/40 font-bold px-6 py-3 rounded-full text-sm hover:text-surface/60 transition">
+            Back Down
+          </button>
+        </div>
       </div>
+
+      {/* Drop a Challenge button */}
+      <button
+        onClick={() => {
+          const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/battle/demo`
+          const shareData = { title: 'SerendipEatery RPS Challenge', text: "I just dropped a Rock Paper Scissors challenge at SerendipEatery. Winner takes deals. You in? 👊", url }
+          if (typeof navigator !== 'undefined' && navigator.share) {
+            navigator.share(shareData).catch(() => {})
+          } else if (typeof navigator !== 'undefined') {
+            navigator.clipboard.writeText(url)
+          }
+        }}
+        className="bg-btc/10 text-btc font-bold px-8 py-3 rounded-full text-sm border border-btc/30 hover:bg-btc/20 transition mb-14"
+      >
+        ✌️ Drop a Challenge
+      </button>
+
+      <style>{`
+        @keyframes challengePulse {
+          0%, 100% { border: 2px solid rgba(247,148,29,0.15); }
+          50% { border: 2px solid rgba(247,148,29,0.5); box-shadow: 0 0 20px rgba(247,148,29,0.1); }
+        }
+      `}</style>
 
       {/* ─── Clickable Deal Cards ─── */}
       <div className="w-full max-w-3xl">

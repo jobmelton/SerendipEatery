@@ -410,6 +410,50 @@ export async function battleRoutes(app: FastifyInstance) {
     return { ok: true, data: results }
   })
 
+  // ─── Demo battle (no auth) ──────────────────────────────────────
+  app.post('/battles/demo', async (request) => {
+    const body = request.body as { moves?: string[] }
+    if (!body.moves || body.moves.length !== 3) {
+      throw new AppError(400, 'INVALID_INPUT', 'Provide exactly 3 moves')
+    }
+    const validMoves = ['rock', 'paper', 'scissors']
+    if (!body.moves.every((m: string) => validMoves.includes(m))) {
+      throw new AppError(400, 'INVALID_MOVES', 'Moves must be rock, paper, or scissors')
+    }
+
+    const playerMoves = body.moves as Move[]
+
+    // House wins ~45%, player wins ~45%, draw ~10%
+    const houseMoves: Move[] = playerMoves.map((pm) => {
+      const roll = Math.random()
+      if (roll < 0.45) {
+        // Let player win
+        const beats: Record<string, Move> = { rock: 'scissors', paper: 'rock', scissors: 'paper' }
+        return beats[pm]
+      } else if (roll < 0.90) {
+        // House wins
+        const loses: Record<string, Move> = { rock: 'paper', paper: 'scissors', scissors: 'rock' }
+        return loses[pm]
+      } else {
+        return pm // draw
+      }
+    })
+
+    const result = resolveBattle(playerMoves, houseMoves, 'player', 'house')
+
+    return {
+      ok: true,
+      data: {
+        winner: result.winnerId ?? 'draw',
+        rounds: result.rounds,
+        playerMoves,
+        houseMoves,
+        challengerWins: result.challengerWins,
+        defenderWins: result.defenderWins,
+      },
+    }
+  })
+
   // ─── Business Battle Station: get config ──────────────────────────
   app.get('/battles/business-station/:businessId', async (request) => {
     const { businessId } = request.params as { businessId: string }
