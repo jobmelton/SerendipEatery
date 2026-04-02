@@ -304,20 +304,36 @@ export default function LandingPage() {
 
       {/* ─── How It Works ──────────────────────────────────────────── */}
       <div className="flex items-center justify-center gap-10 md:gap-16 mb-10">
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-3xl">🎰</span>
+        <div className="flex flex-col items-center gap-2">
+          <svg width="36" height="36" viewBox="0 0 36 36">
+            <circle cx="18" cy="18" r="16" fill="none" stroke="#F7941D" strokeWidth="2" />
+            {[0,60,120,180,240,300].map((a) => {
+              const r = (a - 90) * Math.PI / 180
+              return <line key={a} x1="18" y1="18" x2={18 + 14 * Math.cos(r)} y2={18 + 14 * Math.sin(r)} stroke="#F7941D" strokeWidth="1" opacity="0.4" />
+            })}
+            <circle cx="18" cy="18" r="4" fill="#F7941D" />
+          </svg>
           <span className="text-surface/50 text-xs font-bold">Spin</span>
         </div>
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-3xl">🎁</span>
+        <div className="flex flex-col items-center gap-2">
+          <svg width="36" height="36" viewBox="0 0 36 36">
+            <polygon points="18,4 22,14 33,14 24,21 27,32 18,25 9,32 12,21 3,14 14,14" fill="none" stroke="#F7941D" strokeWidth="2" />
+          </svg>
           <span className="text-surface/50 text-xs font-bold">Win</span>
         </div>
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-3xl">⚔️</span>
+        <div className="flex flex-col items-center gap-2">
+          <svg width="36" height="36" viewBox="0 0 36 36">
+            <path d="M18,6 L18,16 M14,12 L18,16 L22,12" stroke="#F7941D" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M12,18 L8,22 M12,22 L8,18" stroke="#F7941D" strokeWidth="2" fill="none" strokeLinecap="round" />
+            <path d="M24,18 L28,22 M24,22 L28,18" stroke="#F7941D" strokeWidth="2" fill="none" strokeLinecap="round" />
+            <circle cx="18" cy="28" r="4" fill="none" stroke="#F7941D" strokeWidth="2" />
+          </svg>
           <span className="text-surface/50 text-xs font-bold">Connect</span>
         </div>
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-3xl">🍽️</span>
+        <div className="flex flex-col items-center gap-2">
+          <svg width="36" height="36" viewBox="0 0 36 36">
+            <path d="M10,8 C10,8 10,28 10,28 M10,28 C14,28 18,24 18,20 M18,8 L18,20 M26,8 L26,16 C26,20 22,24 18,24" stroke="#F7941D" strokeWidth="2" fill="none" strokeLinecap="round" />
+          </svg>
           <span className="text-surface/50 text-xs font-bold">Eat</span>
         </div>
       </div>
