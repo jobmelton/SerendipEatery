@@ -133,5 +133,41 @@ export function useApi() {
       const token = await getAuthToken()
       return request<{ imageUrl: string }>('GET', `/share/profile/${userId}`, token)
     },
+
+    // ─── Battles ────────────────────────────────────────────────────
+    async battlesNearby(lat: number, lng: number, radius = 500) {
+      const token = await getAuthToken()
+      return request<any[]>('GET', '/battles/nearby', token, undefined, { lat, lng, radius })
+    },
+
+    async challengeUser(defenderId: string, lat?: number, lng?: number) {
+      const token = await getAuthToken()
+      return request<any>('POST', '/battles/challenge', token, { defenderId, lat, lng })
+    },
+
+    async acceptBattle(battleId: string) {
+      const token = await getAuthToken()
+      return request<any>('POST', `/battles/${battleId}/accept`, token)
+    },
+
+    async declineBattle(battleId: string) {
+      const token = await getAuthToken()
+      return request<any>('POST', `/battles/${battleId}/decline`, token)
+    },
+
+    async submitMoves(battleId: string, moves: string[]) {
+      const token = await getAuthToken()
+      return request<any>('POST', `/battles/${battleId}/moves`, token, { moves })
+    },
+
+    async getBattle(battleId: string) {
+      const token = await getAuthToken()
+      return request<any>('GET', `/battles/${battleId}`, token)
+    },
+
+    async claimLoot(battleId: string, lootType: 'points' | 'coupon') {
+      const token = await getAuthToken()
+      return request<any>('POST', `/battles/${battleId}/loot`, token, { lootType })
+    },
   }), [getAuthToken])
 }

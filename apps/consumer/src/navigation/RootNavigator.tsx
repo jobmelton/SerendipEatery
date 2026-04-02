@@ -10,6 +10,9 @@ import { WinScreen } from '../screens/WinScreen'
 import { ProfileScreen } from '../screens/ProfileScreen'
 import { ReferralScreen } from '../screens/ReferralScreen'
 import { ShareScreen } from '../screens/ShareScreen'
+import { BattleScreen } from '../screens/BattleScreen'
+import { BattleArenaScreen } from '../screens/BattleArenaScreen'
+import { WalletScreen } from '../screens/WalletScreen'
 import { SignInScreen } from '../screens/auth/SignInScreen'
 import { SignUpScreen } from '../screens/auth/SignUpScreen'
 
@@ -44,6 +47,7 @@ export type MainStackParamList = {
   }
   Referral: undefined
   Share: { visitIntentId: string; prizeName: string; businessName: string }
+  BattleArena: { battleId: string }
 }
 
 export type AuthStackParamList = {
@@ -55,6 +59,8 @@ export type RootStackParamList = MainStackParamList & AuthStackParamList
 
 export type TabParamList = {
   Home: undefined
+  Battle: undefined
+  Wallet: undefined
   Profile: undefined
 }
 
@@ -86,6 +92,22 @@ function HomeTabs() {
         options={{
           tabBarLabel: 'Home',
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 22 }}>🏠</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="Battle"
+        component={BattleScreen}
+        options={{
+          tabBarLabel: 'Battle',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 22 }}>⚔️</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="Wallet"
+        component={WalletScreen}
+        options={{
+          tabBarLabel: 'Wallet',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 22 }}>🎒</Text>,
         }}
       />
       <Tab.Screen
@@ -131,6 +153,11 @@ function MainNavigator() {
       />
       <MainStack.Screen name="Referral" component={ReferralScreen} />
       <MainStack.Screen name="Share" component={ShareScreen} />
+      <MainStack.Screen
+        name="BattleArena"
+        component={BattleArenaScreen}
+        options={{ gestureEnabled: false }}
+      />
     </MainStack.Navigator>
   )
 }

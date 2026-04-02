@@ -23,6 +23,7 @@ import { shareRoutes } from './routes/share.js'
 import { evidenceRoutes } from './routes/evidence.js'
 import { analyticsRoutes } from './routes/analytics.js'
 import { adminRoutes } from './routes/admin.js'
+import { battleRoutes } from './routes/battles.js'
 
 const app = Fastify({ logger: true })
 
@@ -69,6 +70,7 @@ app.register(async (protectedRoutes) => {
   protectedRoutes.register(shareRoutes)
   protectedRoutes.register(evidenceRoutes)
   protectedRoutes.register(analyticsRoutes)
+  protectedRoutes.register(battleRoutes)
   protectedRoutes.register(adminRoutes, { prefix: '/admin' })
 })
 
