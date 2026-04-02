@@ -336,6 +336,7 @@ function PickAPlaceRoulette() {
         angle = norm + diff * e
       }
       const rad = ((angle - 90) * Math.PI) / 180
+      if (!el) return
       el.style.left = `${halfW + r * Math.cos(rad) - 5}px`
       el.style.top = `${halfW + r * Math.sin(rad) - 5}px`
       if (t < 1) ballAnim.current = requestAnimationFrame(tick)
