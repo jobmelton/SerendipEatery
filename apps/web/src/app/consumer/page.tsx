@@ -25,6 +25,9 @@ const CENTER = 140
 const INNER_RADIUS = 28
 const STUD_RADIUS = RADIUS + 12
 const STUD_COUNT = 24
+const BALL_ORBIT_R = RADIUS + 8 // SVG units — between studs and outer ring
+const BALL_ORBIT_PX = BALL_ORBIT_R * (WHEEL_SIZE / 280) // pixel-space orbit radius
+const BALL_SIZE = 12
 
 function polarToXY(angleDeg: number, r: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180
@@ -56,6 +59,7 @@ function SpinWheel({
   onSpinComplete: () => void
 }) {
   const [rotation, setRotation] = useState(0)
+  const [ballRotation, setBallRotation] = useState(45) // initial resting angle
   const [animating, setAnimating] = useState(false)
 
   const segments = Array.from({ length: NUM_SEGMENTS }, (_, i) => {
@@ -68,8 +72,12 @@ function SpinWheel({
   useEffect(() => {
     if (spinning && !animating) {
       setAnimating(true)
-      const spins = (5 + Math.random() * 3) * 360
-      setRotation((prev) => prev + spins)
+      // Wheel spins clockwise
+      const wheelSpins = (5 + Math.random() * 3) * 360
+      setRotation((prev) => prev + wheelSpins)
+      // Ball orbits counter-clockwise (opposite), slightly more rotations
+      const ballSpins = (6 + Math.random() * 3) * 360
+      setBallRotation((prev) => prev - ballSpins)
       const timer = setTimeout(() => {
         setAnimating(false)
         onSpinComplete()
@@ -79,9 +87,12 @@ function SpinWheel({
   }, [spinning])
 
   return (
-    <div className="relative flex items-center justify-center my-3">
+    <div
+      className="relative my-3"
+      style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}
+    >
       {/* Pointer */}
-      <div className="absolute -top-0.5 z-10 flex flex-col items-center">
+      <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 z-20">
         <svg width="28" height="24" viewBox="0 0 28 24">
           <defs>
             <linearGradient id="pointerGrad" x1="0" y1="0" x2="0" y2="1">
@@ -94,6 +105,32 @@ function SpinWheel({
         </svg>
       </div>
 
+      {/* Ball — orbits counter-clockwise, decelerates independently */}
+      <div
+        className="absolute inset-0 pointer-events-none z-10"
+        style={{
+          transform: `rotate(${ballRotation}deg)`,
+          transition: animating
+            ? 'transform 4.6s cubic-bezier(0.10, 0.65, 0.06, 1.02)'
+            : 'none',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: WHEEL_SIZE / 2 - BALL_ORBIT_PX - BALL_SIZE / 2,
+            width: BALL_SIZE,
+            height: BALL_SIZE,
+            marginLeft: -BALL_SIZE / 2,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at 35% 30%, #ffffff, #d0d0d0 50%, #a0a0a0)',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.6), inset 0 -1px 2px rgba(0,0,0,0.15)',
+          }}
+        />
+      </div>
+
+      {/* Wheel */}
       <svg
         viewBox="0 0 280 280"
         width={WHEEL_SIZE}
