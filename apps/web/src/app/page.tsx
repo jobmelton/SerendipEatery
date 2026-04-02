@@ -529,17 +529,17 @@ export default function LandingPage() {
         {/* Emoji row */}
         <div className="flex items-center justify-center gap-3 mb-3">
           <div className="flex flex-col items-center">
-            <span className="text-3xl animate-[rockPulse_1.8s_ease-in-out_infinite]" style={{ transform: 'rotate(-90deg)', display: 'inline-block' }}>✊</span>
+            <span className="text-3xl animate-[rockPulse_1.8s_ease-in-out_infinite]" style={{ display: 'inline-block' }}>✊</span>
             <span className="text-surface/40 text-[11px] uppercase tracking-wider mt-1">Rock</span>
           </div>
           <span className="text-surface/20 text-xs font-bold">vs</span>
           <div className="flex flex-col items-center">
-            <span className="text-3xl animate-[paperPulse_1.8s_ease-in-out_infinite]" style={{ transform: 'rotate(-90deg)', display: 'inline-block' }}>🤚</span>
+            <span className="text-3xl animate-[paperPulse_1.8s_ease-in-out_infinite]" style={{ display: 'inline-block' }}>🤚</span>
             <span className="text-surface/40 text-[11px] uppercase tracking-wider mt-1">Paper</span>
           </div>
           <span className="text-surface/20 text-xs font-bold">vs</span>
           <div className="flex flex-col items-center">
-            <span className="text-3xl animate-[scissorsPulse_1.8s_ease-in-out_infinite]" style={{ transform: 'rotate(-90deg)', display: 'inline-block' }}>✌️</span>
+            <span className="text-3xl animate-[scissorsPulse_1.8s_ease-in-out_infinite]" style={{ display: 'inline-block' }}>✌️</span>
             <span className="text-surface/40 text-[11px] uppercase tracking-wider mt-1">Scissors</span>
           </div>
         </div>
@@ -585,16 +585,16 @@ export default function LandingPage() {
           50% { box-shadow: 0 0 0 12px rgba(247,148,29,0); }
         }
         @keyframes rockPulse {
-          0%, 100% { transform: rotate(-90deg) translateY(0); }
-          50% { transform: rotate(-90deg) translateY(-6px); }
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
         }
         @keyframes paperPulse {
-          0%, 100% { transform: rotate(-90deg) scale(1); }
-          50% { transform: rotate(-90deg) scale(1.08); }
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.08); }
         }
         @keyframes scissorsPulse {
-          0%, 100% { transform: rotate(-90deg) translateY(0); }
-          50% { transform: rotate(-90deg) translateY(6px); }
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(6px); }
         }
       `}</style>
 
@@ -644,6 +644,16 @@ export default function LandingPage() {
           <Link href="/business" className="hover:text-surface/50 transition">Business</Link>
           <Link href="/consumer" className="hover:text-surface/50 transition">Consumer</Link>
           <Link href="/coming-soon-app" className="hover:text-surface/50 transition">Download App</Link>
+          <button
+            onClick={() => {
+              const sd = { title: 'SerendipEatery', text: 'Spin to win deals at restaurants near you!', url: typeof window !== 'undefined' ? window.location.origin : 'https://serendip.app' }
+              if (typeof navigator !== 'undefined' && navigator.share) navigator.share(sd).catch(() => {})
+              else if (typeof navigator !== 'undefined') navigator.clipboard.writeText(sd.url)
+            }}
+            className="hover:text-surface/50 transition"
+          >
+            Tell a friend →
+          </button>
         </div>
       </footer>
     </main>

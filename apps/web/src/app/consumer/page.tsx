@@ -658,11 +658,18 @@ export default function ConsumerPage() {
 
                   {/* Wheel or result */}
                   {spinResult?.saleId === sale.id ? (
-                    <div
-                      className="text-center py-4 px-6 rounded-2xl font-bold text-sm my-3 w-full"
-                      style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}
-                    >
-                      {spinResult.prize}
+                    <div className="text-center py-4 px-6 rounded-2xl my-3 w-full" style={{ background: 'rgba(29,158,117,0.15)' }}>
+                      <p className="font-bold text-sm" style={{ color: '#1D9E75' }}>{spinResult.prize}</p>
+                      <button
+                        onClick={() => {
+                          const sd = { title: 'SerendipEatery Win!', text: `I just won ${spinResult.prize} at ${sale.business_name} on SerendipEatery! 🎰`, url: typeof window !== 'undefined' ? window.location.origin : '' }
+                          if (navigator.share) navigator.share(sd).catch(() => {})
+                          else navigator.clipboard.writeText(sd.text)
+                        }}
+                        className="mt-2 text-teal text-xs font-bold hover:underline"
+                      >
+                        Share your win →
+                      </button>
                     </div>
                   ) : (
                     <>

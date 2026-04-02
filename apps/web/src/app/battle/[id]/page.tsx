@@ -189,9 +189,9 @@ export default function BattlePage() {
               })() : null
               return (
                 <div key={i} className="flex items-center justify-center gap-6" style={{ opacity: shown ? 1 : 0.2 }}>
-                  <span className="text-3xl w-12 text-right">{MOVES.find((m) => m.key === myMove)?.icon}</span>
+                  <span className="text-3xl w-12 text-right" style={{ transform: 'rotate(90deg)' }}>{MOVES.find((m) => m.key === myMove)?.icon}</span>
                   <span className="text-surface/30 text-sm">vs</span>
-                  <span className="text-3xl w-12">{shown ? MOVES.find((m) => m.key === cpuMoves[i])?.icon : '❓'}</span>
+                  <span className="text-3xl w-12" style={{ transform: 'rotate(-90deg)' }}>{shown ? MOVES.find((m) => m.key === cpuMoves[i])?.icon : '❓'}</span>
                   <span className="text-sm font-bold w-10" style={{ color: ri?.color ?? '#888' }}>{ri?.text ?? ''}</span>
                 </div>
               )

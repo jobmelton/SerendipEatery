@@ -8,7 +8,7 @@ const CONSUMER_NAV = [
   { href: '/', label: 'Home', icon: '🏠' },
   { href: '/consumer', label: 'Deals', icon: '🎰' },
   { href: '/wallet', label: 'Wallet', icon: '🎒' },
-  { href: '/profile', label: 'Profile', icon: '🧭' },
+  { href: '/profile', label: 'Invite', icon: '🎁' },
 ]
 
 const BUSINESS_NAV = [

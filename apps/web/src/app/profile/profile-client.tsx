@@ -202,23 +202,38 @@ export function ProfileClient({ user, profile, referralCode, recentActivity }: P
         </section>
 
         {/* Referral Code */}
-        {referralCode && (
-          <section className="bg-[#1a1230] rounded-2xl p-6 mb-6">
-            <h3 className="text-lg font-bold text-surface mb-2">Your Referral Code</h3>
-            <p className="text-surface/40 text-sm mb-3">Share this code to earn points when friends sign up</p>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 bg-night rounded-xl px-4 py-3 font-mono text-lg text-btc font-bold tracking-widest">
-                {referralCode}
+        {/* Invite Friends */}
+        <section className="rounded-2xl p-6 mb-6" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.2)' }}>
+          <h3 className="text-lg font-bold text-surface mb-1">🎁 Invite Friends</h3>
+          <p className="text-surface/40 text-sm mb-4">You earn +100 pts, they get +50 pts</p>
+
+          {referralCode ? (
+            <>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex-1 bg-night rounded-xl px-4 py-3 font-mono text-lg text-btc font-bold tracking-widest text-center">
+                  {referralCode}
+                </div>
+                <button onClick={copyCode}
+                  className="bg-btc text-night font-bold px-5 py-3 rounded-xl hover:bg-btc-dark transition text-sm">
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
               </div>
               <button
-                onClick={copyCode}
-                className="bg-btc text-night font-bold px-5 py-3 rounded-xl hover:bg-btc-dark transition text-sm"
+                onClick={() => {
+                  const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/join/${referralCode}`
+                  const sd = { title: 'Join SerendipEatery', text: `Join me on SerendipEatery! Use my code ${referralCode} to get bonus points.`, url }
+                  if (typeof navigator !== 'undefined' && navigator.share) navigator.share(sd).catch(() => {})
+                  else if (typeof navigator !== 'undefined') navigator.clipboard.writeText(url)
+                }}
+                className="w-full bg-btc/10 text-btc font-bold py-3 rounded-xl border border-btc/30 hover:bg-btc/20 transition text-sm"
               >
-                {copied ? 'Copied!' : 'Copy'}
+                Share Invite Link
               </button>
-            </div>
-          </section>
-        )}
+            </>
+          ) : (
+            <p className="text-surface/30 text-sm">Referral code not available yet</p>
+          )}
+        </section>
 
         {/* Recent Activity */}
         <section className="bg-[#1a1230] rounded-2xl p-6">

@@ -248,8 +248,8 @@ export default function DemoBattlePage() {
       {phase === 'countdown' && (
         <div className="text-center">
           <div className="flex items-center justify-center gap-12 mb-6">
-            <span className="text-6xl animate-bounce" style={{ animationDuration: '0.5s' }}>✊</span>
-            <span className="text-6xl animate-bounce" style={{ animationDuration: '0.5s' }}>✊</span>
+            <span className="text-6xl animate-bounce" style={{ animationDuration: '0.5s', transform: 'rotate(90deg)' }}>✊</span>
+            <span className="text-6xl animate-bounce" style={{ animationDuration: '0.5s', transform: 'rotate(-90deg)' }}>✊</span>
           </div>
           <p className="text-7xl font-black text-btc animate-pulse">{countdownNum}</p>
         </div>
@@ -259,9 +259,9 @@ export default function DemoBattlePage() {
       {phase === 'roundResult' && roundText && (
         <div className="text-center">
           <div className="flex items-center justify-center gap-8 mb-6">
-            <span className="text-5xl">{MOVE_TO_EMOJI[myMoves[revealIdx] as Move]}</span>
+            <span className="text-5xl" style={{ transform: 'rotate(90deg)' }}>{MOVE_TO_EMOJI[myMoves[revealIdx] as Move]}</span>
             <span className="text-surface/30 text-lg">vs</span>
-            <span className="text-5xl">{MOVE_TO_EMOJI[houseMoves[revealIdx]]}</span>
+            <span className="text-5xl" style={{ transform: 'rotate(-90deg)' }}>{MOVE_TO_EMOJI[houseMoves[revealIdx]]}</span>
           </div>
           <p className="text-3xl md:text-4xl font-black animate-pulse" style={{ color: roundText.color }}>
             {roundText.text}
@@ -274,9 +274,9 @@ export default function DemoBattlePage() {
         <div className="text-center">
           {phase === 'reveal' && (
             <div className="flex items-center justify-center gap-8 mb-6">
-              <span className="text-5xl">{MOVE_TO_EMOJI[myMoves[revealIdx] as Move]}</span>
+              <span className="text-5xl" style={{ transform: 'rotate(90deg)' }}>{MOVE_TO_EMOJI[myMoves[revealIdx] as Move]}</span>
               <span className="text-surface/30 text-lg">vs</span>
-              <span className="text-5xl">{MOVE_TO_EMOJI[houseMoves[revealIdx]]}</span>
+              <span className="text-5xl" style={{ transform: 'rotate(-90deg)' }}>{MOVE_TO_EMOJI[houseMoves[revealIdx]]}</span>
             </div>
           )}
 
@@ -297,9 +297,9 @@ export default function DemoBattlePage() {
               const ri = shown ? resolveIcon(myMove, houseMoves[i]) : null
               return (
                 <div key={i} className="flex items-center justify-center gap-6" style={{ opacity: shown ? 1 : 0.2 }}>
-                  <span className="text-2xl w-10 text-right">{MOVES.find((m) => m.key === myMove)?.icon}</span>
+                  <span className="text-2xl w-10 text-right" style={{ transform: 'rotate(90deg)' }}>{MOVES.find((m) => m.key === myMove)?.icon}</span>
                   <span className="text-surface/30 text-xs">vs</span>
-                  <span className="text-2xl w-10">{shown ? MOVES.find((m) => m.key === houseMoves[i])?.icon : '❓'}</span>
+                  <span className="text-2xl w-10" style={{ transform: 'rotate(-90deg)' }}>{shown ? MOVES.find((m) => m.key === houseMoves[i])?.icon : '❓'}</span>
                   <span className="text-sm font-bold w-8" style={{ color: ri?.color ?? '#888' }}>{ri?.text ?? ''}</span>
                 </div>
               )
