@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 
 /* ─── Wheel Config ─── */
@@ -46,31 +46,49 @@ export default function LandingPage() {
   const [spinning, setSpinning] = useState(false)
   const [hasSpun, setHasSpun] = useState(false)
   const [winToast, setWinToast] = useState<string | null>(null)
+  const [power, setPower] = useState(0)
+  const [holding, setHolding] = useState(false)
+  const powerInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  const powerRef = useRef(0)
 
-  const handleSpin = useCallback(() => {
+  const startHold = useCallback(() => {
     if (spinning) return
+    setHolding(true)
+    powerRef.current = 0
+    setPower(0)
+    powerInterval.current = setInterval(() => {
+      powerRef.current = Math.min(powerRef.current + 100 / 30, 100) // fills in 3s at ~10ms ticks
+      setPower(powerRef.current)
+    }, 100)
+  }, [spinning])
+
+  const releaseHold = useCallback(() => {
+    if (!holding || spinning) return
+    setHolding(false)
+    if (powerInterval.current) { clearInterval(powerInterval.current); powerInterval.current = null }
+
+    const pwr = Math.max(powerRef.current, 15) / 100 // minimum 15% power
+    setPower(0)
     setSpinning(true)
     setHasSpun(true)
     setWinToast(null)
 
-    // Pick a random winning segment
     const winIdx = Math.floor(Math.random() * NUM_SEGMENTS)
-    // Spin wheel: 5-8 full rotations + land so winning segment is at top (pointer)
     const targetAngle = 360 - (winIdx * SEG_ANGLE + SEG_ANGLE / 2)
-    const fullSpins = (5 + Math.random() * 3) * 360
+    const fullSpins = (3 + pwr * 5) * 360 // 3-8 rotations based on power
     const wheelDelta = fullSpins + targetAngle - (rotation % 360)
     setRotation((prev) => prev + wheelDelta)
 
-    // Ball goes opposite direction
-    const ballSpins = (6 + Math.random() * 3) * 360
+    const ballSpins = (4 + pwr * 4) * 360
     setBallAngle((prev) => prev - ballSpins)
 
+    const duration = 3000 + pwr * 2000 // 3-5s based on power
     setTimeout(() => {
       setSpinning(false)
       setWinToast(PRIZES[winIdx])
       setTimeout(() => setWinToast(null), 3500)
-    }, 4200)
-  }, [spinning, rotation])
+    }, duration)
+  }, [holding, spinning, rotation])
 
   const BALL_ORBIT = (R + 8) * (WHEEL_PX / (CX * 2))
   const BALL_SZ = 13
@@ -79,9 +97,13 @@ export default function LandingPage() {
     <main className="min-h-screen bg-night flex flex-col items-center px-6 pt-12 pb-20">
       {/* ─── Roulette Wheel ──────────────────────────────────────────── */}
       <div
-        className="relative cursor-pointer mb-1"
+        className="relative cursor-pointer mb-1 select-none"
         style={{ width: WHEEL_PX, height: WHEEL_PX }}
-        onClick={handleSpin}
+        onMouseDown={startHold}
+        onMouseUp={releaseHold}
+        onMouseLeave={() => { if (holding) releaseHold() }}
+        onTouchStart={startHold}
+        onTouchEnd={releaseHold}
       >
         {/* Pointer */}
         <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-20">
@@ -208,9 +230,21 @@ export default function LandingPage() {
         </svg>
       </div>
 
+      {/* Power meter */}
+      <div className="w-48 h-2 bg-white/10 rounded-full overflow-hidden mb-2 mt-1">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{
+            width: `${power}%`,
+            background: power > 70 ? '#1D9E75' : '#F7941D',
+            transition: holding ? 'none' : 'width 0.3s',
+          }}
+        />
+      </div>
+
       {/* Spin hint */}
       <p className="text-surface/30 text-xs mb-6 tracking-wide">
-        {spinning ? '\u00A0' : hasSpun ? 'Tap to spin again' : 'Click to spin'}
+        {spinning ? '\u00A0' : holding ? 'Release to spin!' : hasSpun ? 'Hold to spin again' : 'Hold and release to spin'}
       </p>
 
       {/* Win toast */}

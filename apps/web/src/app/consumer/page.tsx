@@ -436,13 +436,19 @@ export default function ConsumerPage() {
             style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.12)' }}
           >
             <span className="relative flex h-3 w-3 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-btc opacity-75" />
+              <span className="absolute inline-flex h-full w-full rounded-full bg-btc animate-[pulse_2s_ease-in-out_infinite]" />
               <span className="relative inline-flex rounded-full h-3 w-3 bg-btc" />
             </span>
-            <div>
+            <div className="flex-1">
               <p className="text-surface text-sm font-bold">Someone nearby wants to battle</p>
               <p className="text-surface/40 text-xs">Your next friend is 10 feet away</p>
             </div>
+            <Link
+              href="/consumer"
+              className="bg-btc text-night text-xs font-bold px-4 py-2 rounded-full hover:bg-btc-dark transition whitespace-nowrap"
+            >
+              Battle Now
+            </Link>
           </div>
         )}
       </div>
