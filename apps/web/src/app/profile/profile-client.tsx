@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { UserButton } from '@clerk/nextjs'
+import { NavBar } from '@/components/NavBar'
 
 /* ─── Tier definitions ─── */
 const TIERS = [
@@ -81,21 +81,11 @@ export function ProfileClient({ user, profile, referralCode, recentActivity }: P
   }
 
   return (
+    <>
+    <NavBar variant="consumer" />
     <main className="min-h-screen bg-night px-6 py-8">
       <div className="mx-auto max-w-3xl">
-        {/* Header */}
-        <header className="flex items-center justify-between mb-8">
-          <div>
-            <Link href="/" className="text-btc text-sm font-medium hover:underline">
-              &larr; Home
-            </Link>
-            <h1 className="text-2xl font-bold text-surface mt-1">My Profile</h1>
-          </div>
-          <UserButton
-            appearance={{ variables: { colorPrimary: '#F7941D' } }}
-            afterSignOutUrl="/"
-          />
-        </header>
+        <h1 className="text-2xl font-bold text-surface mb-8">My Profile</h1>
 
         {/* Tier Card */}
         <section className="rounded-2xl p-6 mb-6" style={{ background: '#1a1230', border: `2px solid ${tier.color}40` }}>
@@ -225,5 +215,6 @@ export function ProfileClient({ user, profile, referralCode, recentActivity }: P
         </div>
       </div>
     </main>
+    </>
   )
 }

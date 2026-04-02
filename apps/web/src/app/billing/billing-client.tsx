@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { UserButton } from '@clerk/nextjs'
+import { NavBar } from '@/components/NavBar'
 
 const planLabels: Record<string, string> = {
   trial: 'Free Trial',
@@ -79,20 +79,11 @@ export function BillingClient({ business, monthlyUsage, userEmail }: Props) {
   }
 
   return (
-    <main className="min-h-screen bg-night px-6 py-12">
+    <>
+    <NavBar variant="business" />
+    <main className="min-h-screen bg-night px-6 py-8">
       <div className="mx-auto max-w-3xl">
-        <header className="flex items-center justify-between mb-8">
-          <div>
-            <Link href="/dashboard" className="text-btc text-sm font-medium hover:underline">
-              &larr; Dashboard
-            </Link>
-            <h1 className="text-2xl font-bold text-surface mt-1">Billing</h1>
-          </div>
-          <UserButton
-            appearance={{ variables: { colorPrimary: '#F7941D' } }}
-            afterSignOutUrl="/"
-          />
-        </header>
+        <h1 className="text-2xl font-bold text-surface mb-8">Billing</h1>
 
         {/* Trial Banner */}
         {isOnTrial && (
@@ -196,5 +187,6 @@ export function BillingClient({ business, monthlyUsage, userEmail }: Props) {
         )}
       </div>
     </main>
+    </>
   )
 }

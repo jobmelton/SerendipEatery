@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { UserButton } from '@clerk/nextjs'
+import { NavBar } from '@/components/NavBar'
 
 interface Props {
   user: { firstName: string }
@@ -20,21 +20,17 @@ export function DashboardClient({ user, business, stats, chartData, recentBillin
   const maxVisits = Math.max(...chartData.map((d) => d.visits), 1)
 
   return (
-    <main className="min-h-screen bg-night px-6 py-12">
+    <>
+    <NavBar variant="business" />
+    <main className="min-h-screen bg-night px-6 py-8">
       <div className="mx-auto max-w-5xl">
-        <header className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-surface">
-              {business?.name ?? 'Dashboard'}
-            </h1>
-            <p className="text-surface/50 text-sm mt-1">
-              Welcome back, {user.firstName}
-            </p>
-          </div>
-          <UserButton
-            appearance={{ variables: { colorPrimary: '#F7941D' } }}
-            afterSignOutUrl="/"
-          />
+        <header className="mb-8">
+          <h1 className="text-2xl font-bold text-surface">
+            {business?.name ?? 'Dashboard'}
+          </h1>
+          <p className="text-surface/50 text-sm mt-1">
+            Welcome back, {user.firstName}
+          </p>
         </header>
 
         {/* Overview Cards */}
@@ -103,6 +99,7 @@ export function DashboardClient({ user, business, stats, chartData, recentBillin
         </section>
       </div>
     </main>
+    </>
   )
 }
 

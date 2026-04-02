@@ -268,6 +268,22 @@ export default function LandingPage() {
         </Link>
       </div>
 
+      {/* ─── How It Works ──────────────────────────────────────────── */}
+      <div className="flex items-center justify-center gap-12 md:gap-20 mb-14">
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-3xl">🎰</span>
+          <span className="text-surface/50 text-xs font-bold">Spin</span>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-3xl">🎁</span>
+          <span className="text-surface/50 text-xs font-bold">Win</span>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-3xl">🍽️</span>
+          <span className="text-surface/50 text-xs font-bold">Eat</span>
+        </div>
+      </div>
+
       {/* ─── Sample Deal Cards ───────────────────────────────────────── */}
       <div className="w-full max-w-3xl">
         <h2 className="text-xl font-bold text-surface mb-4">Flash sales near you</h2>
@@ -329,6 +345,16 @@ export default function LandingPage() {
           Download for Android
         </Link>
       </div>
+
+      {/* ─── Footer ──────────────────────────────────────────────────── */}
+      <footer className="mt-16 pt-8 border-t border-white/5 w-full max-w-3xl">
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-surface/30 text-xs">
+          <Link href="/pricing" className="hover:text-surface/50 transition">Pricing</Link>
+          <Link href="/business" className="hover:text-surface/50 transition">Business</Link>
+          <Link href="/consumer" className="hover:text-surface/50 transition">Consumer</Link>
+          <Link href="/coming-soon-app" className="hover:text-surface/50 transition">Download App</Link>
+        </div>
+      </footer>
     </main>
   )
 }

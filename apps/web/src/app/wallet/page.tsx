@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useUser } from '@clerk/nextjs'
+import { NavBar } from '@/components/NavBar'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -73,15 +74,12 @@ export default function WalletPage() {
   }
 
   return (
+    <>
+    <NavBar variant="consumer" />
     <main className="min-h-screen bg-night">
-      <header className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between">
-        <div>
-          <Link href="/dashboard" className="text-btc text-sm font-medium hover:underline">
-            &larr; Dashboard
-          </Link>
-          <h1 className="text-2xl font-bold text-surface mt-1">Wallet</h1>
-        </div>
-      </header>
+      <div className="max-w-5xl mx-auto px-6 pt-6">
+        <h1 className="text-2xl font-bold text-surface mb-4">Wallet</h1>
+      </div>
 
       <div className="max-w-5xl mx-auto px-6 pb-16">
         {/* Stats bar */}
@@ -185,5 +183,6 @@ export default function WalletPage() {
         )}
       </div>
     </main>
+    </>
   )
 }

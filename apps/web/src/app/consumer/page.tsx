@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useUser, SignInButton } from '@clerk/nextjs'
+import { NavBar } from '@/components/NavBar'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -308,44 +309,30 @@ export default function ConsumerPage() {
 
   return (
     <main className="min-h-screen bg-night">
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 max-w-5xl mx-auto">
-        <Link href="/" className="flex items-baseline gap-0.5">
-          <span className="font-display text-xl font-black text-btc">S</span>
-          <span className="font-display text-xl font-black text-surface">erendip</span>
-          <span className="font-display text-xl font-black text-btc/40">Eatery</span>
-        </Link>
-        <div className="flex items-center gap-3">
-          {isSignedIn ? (
-            <>
-              <Link
-                href="/profile"
-                className="flex items-center gap-1.5 text-sm text-surface/60 hover:text-surface transition"
-              >
-                <span className="text-xs">🧭</span>
-                Profile
-              </Link>
-              <Link href="/dashboard" className="text-sm text-surface/60 hover:text-surface transition">
-                Dashboard
-              </Link>
-            </>
-          ) : (
-            <>
-              <SignInButton mode="modal">
-                <button className="text-sm text-surface/60 hover:text-surface transition">
-                  Sign In
-                </button>
-              </SignInButton>
-              <Link
-                href="/sign-up"
-                className="bg-btc text-night text-sm font-bold px-4 py-2 rounded-full hover:bg-btc-dark transition"
-              >
-                Sign Up
-              </Link>
-            </>
-          )}
-        </div>
-      </header>
+      {isSignedIn ? (
+        <NavBar variant="consumer" />
+      ) : (
+        <header className="flex items-center justify-between px-6 py-4 max-w-5xl mx-auto">
+          <Link href="/" className="flex items-baseline gap-0.5">
+            <span className="font-display text-xl font-black text-btc">S</span>
+            <span className="font-display text-xl font-black text-surface">erendip</span>
+            <span className="font-display text-xl font-black text-btc/40">Eatery</span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <SignInButton mode="modal">
+              <button className="text-sm text-surface/60 hover:text-surface transition">
+                Sign In
+              </button>
+            </SignInButton>
+            <Link
+              href="/sign-up"
+              className="bg-btc text-night text-sm font-bold px-4 py-2 rounded-full hover:bg-btc-dark transition"
+            >
+              Sign Up
+            </Link>
+          </div>
+        </header>
+      )}
 
       <div className="max-w-5xl mx-auto px-6 pb-16">
         {locationError && (
