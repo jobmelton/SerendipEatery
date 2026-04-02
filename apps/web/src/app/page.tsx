@@ -219,9 +219,7 @@ function DealModal({ deal, onClose }: { deal: typeof SAMPLE_DEALS[0]; onClose: (
 /* ─── Main Page ─── */
 export default function LandingPage() {
   const [rotation, setRotation] = useState(0)
-  const [ballAngle, setBallAngle] = useState(20)
   const [spinning, setSpinning] = useState(false)
-  const [ballPhase, setBallPhase] = useState<'idle' | 'orbit' | 'fall' | 'settled'>('idle')
   const [hasSpun, setHasSpun] = useState(false)
   const [winToast, setWinToast] = useState<string | null>(null)
   const [power, setPower] = useState(0)
@@ -229,6 +227,87 @@ export default function LandingPage() {
   const [modalDeal, setModalDeal] = useState<typeof SAMPLE_DEALS[0] | null>(null)
   const powerInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const powerRef = useRef(0)
+
+  // Ball uses rAF for smooth multi-phase animation
+  const ballRef = useRef<HTMLDivElement>(null)
+  const ballAnimRef = useRef<number>(0)
+  const SCALE = WHEEL_PX / (CX * 2)
+  const BALL_SZ = 10
+  const ORBIT_R = (R + 8) * SCALE  // outer rim
+  const SETTLE_R = (R * 0.52) * SCALE // inside segment
+
+  // Animate ball with requestAnimationFrame
+  function animateBall(
+    duration: number,
+    winSegAngle: number, // angle of winning segment center in wheel's final position
+  ) {
+    const el = ballRef.current
+    if (!el) return
+    const start = performance.now()
+    const halfW = WHEEL_PX / 2
+
+    // Initial ball angle (random start)
+    const startAngle = Math.random() * 360
+    // Total orbit: ball spins opposite direction, more rotations
+    const totalOrbitDeg = -(1800 + Math.random() * 1080) // 5-8 counter-rotations
+
+    // The winning segment's position at the pointer (top) after wheel stops.
+    // Ball must end at that angle. Pointer is at top = -90deg in standard coords.
+    // The winning segment center is at the top of the wheel after rotation.
+    // In the ball's coordinate system (absolute, not rotating with wheel),
+    // the ball needs to land at angle = 0 (top) to match the pointer.
+    // But we want it slightly offset within the segment.
+    const segWidth = SEG_ANGLE
+    const offsetWithinSeg = (Math.random() - 0.5) * 0.6 * segWidth // ±30% of segment
+    const finalBallAngle = offsetWithinSeg // near top (0 = top under pointer)
+
+    function tick(now: number) {
+      const elapsed = now - start
+      const t = Math.min(elapsed / duration, 1)
+
+      // Eased progress for orbit (fast start, slow end)
+      const orbitT = 1 - Math.pow(1 - t, 3) // cubic ease-out
+      const angle = startAngle + totalOrbitDeg * orbitT
+
+      // Radius: stays at orbit until 60%, then eases inward
+      let radius = ORBIT_R
+      if (t > 0.6) {
+        const fallT = (t - 0.6) / 0.4 // 0→1 over last 40%
+        // Ease with slight bounce at end
+        const eased = fallT < 0.85
+          ? fallT / 0.85 // linear approach
+          : 1 + Math.sin((fallT - 0.85) / 0.15 * Math.PI) * 0.08 // small bounce
+        radius = ORBIT_R + (SETTLE_R - ORBIT_R) * eased
+      }
+
+      // At end, blend angle toward final position
+      let displayAngle = angle
+      if (t > 0.85) {
+        const blendT = (t - 0.85) / 0.15
+        const eased = blendT * blendT * (3 - 2 * blendT) // smoothstep
+        // Normalize current angle to 0-360
+        const normalizedAngle = ((angle % 360) + 360) % 360
+        // Find shortest path to final angle
+        let diff = finalBallAngle - normalizedAngle
+        if (diff > 180) diff -= 360
+        if (diff < -180) diff += 360
+        displayAngle = normalizedAngle + diff * eased
+      }
+
+      const rad = ((displayAngle - 90) * Math.PI) / 180
+      const x = halfW + radius * Math.cos(rad) - BALL_SZ / 2
+      const y = halfW + radius * Math.sin(rad) - BALL_SZ / 2
+
+      el.style.left = `${x}px`
+      el.style.top = `${y}px`
+
+      if (t < 1) {
+        ballAnimRef.current = requestAnimationFrame(tick)
+      }
+    }
+
+    ballAnimRef.current = requestAnimationFrame(tick)
+  }
 
   const startHold = useCallback(() => {
     if (spinning) return
@@ -251,40 +330,38 @@ export default function LandingPage() {
     setSpinning(true)
     setHasSpun(true)
     setWinToast(null)
-    setBallPhase('orbit')
 
+    // Pick winning segment
     const winIdx = Math.floor(Math.random() * NUM_SEGMENTS)
-    const targetAngle = 360 - (winIdx * SEG_ANGLE + SEG_ANGLE / 2)
-    const fullSpins = (3 + pwr * 5) * 360
-    const wheelDelta = fullSpins + targetAngle - (rotation % 360)
-    setRotation((prev) => prev + wheelDelta)
 
-    const ballSpins = (4 + pwr * 4) * 360
-    setBallAngle((prev) => prev - ballSpins)
+    // Calculate exact rotation so winning segment lands under pointer (top)
+    // Segment center angle = winIdx * SEG_ANGLE + SEG_ANGLE/2
+    // We need this angle to be at the top (0°), so rotate wheel by -(that angle)
+    // Plus random offset within ±30% of segment width
+    const segCenter = winIdx * SEG_ANGLE + SEG_ANGLE / 2
+    const jitter = (Math.random() - 0.5) * 0.6 * SEG_ANGLE
+    const targetAngle = 360 - segCenter + jitter
+
+    // Normalize: add full spins so total is always forward
+    const fullSpins = Math.ceil(3 + pwr * 5) * 360
+    // Calculate delta from current rotation
+    const currentMod = ((rotation % 360) + 360) % 360
+    let delta = fullSpins + targetAngle - currentMod
+    if (delta < fullSpins) delta += 360 // ensure enough spins
+
+    setRotation((prev) => prev + delta)
 
     const duration = 3000 + pwr * 2000
 
-    // Ball falls inward at 80% of spin duration
-    setTimeout(() => setBallPhase('fall'), duration * 0.75)
+    // Animate ball with rAF
+    animateBall(duration, segCenter)
 
-    // Ball settles
     setTimeout(() => {
-      setBallPhase('settled')
       setSpinning(false)
       setWinToast(PRIZES[winIdx])
-      setTimeout(() => {
-        setWinToast(null)
-        setBallPhase('idle')
-      }, 3500)
+      setTimeout(() => setWinToast(null), 3500)
     }, duration)
   }, [holding, spinning, rotation])
-
-  // Ball positioning based on phase
-  const SCALE = WHEEL_PX / (CX * 2)
-  const BALL_SZ = 10
-  const orbitR = (R + 8) * SCALE
-  const settledR = (R * 0.55) * SCALE // inside segments
-  const ballR = ballPhase === 'settled' || ballPhase === 'fall' ? settledR : orbitR
 
   return (
     <main className="min-h-screen bg-night flex flex-col items-center px-6 pt-12 pb-20">
@@ -311,31 +388,20 @@ export default function LandingPage() {
           </svg>
         </div>
 
-        {/* Ball */}
+        {/* Ball — positioned via requestAnimationFrame */}
         <div
-          className="absolute inset-0 pointer-events-none z-10"
+          ref={ballRef}
+          className="absolute pointer-events-none z-10"
           style={{
-            transform: `rotate(${ballAngle}deg)`,
-            transition: spinning
-              ? `transform ${ballPhase === 'fall' ? '0.6s' : '4.6s'} cubic-bezier(0.08, 0.65, 0.05, 1.02)`
-              : 'none',
+            width: BALL_SZ,
+            height: BALL_SZ,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.7), inset 0 -1px 2px rgba(0,0,0,0.2)',
+            left: WHEEL_PX / 2 - BALL_SZ / 2,
+            top: WHEEL_PX / 2 - ORBIT_R - BALL_SZ / 2,
           }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              left: '50%',
-              top: WHEEL_PX / 2 - ballR - BALL_SZ / 2,
-              width: BALL_SZ,
-              height: BALL_SZ,
-              marginLeft: -BALL_SZ / 2,
-              borderRadius: '50%',
-              background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.7), inset 0 -1px 2px rgba(0,0,0,0.2)',
-              transition: `top ${ballPhase === 'fall' ? '0.5s cubic-bezier(0.36, 0, 0.66, -0.56)' : ballPhase === 'settled' ? '0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none'}`,
-            }}
-          />
-        </div>
+        />
 
         {/* Wheel SVG */}
         <svg
