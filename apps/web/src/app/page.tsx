@@ -98,42 +98,117 @@ function MiniWheel({ prizes, size = 200, onSpin }: { prizes: string[]; size?: nu
   )
 }
 
-/* ─── Deal Modal ─── */
+/* ─── Deal Modal with hold-to-spin ─── */
 function DealModal({ deal, onClose }: { deal: typeof SAMPLE_DEALS[0]; onClose: () => void }) {
   const [wonPrize, setWonPrize] = useState<string | null>(null)
+  const [rot, setRot] = useState(0)
+  const [ballA, setBallA] = useState(15)
+  const [spin, setSpin] = useState(false)
+  const [ballP, setBallP] = useState<'idle' | 'orbit' | 'fall' | 'settled'>('idle')
+  const [pwr, setPwr] = useState(0)
+  const [hold, setHold] = useState(false)
+  const pwrRef = useRef(0)
+  const pwrInt = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const count = deal.prizes.length || 6
+  const seg = 360 / count
+  const sz = 240
+  const r = sz / 2 - 16
+  const cx = sz / 2
+
+  const pr = (d: number, radius: number) => {
+    const rad = ((d - 90) * Math.PI) / 180
+    return { x: cx + radius * Math.cos(rad), y: cx + radius * Math.sin(rad) }
+  }
+
+  const startH = () => {
+    if (spin) return
+    setHold(true); pwrRef.current = 0; setPwr(0)
+    pwrInt.current = setInterval(() => { pwrRef.current = Math.min(pwrRef.current + 100 / 30, 100); setPwr(pwrRef.current) }, 100)
+  }
+
+  const releaseH = () => {
+    if (!hold || spin) return
+    setHold(false)
+    if (pwrInt.current) { clearInterval(pwrInt.current); pwrInt.current = null }
+    const p = Math.max(pwrRef.current, 15) / 100
+    setPwr(0); setSpin(true); setWonPrize(null); setBallP('orbit')
+    const winIdx = Math.floor(Math.random() * count)
+    const target = 360 - (winIdx * seg + seg / 2)
+    setRot((prev) => prev + (3 + p * 5) * 360 + target - (prev % 360))
+    setBallA((prev) => prev - (4 + p * 4) * 360)
+    const dur = 3000 + p * 2000
+    setTimeout(() => setBallP('fall'), dur * 0.75)
+    setTimeout(() => { setBallP('settled'); setSpin(false); setWonPrize(deal.prizes[winIdx]); setTimeout(() => setBallP('idle'), 3500) }, dur)
+  }
+
+  const orbitR = (r + 6) * (sz / (cx * 2))
+  const settledR = r * 0.5 * (sz / (cx * 2))
+  const bR = ballP === 'settled' || ballP === 'fall' ? settledR : orbitR
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70" />
-      <div
-        className="relative rounded-3xl p-6 max-w-sm w-full max-h-[90vh] overflow-y-auto"
-        style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.2)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="relative rounded-3xl p-6 max-w-sm w-full max-h-[90vh] overflow-y-auto"
+        style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.2)' }} onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-4 right-4 text-surface/30 hover:text-surface text-xl">&times;</button>
 
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-night text-xl" style={{ background: '#F7941D' }}>
-            {deal.initial}
-          </div>
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-night text-xl" style={{ background: '#F7941D' }}>{deal.initial}</div>
           <div>
-            <h3 className="font-bold text-surface text-lg">{deal.biz}</h3>
-            <p className="text-surface/40 text-sm">{deal.sale}</p>
+            <h3 className="font-bold text-surface text-lg">{deal.biz} — {deal.sale}</h3>
           </div>
         </div>
 
-        <div className="flex justify-center my-4">
-          <MiniWheel prizes={deal.prizes} size={220} onSpin={(p) => setWonPrize(p)} />
+        {/* Hold-to-spin wheel */}
+        <div className="flex justify-center">
+          <div className="relative select-none" style={{ width: sz, height: sz }}
+            onMouseDown={startH} onMouseUp={releaseH} onMouseLeave={() => { if (hold) releaseH() }}
+            onTouchStart={startH} onTouchEnd={releaseH}>
+            <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-10">
+              <div style={{ width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderTop: '14px solid #FFD700' }} />
+            </div>
+            {/* Ball */}
+            <div className="absolute inset-0 pointer-events-none z-10"
+              style={{ transform: `rotate(${ballA}deg)`, transition: spin ? `transform ${ballP === 'fall' ? '0.6s' : '4.6s'} cubic-bezier(0.08,0.65,0.05,1.02)` : 'none' }}>
+              <div style={{ position: 'absolute', left: '50%', top: sz / 2 - bR - 5, width: 10, height: 10, marginLeft: -5, borderRadius: '50%',
+                background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)', boxShadow: '0 1px 4px rgba(0,0,0,0.7)',
+                transition: `top ${ballP === 'fall' ? '0.5s cubic-bezier(0.36,0,0.66,-0.56)' : ballP === 'settled' ? '0.3s cubic-bezier(0.34,1.56,0.64,1)' : 'none'}` }} />
+            </div>
+            <svg viewBox={`0 0 ${sz} ${sz}`} width={sz} height={sz}
+              style={{ transform: `rotate(${rot}deg)`, transition: spin ? 'transform 4.2s cubic-bezier(0.12,0.6,0.07,1)' : 'none' }}>
+              <circle cx={cx} cy={cx} r={r + 8} fill="none" stroke="#D4AF37" strokeWidth="3" />
+              {deal.prizes.map((label, i) => {
+                const a1 = i * seg, a2 = a1 + seg
+                const p1 = pr(a1, r), p2 = pr(a2, r), mid = pr(a1 + seg / 2, r * 0.6)
+                const isO = i % 2 === 0
+                return (
+                  <g key={i}>
+                    <path d={`M${cx},${cx} L${p1.x},${p1.y} A${r},${r} 0 0 1 ${p2.x},${p2.y} Z`} fill={isO ? '#F7941D' : '#1a0e00'} stroke="#2a1400" strokeWidth="0.5" />
+                    <text x={mid.x} y={mid.y} fill={isO ? '#1a0e00' : '#F7941D'} fontSize="7" fontWeight="bold" textAnchor="middle" dominantBaseline="central"
+                      transform={`rotate(${a1 + seg / 2},${mid.x},${mid.y})`}>{label.length > 10 ? label.slice(0, 9) + '…' : label}</text>
+                  </g>
+                )
+              })}
+              <circle cx={cx} cy={cx} r="14" fill="#1a0e00" stroke="#D4AF37" strokeWidth="2" />
+              <text x={cx} y={cx} fill="#F7941D" fontSize="12" fontWeight="900" textAnchor="middle" dominantBaseline="central">S</text>
+            </svg>
+          </div>
         </div>
-        <p className="text-surface/30 text-xs text-center mb-4">Tap wheel to spin</p>
+
+        {/* Power bar */}
+        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mt-2 mb-1">
+          <div className="h-full rounded-full" style={{ width: `${pwr}%`, background: pwr > 70 ? '#1D9E75' : '#F7941D', transition: hold ? 'none' : 'width 0.3s' }} />
+        </div>
+        <p className="text-surface/30 text-xs text-center mb-3">
+          {spin ? '\u00A0' : hold ? 'Release!' : wonPrize ? 'Hold to spin again' : 'Hold and release to spin'}
+        </p>
 
         {wonPrize && (
-          <div className="rounded-xl p-4 text-center mb-4" style={{ background: 'rgba(29,158,117,0.1)', border: '1px solid rgba(29,158,117,0.3)' }}>
+          <div className="rounded-xl p-4 text-center" style={{ background: 'rgba(29,158,117,0.1)', border: '1px solid rgba(29,158,117,0.3)' }}>
             <p className="text-teal font-bold text-lg">You won: {wonPrize}!</p>
             <p className="text-surface/40 text-sm mt-1">Sign up to claim it</p>
-            <Link href="/sign-up" className="inline-block mt-3 bg-btc text-night font-bold px-6 py-2 rounded-full text-sm hover:bg-btc-dark transition">
-              Sign Up Free
-            </Link>
+            <Link href="/sign-up" className="inline-block mt-3 bg-btc text-night font-bold px-6 py-2 rounded-full text-sm hover:bg-btc-dark transition">Sign Up Free</Link>
           </div>
         )}
       </div>
@@ -375,7 +450,7 @@ export default function LandingPage() {
         </div>
         {/* Connect: scissors hand */}
         <div className="flex flex-col items-center gap-2">
-          <svg width="36" height="36" viewBox="0 0 36 36" style={{ transform: 'rotate(45deg)' }}>
+          <svg width="36" height="36" viewBox="0 0 36 36" style={{ transform: 'rotate(-45deg)' }}>
             <text x="18" y="20" textAnchor="middle" dominantBaseline="central" fontSize="26">✌️</text>
           </svg>
           <span className="text-surface/50 text-xs font-bold">Connect</span>

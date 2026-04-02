@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useUser, SignInButton } from '@clerk/nextjs'
 import { NavBar } from '@/components/NavBar'
@@ -232,6 +232,103 @@ function SpinWheel({
   )
 }
 
+/* ─── Pick a Place Roulette ─── */
+const DEMO_PLACES = [
+  { name: 'Fuego Tacos', cuisine: 'Mexican', dist: '0.3mi' },
+  { name: 'Coffee Corner', cuisine: 'Coffee', dist: '0.5mi' },
+  { name: 'Pizza Palace', cuisine: 'Pizza', dist: '0.8mi' },
+  { name: 'Sushi Haven', cuisine: 'Sushi', dist: '1.2mi' },
+  { name: 'BBQ Pit', cuisine: 'BBQ', dist: '0.6mi' },
+  { name: 'Thai Orchid', cuisine: 'Thai', dist: '1.5mi' },
+  { name: 'Bella Italia', cuisine: 'Italian', dist: '0.9mi' },
+  { name: 'Burger Barn', cuisine: 'American', dist: '0.4mi' },
+]
+
+function PickAPlaceRoulette() {
+  const [cuisine, setCuisine] = useState('All')
+  const [distance, setDistance] = useState('Any')
+  const [rot, setRot] = useState(0)
+  const [spinning, setSpinning] = useState(false)
+  const [winner, setWinner] = useState<typeof DEMO_PLACES[0] | null>(null)
+
+  const filtered = DEMO_PLACES.filter((p) => cuisine === 'All' || p.cuisine === cuisine)
+  const places = filtered.length > 0 ? filtered : [{ name: 'Try different criteria', cuisine: '', dist: '' }]
+  const count = Math.max(places.length, 4)
+  const seg = 360 / count
+
+  const spinWheel = () => {
+    if (spinning) return
+    setSpinning(true)
+    setWinner(null)
+    const winIdx = Math.floor(Math.random() * places.length)
+    const target = 360 - (winIdx * seg + seg / 2)
+    setRot((prev) => prev + (5 + Math.random() * 3) * 360 + target - (prev % 360))
+    setTimeout(() => {
+      setSpinning(false)
+      if (places[winIdx].dist) setWinner(places[winIdx])
+    }, 4000)
+  }
+
+  return (
+    <div className="mt-10 w-full rounded-2xl p-6" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.1)' }}>
+      <h3 className="text-lg font-bold text-surface mb-1">Can't decide where to eat?</h3>
+      <p className="text-surface/40 text-sm mb-4">Let the wheel decide.</p>
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        {['All', 'Mexican', 'Italian', 'American', 'Asian', 'Coffee', 'Pizza', 'BBQ', 'Sushi', 'Thai'].map((c) => (
+          <button key={c} onClick={() => setCuisine(c)}
+            className={`px-3 py-1 rounded-full text-xs font-bold transition ${cuisine === c ? 'bg-btc text-night' : 'bg-white/5 text-surface/40 hover:text-surface/60'}`}>
+            {c}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex justify-center mb-4">
+        <div className="relative cursor-pointer" style={{ width: 200, height: 200 }} onClick={spinWheel}>
+          <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-10">
+            <div style={{ width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: '12px solid #FFD700' }} />
+          </div>
+          <svg viewBox="0 0 200 200" width="200" height="200"
+            style={{ transform: `rotate(${rot}deg)`, transition: spinning ? 'transform 4s cubic-bezier(0.12,0.6,0.07,1)' : 'none' }}>
+            <circle cx="100" cy="100" r="96" fill="none" stroke="#D4AF37" strokeWidth="2" />
+            {Array.from({ length: count }, (_, i) => {
+              const place = places[i % places.length]
+              const a1 = i * seg, a2 = a1 + seg
+              const r1 = ((a1 - 90) * Math.PI) / 180, r2 = ((a2 - 90) * Math.PI) / 180
+              const mid = ((a1 + seg / 2 - 90) * Math.PI) / 180
+              return (
+                <g key={i}>
+                  <path d={`M100,100 L${100 + 90 * Math.cos(r1)},${100 + 90 * Math.sin(r1)} A90,90 0 0 1 ${100 + 90 * Math.cos(r2)},${100 + 90 * Math.sin(r2)} Z`}
+                    fill={i % 2 === 0 ? '#F7941D' : '#1a0e00'} stroke="#2a1400" strokeWidth="0.5" />
+                  <text x={100 + 55 * Math.cos(mid)} y={100 + 55 * Math.sin(mid)} fill={i % 2 === 0 ? '#1a0e00' : '#F7941D'}
+                    fontSize="6" fontWeight="bold" textAnchor="middle" dominantBaseline="central"
+                    transform={`rotate(${a1 + seg / 2},${100 + 55 * Math.cos(mid)},${100 + 55 * Math.sin(mid)})`}>
+                    {(place?.name || '').slice(0, 10)}
+                  </text>
+                </g>
+              )
+            })}
+            <circle cx="100" cy="100" r="12" fill="#1a0e00" stroke="#D4AF37" strokeWidth="2" />
+            <text x="100" y="100" fill="#F7941D" fontSize="10" fontWeight="900" textAnchor="middle" dominantBaseline="central">?</text>
+          </svg>
+        </div>
+      </div>
+
+      {!spinning && !winner && <p className="text-surface/30 text-xs text-center">Tap to spin</p>}
+
+      {winner && (
+        <div className="rounded-xl p-4 text-center" style={{ background: 'rgba(29,158,117,0.1)', border: '1px solid rgba(29,158,117,0.2)' }}>
+          <p className="text-teal font-bold text-lg">{winner.name}</p>
+          <p className="text-surface/40 text-sm">{winner.cuisine} • {winner.dist}</p>
+          <button className="mt-2 bg-btc text-night font-bold px-5 py-2 rounded-full text-xs hover:bg-btc-dark transition">
+            Get Directions
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─── Main Page ─── */
 export default function ConsumerPage() {
   const { isSignedIn, user } = useUser()
@@ -428,6 +525,9 @@ export default function ConsumerPage() {
             </div>
           </>
         )}
+
+        {/* ─── Pick a Place Roulette ─── */}
+        <PickAPlaceRoulette />
 
         {/* Battle banner */}
         {isSignedIn && (

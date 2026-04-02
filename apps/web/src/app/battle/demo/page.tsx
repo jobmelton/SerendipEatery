@@ -13,7 +13,9 @@ const MOVES: { key: Move; icon: string; label: string }[] = [
 ]
 const BEATS: Record<Move, Move> = { rock: 'scissors', scissors: 'paper', paper: 'rock' }
 
-type Phase = 'intro' | 'picking' | 'waiting' | 'reveal' | 'done'
+type Phase = 'intro' | 'picking' | 'waiting' | 'countdown' | 'reveal' | 'roundResult' | 'done'
+
+const MOVE_TO_EMOJI: Record<Move, string> = { rock: '✊', paper: '✋', scissors: '✌️' }
 
 function resolveIcon(a: Move, b: Move) {
   if (a === b) return { color: '#888', text: '—' }
@@ -25,6 +27,8 @@ export default function DemoBattlePage() {
   const [myMoves, setMyMoves] = useState<(Move | null)[]>([null, null, null])
   const [houseMoves, setHouseMoves] = useState<Move[]>([])
   const [revealIdx, setRevealIdx] = useState(-1)
+  const [countdownNum, setCountdownNum] = useState(0)
+  const [roundText, setRoundText] = useState<{ text: string; color: string } | null>(null)
   const [winner, setWinner] = useState<string | null>(null)
   const [showDropped, setShowDropped] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
@@ -78,38 +82,63 @@ export default function DemoBattlePage() {
       setTimeout(() => {
         if (data.ok) {
           setHouseMoves(data.data.houseMoves)
-          setPhase('reveal')
-          let idx = 0
-          const timer = setInterval(() => {
-            setRevealIdx(idx)
-            idx++
-            if (idx >= 3) {
-              clearInterval(timer)
-              setTimeout(() => {
-                setWinner(data.data.winner)
-                setPhase('done')
-              }, 800)
-            }
-          }, 1000)
+          runCountdownAndReveal(moves, data.data.houseMoves, data.data.winner)
         }
-      }, 1000) // fake wait
+      }, 1000)
     } catch {
-      // Fallback: local resolution
       const cpu: Move[] = ['rock', 'paper', 'scissors'].sort(() => Math.random() - 0.5).slice(0, 3) as Move[]
       setTimeout(() => {
         setHouseMoves(cpu)
-        setPhase('reveal')
-        let idx = 0
-        const timer = setInterval(() => {
-          setRevealIdx(idx)
-          idx++
-          if (idx >= 3) {
-            clearInterval(timer)
-            setTimeout(() => { setWinner('draw'); setPhase('done') }, 800)
-          }
-        }, 1000)
+        runCountdownAndReveal(moves, cpu, 'draw')
       }, 1000)
     }
+  }
+
+  // Fist-pump countdown → reveal → round result overlay
+  const runCountdownAndReveal = (playerMoves: Move[], opponentMoves: Move[], finalWinner: string) => {
+    let roundIdx = 0
+
+    const playRound = () => {
+      if (roundIdx >= 3) {
+        setWinner(finalWinner)
+        setPhase('done')
+        return
+      }
+
+      // Countdown: 1, 2, 3
+      setPhase('countdown')
+      setCountdownNum(1)
+      setTimeout(() => setCountdownNum(2), 500)
+      setTimeout(() => setCountdownNum(3), 1000)
+
+      // Reveal moves
+      setTimeout(() => {
+        setRevealIdx(roundIdx)
+        setPhase('reveal')
+      }, 1500)
+
+      // Show round result overlay
+      setTimeout(() => {
+        const my = playerMoves[roundIdx]
+        const opp = opponentMoves[roundIdx]
+        const rr = my === opp ? 'draw' : BEATS[my] === opp ? 'win' : 'lose'
+        setRoundText(
+          rr === 'win' ? { text: 'YOU WIN THIS ROUND', color: '#1D9E75' }
+            : rr === 'lose' ? { text: 'YOU LOSE THIS ROUND', color: '#E53E3E' }
+            : { text: 'DRAW', color: '#F7941D' }
+        )
+        setPhase('roundResult')
+      }, 2500)
+
+      // Fade out + next round
+      setTimeout(() => {
+        setRoundText(null)
+        roundIdx++
+        playRound()
+      }, 4000)
+    }
+
+    playRound()
   }
 
   const dropChallenge = async () => {
@@ -215,24 +244,63 @@ export default function DemoBattlePage() {
         </div>
       )}
 
-      {/* Reveal + Done */}
-      {(phase === 'reveal' || phase === 'done') && (
+      {/* Countdown — fist pump */}
+      {phase === 'countdown' && (
         <div className="text-center">
-          <h2 className="text-xl font-bold text-surface mb-6">
-            {phase === 'reveal' ? 'Revealing...' : winner === 'player' ? '🎉 You Win!' : winner === 'house' ? '💀 House Wins' : '🤝 Draw'}
-          </h2>
+          <div className="flex items-center justify-center gap-12 mb-6">
+            <span className="text-6xl animate-bounce" style={{ animationDuration: '0.5s' }}>✊</span>
+            <span className="text-6xl animate-bounce" style={{ animationDuration: '0.5s' }}>✊</span>
+          </div>
+          <p className="text-7xl font-black text-btc animate-pulse">{countdownNum}</p>
+        </div>
+      )}
 
-          <div className="space-y-4 mb-8">
+      {/* Round result overlay */}
+      {phase === 'roundResult' && roundText && (
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-8 mb-6">
+            <span className="text-5xl">{MOVE_TO_EMOJI[myMoves[revealIdx] as Move]}</span>
+            <span className="text-surface/30 text-lg">vs</span>
+            <span className="text-5xl">{MOVE_TO_EMOJI[houseMoves[revealIdx]]}</span>
+          </div>
+          <p className="text-3xl md:text-4xl font-black animate-pulse" style={{ color: roundText.color }}>
+            {roundText.text}
+          </p>
+        </div>
+      )}
+
+      {/* Reveal scoreboard + Done */}
+      {(phase === 'reveal' || phase === 'done') && !roundText && (
+        <div className="text-center">
+          {phase === 'reveal' && (
+            <div className="flex items-center justify-center gap-8 mb-6">
+              <span className="text-5xl">{MOVE_TO_EMOJI[myMoves[revealIdx] as Move]}</span>
+              <span className="text-surface/30 text-lg">vs</span>
+              <span className="text-5xl">{MOVE_TO_EMOJI[houseMoves[revealIdx]]}</span>
+            </div>
+          )}
+
+          {phase === 'done' && (
+            <p className="text-4xl font-black mb-4" style={{
+              color: winner === 'player' ? '#1D9E75' : winner === 'house' ? '#E53E3E' : '#F7941D',
+              animation: winner === 'player' ? 'none' : 'none',
+            }}>
+              {winner === 'player' ? 'YOU WIN! 🎉' : winner === 'house' ? 'YOU LOSE 😤' : 'DRAW 🤝'}
+            </p>
+          )}
+
+          {/* Score summary */}
+          <div className="space-y-3 mb-8">
             {[0, 1, 2].map((i) => {
               const shown = i <= revealIdx && houseMoves[i]
               const myMove = myMoves[i] as Move
               const ri = shown ? resolveIcon(myMove, houseMoves[i]) : null
               return (
                 <div key={i} className="flex items-center justify-center gap-6" style={{ opacity: shown ? 1 : 0.2 }}>
-                  <span className="text-3xl w-12 text-right">{MOVES.find((m) => m.key === myMove)?.icon}</span>
-                  <span className="text-surface/30 text-sm">vs</span>
-                  <span className="text-3xl w-12">{shown ? MOVES.find((m) => m.key === houseMoves[i])?.icon : '❓'}</span>
-                  <span className="text-sm font-bold w-10" style={{ color: ri?.color ?? '#888' }}>{ri?.text ?? ''}</span>
+                  <span className="text-2xl w-10 text-right">{MOVES.find((m) => m.key === myMove)?.icon}</span>
+                  <span className="text-surface/30 text-xs">vs</span>
+                  <span className="text-2xl w-10">{shown ? MOVES.find((m) => m.key === houseMoves[i])?.icon : '❓'}</span>
+                  <span className="text-sm font-bold w-8" style={{ color: ri?.color ?? '#888' }}>{ri?.text ?? ''}</span>
                 </div>
               )
             })}
