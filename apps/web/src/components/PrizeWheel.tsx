@@ -309,15 +309,7 @@ export function PrizeWheel({
         onMouseLeave={() => { if (holding) releaseHold() }}
         onTouchStart={startHold} onTouchEnd={releaseHold}
       >
-        {/* Pointer */}
-        <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-20">
-          <svg width="30" height="28" viewBox="0 0 30 28">
-            <defs><linearGradient id="wpGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#FFD700" /><stop offset="100%" stopColor="#B8860B" /></linearGradient></defs>
-            <polygon points="15,28 0,0 30,0" fill="url(#wpGrad)" />
-          </svg>
-        </div>
-
-        {/* Ball */}
+        {/* Ball — where it stops = the prize */}
         <div ref={ballRef} className="absolute pointer-events-none z-10"
           style={{ width: BALL_SZ, height: BALL_SZ, borderRadius: '50%',
             background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)',

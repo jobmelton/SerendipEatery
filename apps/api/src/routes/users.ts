@@ -78,4 +78,48 @@ export async function userRoutes(app: FastifyInstance) {
     if (error) throw new AppError(500, 'UPDATE_FAILED', 'Failed to update user')
     return { ok: true, data }
   })
+
+  // DELETE /users/me — soft delete account
+  app.delete('/users/me', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+
+    // Soft-delete user
+    await supabase
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('clerk_id', userId)
+
+    // Cancel active flash sales
+    await supabase
+      .from('flash_sales')
+      .update({ status: 'cancelled' })
+      .eq('status', 'active')
+      .in('business_id', supabase
+        .from('businesses')
+        .select('id')
+        .eq('owner_id', userId)
+      )
+
+    // Cancel Stripe subscriptions if business exists
+    try {
+      const { data: biz } = await supabase
+        .from('businesses')
+        .select('stripe_customer_id')
+        .eq('owner_id', userId)
+        .single()
+
+      if (biz?.stripe_customer_id) {
+        const Stripe = (await import('stripe')).default
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', { apiVersion: '2025-02-24.acacia' as any })
+        const subs = await stripe.subscriptions.list({ customer: biz.stripe_customer_id, status: 'active' })
+        for (const sub of subs.data) {
+          await stripe.subscriptions.cancel(sub.id)
+        }
+      }
+    } catch {
+      // Non-fatal — subscription cancel is best-effort
+    }
+
+    return { ok: true, data: { deleted: true } }
+  })
 }

@@ -92,19 +92,7 @@ function SpinWheel({
       className="relative my-3"
       style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}
     >
-      {/* Pointer */}
-      <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 z-20">
-        <svg width="28" height="24" viewBox="0 0 28 24">
-          <defs>
-            <linearGradient id="pointerGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#FFD700" />
-              <stop offset="100%" stopColor="#B8860B" />
-            </linearGradient>
-          </defs>
-          <polygon points="14,24 0,0 28,0" fill="url(#pointerGrad)" />
-          <polygon points="14,24 0,0 28,0" fill="none" stroke="#FFD700" strokeWidth="1" opacity="0.6" />
-        </svg>
-      </div>
+      {/* Ball position determines winner — no pointer needed */}
 
       {/* Ball — orbits counter-clockwise, decelerates independently */}
       <div
@@ -418,9 +406,7 @@ function PickAPlaceRoulette() {
           onMouseLeave={() => { if (holding) releaseHold() }}
           onTouchStart={startHold} onTouchEnd={releaseHold}>
 
-          <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-20">
-            <div style={{ width: 0, height: 0, borderLeft: '9px solid transparent', borderRight: '9px solid transparent', borderTop: '15px solid #FFD700' }} />
-          </div>
+          {/* Ball position determines winner */}
 
           {/* rAF ball */}
           <div ref={ballRef} className="absolute pointer-events-none z-10"

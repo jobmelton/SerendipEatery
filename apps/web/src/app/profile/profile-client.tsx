@@ -78,6 +78,9 @@ interface Props {
 export function ProfileClient({ user, profile, referralCode, recentActivity }: Props) {
   const [copied, setCopied] = useState(false)
   const [tagline, setTagline] = useState(profile.battle_tagline ?? '')
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteInput, setDeleteInput] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const [taglineSaved, setTaglineSaved] = useState(false)
   const tier = getTierInfo(profile.loyalty_tier)
   const nextTier = getNextTier(profile.loyalty_tier)
@@ -269,13 +272,63 @@ export function ProfileClient({ user, profile, referralCode, recentActivity }: P
 
         {/* Nav links */}
         <div className="flex items-center justify-center gap-6 mt-8">
-          <Link href="/wallet" className="text-surface/40 text-sm hover:text-surface/60 transition">
-            Wallet
-          </Link>
-          <Link href="/consumer" className="text-surface/40 text-sm hover:text-surface/60 transition">
-            Find Sales
-          </Link>
+          <Link href="/wallet" className="text-surface/40 text-sm hover:text-surface/60 transition">Wallet</Link>
+          <Link href="/consumer" className="text-surface/40 text-sm hover:text-surface/60 transition">Find Sales</Link>
         </div>
+
+        {/* Delete Account */}
+        <div className="mt-12 pt-8 border-t border-red-500/20">
+          <h3 className="text-red-400 text-sm font-bold mb-2">Danger Zone</h3>
+          <p className="text-surface/30 text-xs mb-3">
+            This permanently deletes your account, points, wallet, and battle history. This cannot be undone.
+          </p>
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="border border-red-500/40 text-red-400 font-bold px-5 py-2 rounded-xl text-sm hover:bg-red-500/10 transition"
+          >
+            Delete My Account
+          </button>
+        </div>
+
+        {/* Delete confirmation modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="absolute inset-0 bg-black/70" onClick={() => { setShowDeleteModal(false); setDeleteInput('') }} />
+            <div className="relative rounded-2xl p-6 max-w-sm w-full" style={{ background: '#1a1230' }}>
+              <h3 className="text-surface font-bold text-lg mb-2">Are you sure?</h3>
+              <p className="text-surface/40 text-sm mb-4">Type <span className="text-red-400 font-bold">DELETE</span> to confirm</p>
+              <input
+                value={deleteInput}
+                onChange={(e) => setDeleteInput(e.target.value)}
+                placeholder="Type DELETE"
+                className="w-full bg-night text-surface border border-white/10 rounded-lg px-3 py-2 text-sm mb-4 focus:border-red-500 focus:outline-none"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowDeleteModal(false); setDeleteInput('') }}
+                  className="flex-1 border border-surface/20 text-surface/60 font-bold py-2.5 rounded-xl text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    setDeleting(true)
+                    try {
+                      await fetch(`${API_URL}/users/me`, { method: 'DELETE' })
+                      window.location.href = '/?deleted=1'
+                    } catch {
+                      setDeleting(false)
+                    }
+                  }}
+                  disabled={deleteInput !== 'DELETE' || deleting}
+                  className="flex-1 bg-red-500 text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  {deleting ? 'Deleting...' : 'Permanently Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </main>
     </>
