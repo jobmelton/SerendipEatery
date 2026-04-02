@@ -6,12 +6,12 @@ import Link from 'next/link'
 /* ─── Wheel Config ─── */
 const NUM_SEGMENTS = 12
 const WHEEL_PX = 320
-const R = 140          // segment outer radius
-const INNER_R = 32     // center hub radius
-const CX = 160         // viewBox center
+const R = 140
+const INNER_R = 32
+const CX = 160
 const CY = 160
-const PEG_R = R + 12   // peg orbit radius
-const RING_R = R + 18  // outer ring radius
+const PEG_R = R + 12
+const RING_R = R + 18
 const SEG_ANGLE = 360 / NUM_SEGMENTS
 
 const PRIZES = [
@@ -21,10 +21,14 @@ const PRIZES = [
 ]
 
 const SAMPLE_DEALS = [
-  { biz: 'Fuego Tacos', sale: 'Friday Flash Sale', status: 'Active Now', initial: 'F', soon: false },
-  { biz: 'Coffee Corner', sale: 'Morning Boost', status: 'Active Now', initial: 'C', soon: false },
-  { biz: 'Pizza Palace', sale: 'Lunch Rush', status: 'Active Now', initial: 'P', soon: false },
-  { biz: 'Burger Barn', sale: 'Happy Hour', status: 'Starting Soon', initial: 'B', soon: true },
+  { biz: 'Fuego Tacos', sale: 'Friday Flash Sale', status: 'Active Now', initial: 'F', soon: false,
+    prizes: ['Free Taco', '20% Off', 'Free Guac', 'Free Drink', 'Try Again', '10% Off'] },
+  { biz: 'Coffee Corner', sale: 'Morning Boost', status: 'Active Now', initial: 'C', soon: false,
+    prizes: ['Free Coffee', 'Free Pastry', '50% Off', 'Try Again', 'Free Latte', '25% Off'] },
+  { biz: 'Pizza Palace', sale: 'Lunch Rush', status: 'Active Now', initial: 'P', soon: false,
+    prizes: ['Free Slice', 'Free Drink', '30% Off', 'Free Garlic Bread', 'Try Again', 'Free Dessert'] },
+  { biz: 'Burger Barn', sale: 'Happy Hour', status: 'Starting Soon', initial: 'B', soon: true,
+    prizes: ['Free Fries', 'Free Shake', '25% Off', 'Free Burger', 'Try Again', '10% Off'] },
 ]
 
 function pol(deg: number, r: number) {
@@ -40,14 +44,114 @@ function slicePath(i: number) {
   return `M${CX},${CY} L${p1.x},${p1.y} A${R},${R} 0 0 1 ${p2.x},${p2.y} Z`
 }
 
+/* ─── Mini wheel for modal ─── */
+function MiniWheel({ prizes, size = 200, onSpin }: { prizes: string[]; size?: number; onSpin?: (prize: string) => void }) {
+  const [rot, setRot] = useState(0)
+  const [spinning, setSpinning] = useState(false)
+  const count = prizes.length || 6
+  const seg = 360 / count
+  const r = size / 2 - 10
+  const cx = size / 2
+  const pr = (d: number, radius: number) => {
+    const rad = ((d - 90) * Math.PI) / 180
+    return { x: cx + radius * Math.cos(rad), y: cx + radius * Math.sin(rad) }
+  }
+
+  const spin = () => {
+    if (spinning) return
+    setSpinning(true)
+    const winIdx = Math.floor(Math.random() * count)
+    const target = 360 - (winIdx * seg + seg / 2)
+    const delta = (4 + Math.random() * 3) * 360 + target - (rot % 360)
+    setRot((prev) => prev + delta)
+    setTimeout(() => {
+      setSpinning(false)
+      onSpin?.(prizes[winIdx] || 'Prize')
+    }, 3500)
+  }
+
+  return (
+    <div className="relative cursor-pointer" style={{ width: size, height: size }} onClick={spin}>
+      <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-10">
+        <div style={{ width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderTop: '14px solid #FFD700' }} />
+      </div>
+      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size}
+        style={{ transform: `rotate(${rot}deg)`, transition: spinning ? 'transform 3.5s cubic-bezier(0.12,0.6,0.07,1)' : 'none' }}>
+        <circle cx={cx} cy={cx} r={r + 6} fill="none" stroke="#D4AF37" strokeWidth="3" />
+        {prizes.map((label, i) => {
+          const a1 = i * seg, a2 = a1 + seg
+          const p1 = pr(a1, r), p2 = pr(a2, r)
+          const mid = pr(a1 + seg / 2, r * 0.6)
+          const isO = i % 2 === 0
+          return (
+            <g key={i}>
+              <path d={`M${cx},${cx} L${p1.x},${p1.y} A${r},${r} 0 0 1 ${p2.x},${p2.y} Z`} fill={isO ? '#F7941D' : '#1a0e00'} stroke="#2a1400" strokeWidth="0.5" />
+              <text x={mid.x} y={mid.y} fill={isO ? '#1a0e00' : '#F7941D'} fontSize="7" fontWeight="bold" textAnchor="middle" dominantBaseline="central"
+                transform={`rotate(${a1 + seg / 2},${mid.x},${mid.y})`}>{label.length > 10 ? label.slice(0, 9) + '…' : label}</text>
+            </g>
+          )
+        })}
+        <circle cx={cx} cy={cx} r="14" fill="#1a0e00" stroke="#D4AF37" strokeWidth="2" />
+        <text x={cx} y={cx} fill="#F7941D" fontSize="12" fontWeight="900" textAnchor="middle" dominantBaseline="central">S</text>
+      </svg>
+    </div>
+  )
+}
+
+/* ─── Deal Modal ─── */
+function DealModal({ deal, onClose }: { deal: typeof SAMPLE_DEALS[0]; onClose: () => void }) {
+  const [wonPrize, setWonPrize] = useState<string | null>(null)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70" />
+      <div
+        className="relative rounded-3xl p-6 max-w-sm w-full max-h-[90vh] overflow-y-auto"
+        style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.2)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 text-surface/30 hover:text-surface text-xl">&times;</button>
+
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-night text-xl" style={{ background: '#F7941D' }}>
+            {deal.initial}
+          </div>
+          <div>
+            <h3 className="font-bold text-surface text-lg">{deal.biz}</h3>
+            <p className="text-surface/40 text-sm">{deal.sale}</p>
+          </div>
+        </div>
+
+        <div className="flex justify-center my-4">
+          <MiniWheel prizes={deal.prizes} size={220} onSpin={(p) => setWonPrize(p)} />
+        </div>
+        <p className="text-surface/30 text-xs text-center mb-4">Tap wheel to spin</p>
+
+        {wonPrize && (
+          <div className="rounded-xl p-4 text-center mb-4" style={{ background: 'rgba(29,158,117,0.1)', border: '1px solid rgba(29,158,117,0.3)' }}>
+            <p className="text-teal font-bold text-lg">You won: {wonPrize}!</p>
+            <p className="text-surface/40 text-sm mt-1">Sign up to claim it</p>
+            <Link href="/sign-up" className="inline-block mt-3 bg-btc text-night font-bold px-6 py-2 rounded-full text-sm hover:bg-btc-dark transition">
+              Sign Up Free
+            </Link>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Main Page ─── */
 export default function LandingPage() {
   const [rotation, setRotation] = useState(0)
   const [ballAngle, setBallAngle] = useState(20)
   const [spinning, setSpinning] = useState(false)
+  const [ballPhase, setBallPhase] = useState<'idle' | 'orbit' | 'fall' | 'settled'>('idle')
   const [hasSpun, setHasSpun] = useState(false)
   const [winToast, setWinToast] = useState<string | null>(null)
   const [power, setPower] = useState(0)
   const [holding, setHolding] = useState(false)
+  const [modalDeal, setModalDeal] = useState<typeof SAMPLE_DEALS[0] | null>(null)
   const powerInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const powerRef = useRef(0)
 
@@ -57,7 +161,7 @@ export default function LandingPage() {
     powerRef.current = 0
     setPower(0)
     powerInterval.current = setInterval(() => {
-      powerRef.current = Math.min(powerRef.current + 100 / 30, 100) // fills in 3s at ~10ms ticks
+      powerRef.current = Math.min(powerRef.current + 100 / 30, 100)
       setPower(powerRef.current)
     }, 100)
   }, [spinning])
@@ -67,35 +171,49 @@ export default function LandingPage() {
     setHolding(false)
     if (powerInterval.current) { clearInterval(powerInterval.current); powerInterval.current = null }
 
-    const pwr = Math.max(powerRef.current, 15) / 100 // minimum 15% power
+    const pwr = Math.max(powerRef.current, 15) / 100
     setPower(0)
     setSpinning(true)
     setHasSpun(true)
     setWinToast(null)
+    setBallPhase('orbit')
 
     const winIdx = Math.floor(Math.random() * NUM_SEGMENTS)
     const targetAngle = 360 - (winIdx * SEG_ANGLE + SEG_ANGLE / 2)
-    const fullSpins = (3 + pwr * 5) * 360 // 3-8 rotations based on power
+    const fullSpins = (3 + pwr * 5) * 360
     const wheelDelta = fullSpins + targetAngle - (rotation % 360)
     setRotation((prev) => prev + wheelDelta)
 
     const ballSpins = (4 + pwr * 4) * 360
     setBallAngle((prev) => prev - ballSpins)
 
-    const duration = 3000 + pwr * 2000 // 3-5s based on power
+    const duration = 3000 + pwr * 2000
+
+    // Ball falls inward at 80% of spin duration
+    setTimeout(() => setBallPhase('fall'), duration * 0.75)
+
+    // Ball settles
     setTimeout(() => {
+      setBallPhase('settled')
       setSpinning(false)
       setWinToast(PRIZES[winIdx])
-      setTimeout(() => setWinToast(null), 3500)
+      setTimeout(() => {
+        setWinToast(null)
+        setBallPhase('idle')
+      }, 3500)
     }, duration)
   }, [holding, spinning, rotation])
 
-  const BALL_ORBIT = (R + 8) * (WHEEL_PX / (CX * 2))
-  const BALL_SZ = 13
+  // Ball positioning based on phase
+  const SCALE = WHEEL_PX / (CX * 2)
+  const BALL_SZ = 10
+  const orbitR = (R + 8) * SCALE
+  const settledR = (R * 0.55) * SCALE // inside segments
+  const ballR = ballPhase === 'settled' || ballPhase === 'fall' ? settledR : orbitR
 
   return (
     <main className="min-h-screen bg-night flex flex-col items-center px-6 pt-12 pb-20">
-      {/* ─── Roulette Wheel ──────────────────────────────────────────── */}
+      {/* ─── Roulette Wheel ─── */}
       <div
         className="relative cursor-pointer mb-1 select-none"
         style={{ width: WHEEL_PX, height: WHEEL_PX }}
@@ -115,17 +233,16 @@ export default function LandingPage() {
               </linearGradient>
             </defs>
             <polygon points="15,28 0,0 30,0" fill="url(#pGrad)" />
-            <polygon points="15,28 0,0 30,0" fill="none" stroke="#FFD700" strokeWidth="1" opacity="0.5" />
           </svg>
         </div>
 
-        {/* Ball orbit wrapper */}
+        {/* Ball */}
         <div
           className="absolute inset-0 pointer-events-none z-10"
           style={{
             transform: `rotate(${ballAngle}deg)`,
             transition: spinning
-              ? 'transform 4.6s cubic-bezier(0.08, 0.65, 0.05, 1.02)'
+              ? `transform ${ballPhase === 'fall' ? '0.6s' : '4.6s'} cubic-bezier(0.08, 0.65, 0.05, 1.02)`
               : 'none',
           }}
         >
@@ -133,13 +250,14 @@ export default function LandingPage() {
             style={{
               position: 'absolute',
               left: '50%',
-              top: WHEEL_PX / 2 - BALL_ORBIT - BALL_SZ / 2,
+              top: WHEEL_PX / 2 - ballR - BALL_SZ / 2,
               width: BALL_SZ,
               height: BALL_SZ,
               marginLeft: -BALL_SZ / 2,
               borderRadius: '50%',
               background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)',
-              boxShadow: '0 1px 5px rgba(0,0,0,0.7), inset 0 -1px 2px rgba(0,0,0,0.2)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.7), inset 0 -1px 2px rgba(0,0,0,0.2)',
+              transition: `top ${ballPhase === 'fall' ? '0.5s cubic-bezier(0.36, 0, 0.66, -0.56)' : ballPhase === 'settled' ? '0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none'}`,
             }}
           />
         </div>
@@ -151,16 +269,12 @@ export default function LandingPage() {
           height={WHEEL_PX}
           style={{
             transform: `rotate(${rotation}deg)`,
-            transition: spinning
-              ? 'transform 4.2s cubic-bezier(0.12, 0.6, 0.07, 1)'
-              : 'none',
+            transition: spinning ? 'transform 4.2s cubic-bezier(0.12, 0.6, 0.07, 1)' : 'none',
           }}
         >
-          {/* Outer gold ring */}
           <circle cx={CX} cy={CY} r={RING_R} fill="none" stroke="#D4AF37" strokeWidth="4" />
           <circle cx={CX} cy={CY} r={R + 3} fill="none" stroke="#D4AF37" strokeWidth="1" opacity="0.4" />
 
-          {/* Pegs between segments */}
           {Array.from({ length: NUM_SEGMENTS }, (_, i) => {
             const p = pol(i * SEG_ANGLE, PEG_R)
             return (
@@ -171,252 +285,162 @@ export default function LandingPage() {
             )
           })}
 
-          {/* 12 pie-slice segments */}
           {PRIZES.map((label, i) => {
             const isOrange = i % 2 === 0
             const midA = i * SEG_ANGLE + SEG_ANGLE / 2
-            const labelR = R * 0.62
-            const lp = pol(midA, labelR)
-            const truncated = label.length > 11 ? label.slice(0, 10) + '…' : label
+            const lp = pol(midA, R * 0.62)
             return (
               <g key={`seg-${i}`}>
-                <path
-                  d={slicePath(i)}
-                  fill={isOrange ? '#F7941D' : '#1a0e00'}
-                  stroke="#2a1400"
-                  strokeWidth="0.5"
-                />
-                <text
-                  x={lp.x}
-                  y={lp.y}
-                  fill={isOrange ? '#1a0e00' : '#F7941D'}
-                  fontSize="8"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  transform={`rotate(${midA}, ${lp.x}, ${lp.y})`}
-                >
-                  {truncated}
+                <path d={slicePath(i)} fill={isOrange ? '#F7941D' : '#1a0e00'} stroke="#2a1400" strokeWidth="0.5" />
+                <text x={lp.x} y={lp.y} fill={isOrange ? '#1a0e00' : '#F7941D'} fontSize="8" fontWeight="bold"
+                  textAnchor="middle" dominantBaseline="central" transform={`rotate(${midA},${lp.x},${lp.y})`}>
+                  {label.length > 11 ? label.slice(0, 10) + '…' : label}
                 </text>
               </g>
             )
           })}
 
-          {/* Segment divider lines */}
           {Array.from({ length: NUM_SEGMENTS }, (_, i) => {
             const a = i * SEG_ANGLE
-            const outer = pol(a, R)
-            const inner = pol(a, INNER_R + 4)
-            return (
-              <line
-                key={`d-${i}`}
-                x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y}
-                stroke="#D4AF37" strokeWidth="0.8" opacity="0.45"
-              />
-            )
+            const outer = pol(a, R), inner = pol(a, INNER_R + 4)
+            return <line key={`d-${i}`} x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="#D4AF37" strokeWidth="0.8" opacity="0.45" />
           })}
 
-          {/* Center hub */}
           <circle cx={CX} cy={CY} r={INNER_R + 2} fill="#1a0e00" stroke="#D4AF37" strokeWidth="2.5" />
           <circle cx={CX} cy={CY} r={INNER_R - 4} fill="#1a0e00" stroke="#F7941D" strokeWidth="0.5" opacity="0.3" />
-          <text
-            x={CX} y={CY}
-            fill="#F7941D" fontSize="26" fontWeight="900"
-            textAnchor="middle" dominantBaseline="central"
-            fontFamily="Arial Black, Arial, sans-serif"
-          >
-            S
-          </text>
+          <text x={CX} y={CY} fill="#F7941D" fontSize="26" fontWeight="900" textAnchor="middle" dominantBaseline="central" fontFamily="Arial Black, Arial, sans-serif">S</text>
         </svg>
       </div>
 
       {/* Power meter */}
       <div className="w-48 h-2 bg-white/10 rounded-full overflow-hidden mb-2 mt-1">
-        <div
-          className="h-full rounded-full transition-all"
-          style={{
-            width: `${power}%`,
-            background: power > 70 ? '#1D9E75' : '#F7941D',
-            transition: holding ? 'none' : 'width 0.3s',
-          }}
-        />
+        <div className="h-full rounded-full" style={{ width: `${power}%`, background: power > 70 ? '#1D9E75' : '#F7941D', transition: holding ? 'none' : 'width 0.3s' }} />
       </div>
-
-      {/* Spin hint */}
       <p className="text-surface/30 text-xs mb-6 tracking-wide">
         {spinning ? '\u00A0' : holding ? 'Release to spin!' : hasSpun ? 'Hold to spin again' : 'Hold and release to spin'}
       </p>
 
       {/* Win toast */}
       {winToast && (
-        <div
-          className="fixed top-8 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg animate-bounce"
-          style={{ background: '#F7941D', color: '#1a0e00' }}
-        >
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg animate-bounce" style={{ background: '#F7941D', color: '#1a0e00' }}>
           <span className="font-black text-lg">You won: {winToast}!</span>
         </div>
       )}
 
-      {/* ─── Logo ────────────────────────────────────────────────────── */}
+      {/* Logo */}
       <div className="mb-3 flex flex-col items-end">
         <div style={{ fontSize: '2.5rem', lineHeight: 1, fontWeight: 900 }} className="font-display">
-          <span className="text-btc">S</span>
-          <span className="text-surface">erendip</span>
+          <span className="text-btc">S</span><span className="text-surface">erendip</span>
         </div>
-        <div
-          className="font-display"
-          style={{
-            fontSize: '2.3rem',
-            lineHeight: 1,
-            fontWeight: 900,
-            transform: 'rotate(180deg)',
-            background: 'linear-gradient(to right, transparent, #F7941D)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            marginTop: '-0.1rem',
-          }}
-        >
+        <div className="font-display" style={{ fontSize: '2.3rem', lineHeight: 1, fontWeight: 900, transform: 'rotate(180deg)',
+          background: 'linear-gradient(to right, transparent, #F7941D)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginTop: '-0.1rem' }}>
           Eatery
         </div>
       </div>
 
-      {/* ─── Tagline ─────────────────────────────────────────────────── */}
-      <p className="text-lg md:text-xl font-bold tracking-wider text-surface/50 mb-10">
-        Spin. Win. Connect. Eat.
-      </p>
+      <p className="text-lg md:text-xl font-bold tracking-wider text-surface/50 mb-10">Spin. Win. Connect. Eat.</p>
 
-      {/* ─── Buttons ─────────────────────────────────────────────────── */}
+      {/* CTAs */}
       <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-md mb-14">
-        <Link
-          href="/consumer"
-          className="w-full sm:w-auto flex-1 bg-btc text-night font-bold text-lg px-8 py-4 rounded-full text-center hover:bg-btc-dark transition"
-        >
-          I want deals
-        </Link>
-        <Link
-          href="/business"
-          className="w-full sm:w-auto flex-1 border-2 border-surface/20 text-surface/70 font-bold text-lg px-8 py-4 rounded-full text-center hover:border-surface/40 hover:text-surface transition"
-        >
-          I have a business
-        </Link>
+        <Link href="/consumer" className="w-full sm:w-auto flex-1 bg-btc text-night font-bold text-lg px-8 py-4 rounded-full text-center hover:bg-btc-dark transition">I want deals</Link>
+        <Link href="/business" className="w-full sm:w-auto flex-1 border-2 border-surface/20 text-surface/70 font-bold text-lg px-8 py-4 rounded-full text-center hover:border-surface/40 hover:text-surface transition">I have a business</Link>
       </div>
 
-      {/* ─── How It Works ──────────────────────────────────────────── */}
+      {/* ─── How It Works Icons ─── */}
       <div className="flex items-center justify-center gap-10 md:gap-16 mb-10">
+        {/* Spin: mini roulette wheel */}
         <div className="flex flex-col items-center gap-2">
           <svg width="36" height="36" viewBox="0 0 36 36">
-            <circle cx="18" cy="18" r="16" fill="none" stroke="#F7941D" strokeWidth="2" />
-            {[0,60,120,180,240,300].map((a) => {
-              const r = (a - 90) * Math.PI / 180
-              return <line key={a} x1="18" y1="18" x2={18 + 14 * Math.cos(r)} y2={18 + 14 * Math.sin(r)} stroke="#F7941D" strokeWidth="1" opacity="0.4" />
+            {[0, 1, 2, 3, 4, 5].map((i) => {
+              const a1 = i * 60, a2 = a1 + 60
+              const r1 = ((a1 - 90) * Math.PI) / 180, r2 = ((a2 - 90) * Math.PI) / 180
+              return <path key={i} d={`M18,18 L${18 + 14 * Math.cos(r1)},${18 + 14 * Math.sin(r1)} A14,14 0 0 1 ${18 + 14 * Math.cos(r2)},${18 + 14 * Math.sin(r2)} Z`}
+                fill={i % 2 === 0 ? '#F7941D' : '#1a0e00'} stroke="#2a1400" strokeWidth="0.5" />
             })}
-            <circle cx="18" cy="18" r="4" fill="#F7941D" />
+            <circle cx="18" cy="18" r="14.5" fill="none" stroke="#D4AF37" strokeWidth="1.5" />
+            <circle cx="18" cy="18" r="4" fill="#1a0e00" stroke="#D4AF37" strokeWidth="1" />
           </svg>
           <span className="text-surface/50 text-xs font-bold">Spin</span>
         </div>
+        {/* Win: gift box */}
         <div className="flex flex-col items-center gap-2">
           <svg width="36" height="36" viewBox="0 0 36 36">
-            <polygon points="18,4 22,14 33,14 24,21 27,32 18,25 9,32 12,21 3,14 14,14" fill="none" stroke="#F7941D" strokeWidth="2" />
+            <rect x="6" y="16" width="24" height="14" rx="2" fill="none" stroke="#F7941D" strokeWidth="2" />
+            <rect x="4" y="12" width="28" height="6" rx="2" fill="none" stroke="#F7941D" strokeWidth="2" />
+            <line x1="18" y1="12" x2="18" y2="30" stroke="#F7941D" strokeWidth="2" />
+            <path d="M18,12 C18,8 14,6 12,8 C10,10 12,12 18,12" fill="none" stroke="#F7941D" strokeWidth="1.5" />
+            <path d="M18,12 C18,8 22,6 24,8 C26,10 24,12 18,12" fill="none" stroke="#F7941D" strokeWidth="1.5" />
           </svg>
           <span className="text-surface/50 text-xs font-bold">Win</span>
         </div>
+        {/* Connect: scissors hand */}
         <div className="flex flex-col items-center gap-2">
-          <svg width="36" height="36" viewBox="0 0 36 36">
-            <path d="M18,6 L18,16 M14,12 L18,16 L22,12" stroke="#F7941D" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M12,18 L8,22 M12,22 L8,18" stroke="#F7941D" strokeWidth="2" fill="none" strokeLinecap="round" />
-            <path d="M24,18 L28,22 M24,22 L28,18" stroke="#F7941D" strokeWidth="2" fill="none" strokeLinecap="round" />
-            <circle cx="18" cy="28" r="4" fill="none" stroke="#F7941D" strokeWidth="2" />
+          <svg width="36" height="36" viewBox="0 0 36 36" style={{ transform: 'rotate(45deg)' }}>
+            <text x="18" y="20" textAnchor="middle" dominantBaseline="central" fontSize="26">✌️</text>
           </svg>
           <span className="text-surface/50 text-xs font-bold">Connect</span>
         </div>
+        {/* Eat: plate with fork */}
         <div className="flex flex-col items-center gap-2">
           <svg width="36" height="36" viewBox="0 0 36 36">
-            <path d="M10,8 C10,8 10,28 10,28 M10,28 C14,28 18,24 18,20 M18,8 L18,20 M26,8 L26,16 C26,20 22,24 18,24" stroke="#F7941D" strokeWidth="2" fill="none" strokeLinecap="round" />
+            <circle cx="18" cy="18" r="13" fill="none" stroke="#F7941D" strokeWidth="2" />
+            <circle cx="18" cy="18" r="9" fill="none" stroke="#F7941D" strokeWidth="0.5" opacity="0.3" />
+            <line x1="12" y1="8" x2="12" y2="28" stroke="#F7941D" strokeWidth="2" strokeLinecap="round" />
+            <line x1="9" y1="8" x2="9" y2="14" stroke="#F7941D" strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="15" y1="8" x2="15" y2="14" stroke="#F7941D" strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="9" y1="14" x2="15" y2="14" stroke="#F7941D" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
           <span className="text-surface/50 text-xs font-bold">Eat</span>
         </div>
       </div>
 
-      {/* ─── P2P Battle Teaser ───────────────────────────────────────── */}
-      <div
-        className="w-full max-w-lg rounded-2xl p-6 mb-14 text-center"
-        style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.1)' }}
-      >
-        <h3 className="text-xl font-black text-surface mb-2">
-          Your next friend is 10 feet away.
-        </h3>
-        <p className="text-surface/50 text-sm mb-2">
-          Battle nearby strangers in rock paper scissors. Winner loots the loser's deals.
-        </p>
-        <p className="text-surface/30 text-xs">
-          Turn strangers into friends, one battle at a time.
-        </p>
+      {/* P2P teaser */}
+      <div className="w-full max-w-lg rounded-2xl p-6 mb-14 text-center" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.1)' }}>
+        <h3 className="text-xl font-black text-surface mb-2">Your next friend is 10 feet away.</h3>
+        <p className="text-surface/50 text-sm mb-2">Battle nearby strangers in rock paper scissors. Winner loots the loser's deals.</p>
+        <p className="text-surface/30 text-xs">Turn strangers into friends, one battle at a time.</p>
       </div>
 
-      {/* ─── Sample Deal Cards ───────────────────────────────────────── */}
+      {/* ─── Clickable Deal Cards ─── */}
       <div className="w-full max-w-3xl">
         <h2 className="text-xl font-bold text-surface mb-4">Flash sales near you</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {SAMPLE_DEALS.map((deal) => (
             <div
               key={deal.biz}
-              className="rounded-2xl p-5"
+              className={`rounded-2xl p-5 ${deal.soon ? '' : 'cursor-pointer hover:border-btc/30'} transition`}
               style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.12)' }}
+              onClick={() => { if (!deal.soon) setModalDeal(deal) }}
             >
               <div className="flex items-start gap-3 mb-3">
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-night shrink-0"
-                  style={{ background: '#F7941D' }}
-                >
-                  {deal.initial}
-                </div>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-night shrink-0" style={{ background: '#F7941D' }}>{deal.initial}</div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-surface text-base truncate">{deal.biz}</h3>
                   <p className="text-surface/40 text-sm">{deal.sale}</p>
                 </div>
-                <span
-                  className="text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap"
-                  style={{
-                    background: deal.soon ? 'rgba(83,74,183,0.2)' : 'rgba(29,158,117,0.15)',
-                    color: deal.soon ? '#534AB7' : '#1D9E75',
-                  }}
-                >
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap"
+                  style={{ background: deal.soon ? 'rgba(83,74,183,0.2)' : 'rgba(29,158,117,0.15)', color: deal.soon ? '#534AB7' : '#1D9E75' }}>
                   {deal.status}
                 </span>
               </div>
-              <Link
-                href="/consumer"
-                className={`block w-full text-center py-2.5 rounded-full text-sm font-bold transition ${
-                  deal.soon
-                    ? 'border border-surface/15 text-surface/40 cursor-default'
-                    : 'bg-btc text-night hover:bg-btc-dark'
-                }`}
-              >
+              <button className={`block w-full text-center py-2.5 rounded-full text-sm font-bold transition ${deal.soon ? 'border border-surface/15 text-surface/40' : 'bg-btc text-night hover:bg-btc-dark'}`}>
                 {deal.soon ? 'Coming Soon' : 'Spin to Win'}
-              </Link>
+              </button>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ─── App Download ────────────────────────────────────────────── */}
+      {/* Deal modal */}
+      {modalDeal && <DealModal deal={modalDeal} onClose={() => setModalDeal(null)} />}
+
+      {/* App download */}
       <div className="flex items-center gap-4 mt-12">
-        <Link
-          href="/coming-soon-app"
-          className="border border-surface/20 text-surface/50 text-sm px-5 py-2 rounded-full hover:border-surface/40 hover:text-surface/70 transition"
-        >
-          Download for iOS
-        </Link>
-        <Link
-          href="/coming-soon-app"
-          className="border border-surface/20 text-surface/50 text-sm px-5 py-2 rounded-full hover:border-surface/40 hover:text-surface/70 transition"
-        >
-          Download for Android
-        </Link>
+        <Link href="/coming-soon-app" className="border border-surface/20 text-surface/50 text-sm px-5 py-2 rounded-full hover:border-surface/40 hover:text-surface/70 transition">Download for iOS</Link>
+        <Link href="/coming-soon-app" className="border border-surface/20 text-surface/50 text-sm px-5 py-2 rounded-full hover:border-surface/40 hover:text-surface/70 transition">Download for Android</Link>
       </div>
 
-      {/* ─── Footer ──────────────────────────────────────────────────── */}
+      {/* Footer */}
       <footer className="mt-16 pt-8 border-t border-white/5 w-full max-w-3xl">
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-surface/30 text-xs">
           <Link href="/pricing" className="hover:text-surface/50 transition">Pricing</Link>

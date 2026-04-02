@@ -50,17 +50,24 @@ export default function BusinessPage() {
         Your customers meet each other. They come back together.
       </p>
 
-      {/* CTA */}
+      {/* CTAs */}
       <Link
-        href="/sign-up"
+        href="/business/setup"
         className="bg-btc text-night font-bold text-xl px-12 py-5 rounded-full hover:bg-btc-dark transition"
       >
-        Start Free
+        Set Up a Flash Sale
+      </Link>
+
+      <Link
+        href="/business/setup"
+        className="mt-4 text-btc/70 text-sm font-medium hover:text-btc transition"
+      >
+        See How It Works
       </Link>
 
       <Link
         href="/"
-        className="mt-8 text-surface/30 text-sm hover:text-surface/50 transition"
+        className="mt-6 text-surface/30 text-sm hover:text-surface/50 transition"
       >
         Back to home
       </Link>
