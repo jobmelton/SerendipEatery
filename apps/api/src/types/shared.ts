@@ -179,6 +179,11 @@ export type EarnAction =
   | 'first_visit_new_restaurant'
   | 'visit_100_milestone'
   | 'share_converts'
+  | 'drop_challenge'
+  | 'challenge_accepted'
+  | 'battle_win'
+  | 'battle_loss'
+  | 'battle_forfeit_win'
 
 export const EARN_POINTS: Record<EarnAction, number> = {
   spin: 10,
@@ -193,6 +198,11 @@ export const EARN_POINTS: Record<EarnAction, number> = {
   first_visit_new_restaurant: 75,
   visit_100_milestone: 1000,
   share_converts: 50,
+  drop_challenge: 15,
+  challenge_accepted: 10,
+  battle_win: 25,
+  battle_loss: 5,
+  battle_forfeit_win: 10,
 }
 
 export const CONSUMER_TIER_THRESHOLDS: Record<ConsumerTier, number> = {

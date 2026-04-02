@@ -5,6 +5,8 @@ import { AuthenticatedRequest } from '../middleware/auth.js'
 import { supabase } from '../lib/supabase.js'
 import { AppError } from '../lib/errors.js'
 import { resolveBattle, spinLootWheel, type Move } from '../lib/battle.js'
+import { awardPoints } from '../lib/loyalty.js'
+import { EARN_POINTS } from '../types/shared.js'
 
 const moveEnum = z.enum(['rock', 'paper', 'scissors'])
 
@@ -83,6 +85,9 @@ export async function battleRoutes(app: FastifyInstance) {
 
     if (error) throw error
 
+    // Award points for dropping a challenge
+    await awardPoints(userId, EARN_POINTS.drop_challenge, 'drop_challenge', battle.id).catch(() => {})
+
     // TODO: send push notification to defender via Expo push
 
     return { ok: true, data: battle }
@@ -112,6 +117,9 @@ export async function battleRoutes(app: FastifyInstance) {
 
     if (error) throw error
 
+    // Award bonus points to challenger for acceptance
+    await awardPoints(battle.challenger_id, EARN_POINTS.challenge_accepted, 'challenge_accepted', id).catch(() => {})
+
     return { ok: true, data }
   })
 
@@ -140,6 +148,10 @@ export async function battleRoutes(app: FastifyInstance) {
       .single()
 
     if (error) throw error
+
+    // Award forfeit win to the other player
+    const winnerId = userId === battle.defender_id ? battle.challenger_id : battle.defender_id
+    await awardPoints(winnerId, EARN_POINTS.battle_forfeit_win, 'battle_forfeit_win', id).catch(() => {})
 
     return { ok: true, data }
   })
@@ -212,6 +224,17 @@ export async function battleRoutes(app: FastifyInstance) {
         status: 'completed',
         completed_at: new Date().toISOString(),
       }).eq('id', id)
+
+      // Award battle points
+      if (result.winnerId) {
+        const loserId = result.winnerId === updated.challenger_id ? updated.defender_id : updated.challenger_id
+        await awardPoints(result.winnerId, EARN_POINTS.battle_win, 'battle_win', id).catch(() => {})
+        await awardPoints(loserId, EARN_POINTS.battle_loss, 'battle_loss', id).catch(() => {})
+      } else {
+        // Draw — both get loss consolation
+        await awardPoints(updated.challenger_id, EARN_POINTS.battle_loss, 'battle_loss', id).catch(() => {})
+        await awardPoints(updated.defender_id, EARN_POINTS.battle_loss, 'battle_loss', id).catch(() => {})
+      }
 
       const { data: final } = await supabase
         .from('battles')
