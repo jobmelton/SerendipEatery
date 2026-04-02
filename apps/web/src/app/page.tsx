@@ -1,24 +1,8 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-
-/* ─── Wheel Config ─── */
-const NUM_SEGMENTS = 12
-const WHEEL_PX = 320
-const R = 140
-const INNER_R = 32
-const CX = 160
-const CY = 160
-const PEG_R = R + 12
-const RING_R = R + 18
-const SEG_ANGLE = 360 / NUM_SEGMENTS
-
-const PRIZES = [
-  'Free Taco', '50% Off', 'Free Drink', 'Try Again',
-  'Free Dessert', '25% Off', 'Free Side', 'Jackpot',
-  'Free Coffee', '10% Off', 'Free Fries', 'Spin Again',
-]
+import { PrizeWheel } from '@/components/PrizeWheel'
 
 const SAMPLE_DEALS = [
   { biz: 'Fuego Tacos', sale: 'Friday Flash Sale', status: 'Active Now', initial: 'F', soon: false,
@@ -31,186 +15,28 @@ const SAMPLE_DEALS = [
     prizes: ['Free Fries', 'Free Shake', '25% Off', 'Free Burger', 'Try Again', '10% Off'] },
 ]
 
-function pol(deg: number, r: number) {
-  const rad = ((deg - 90) * Math.PI) / 180
-  return { x: CX + r * Math.cos(rad), y: CY + r * Math.sin(rad) }
-}
+/* Wheel is now the shared PrizeWheel component */
 
-function slicePath(i: number) {
-  const a1 = i * SEG_ANGLE
-  const a2 = a1 + SEG_ANGLE
-  const p1 = pol(a1, R)
-  const p2 = pol(a2, R)
-  return `M${CX},${CY} L${p1.x},${p1.y} A${R},${R} 0 0 1 ${p2.x},${p2.y} Z`
-}
-
-/* ─── Mini wheel for modal ─── */
-function MiniWheel({ prizes, size = 200, onSpin }: { prizes: string[]; size?: number; onSpin?: (prize: string) => void }) {
-  const [rot, setRot] = useState(0)
-  const [spinning, setSpinning] = useState(false)
-  const count = prizes.length || 6
-  const seg = 360 / count
-  const r = size / 2 - 10
-  const cx = size / 2
-  const pr = (d: number, radius: number) => {
-    const rad = ((d - 90) * Math.PI) / 180
-    return { x: cx + radius * Math.cos(rad), y: cx + radius * Math.sin(rad) }
-  }
-
-  const spin = () => {
-    if (spinning) return
-    setSpinning(true)
-    const winIdx = Math.floor(Math.random() * count)
-    const target = 360 - (winIdx * seg + seg / 2)
-    const delta = (4 + Math.random() * 3) * 360 + target - (rot % 360)
-    setRot((prev) => prev + delta)
-    setTimeout(() => {
-      setSpinning(false)
-      onSpin?.(prizes[winIdx] || 'Prize')
-    }, 3500)
-  }
-
-  return (
-    <div className="relative cursor-pointer" style={{ width: size, height: size }} onClick={spin}>
-      <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-10">
-        <div style={{ width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderTop: '14px solid #FFD700' }} />
-      </div>
-      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size}
-        style={{ transform: `rotate(${rot}deg)`, transition: spinning ? 'transform 3.5s cubic-bezier(0.12,0.6,0.07,1)' : 'none' }}>
-        <circle cx={cx} cy={cx} r={r + 6} fill="none" stroke="#D4AF37" strokeWidth="3" />
-        {prizes.map((label, i) => {
-          const a1 = i * seg, a2 = a1 + seg
-          const p1 = pr(a1, r), p2 = pr(a2, r)
-          const mid = pr(a1 + seg / 2, r * 0.6)
-          const isO = i % 2 === 0
-          return (
-            <g key={i}>
-              <path d={`M${cx},${cx} L${p1.x},${p1.y} A${r},${r} 0 0 1 ${p2.x},${p2.y} Z`} fill={isO ? '#F7941D' : '#1a0e00'} stroke="#2a1400" strokeWidth="0.5" />
-              <text x={mid.x} y={mid.y} fill={isO ? '#1a0e00' : '#F7941D'} fontSize="7" fontWeight="bold" textAnchor="middle" dominantBaseline="central"
-                transform={`rotate(${a1 + seg / 2},${mid.x},${mid.y})`}>{label.length > 10 ? label.slice(0, 9) + '…' : label}</text>
-            </g>
-          )
-        })}
-        <circle cx={cx} cy={cx} r="14" fill="#1a0e00" stroke="#D4AF37" strokeWidth="2" />
-        <text x={cx} y={cx} fill="#F7941D" fontSize="12" fontWeight="900" textAnchor="middle" dominantBaseline="central">S</text>
-      </svg>
-    </div>
-  )
-}
-
-/* ─── Deal Modal with hold-to-spin ─── */
+/* ─── Deal Modal using PrizeWheel ─── */
 function DealModal({ deal, onClose }: { deal: typeof SAMPLE_DEALS[0]; onClose: () => void }) {
-  const [wonPrize, setWonPrize] = useState<string | null>(null)
-  const [rot, setRot] = useState(0)
-  const [ballA, setBallA] = useState(15)
-  const [spin, setSpin] = useState(false)
-  const [ballP, setBallP] = useState<'idle' | 'orbit' | 'fall' | 'settled'>('idle')
-  const [pwr, setPwr] = useState(0)
-  const [hold, setHold] = useState(false)
-  const pwrRef = useRef(0)
-  const pwrInt = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  const count = deal.prizes.length || 6
-  const seg = 360 / count
-  const sz = 240
-  const r = sz / 2 - 16
-  const cx = sz / 2
-
-  const pr = (d: number, radius: number) => {
-    const rad = ((d - 90) * Math.PI) / 180
-    return { x: cx + radius * Math.cos(rad), y: cx + radius * Math.sin(rad) }
-  }
-
-  const startH = () => {
-    if (spin) return
-    setHold(true); pwrRef.current = 0; setPwr(0)
-    pwrInt.current = setInterval(() => { pwrRef.current = Math.min(pwrRef.current + 100 / 30, 100); setPwr(pwrRef.current) }, 100)
-  }
-
-  const releaseH = () => {
-    if (!hold || spin) return
-    setHold(false)
-    if (pwrInt.current) { clearInterval(pwrInt.current); pwrInt.current = null }
-    const p = Math.max(pwrRef.current, 15) / 100
-    setPwr(0); setSpin(true); setWonPrize(null); setBallP('orbit')
-    const winIdx = Math.floor(Math.random() * count)
-    const target = 360 - (winIdx * seg + seg / 2)
-    setRot((prev) => prev + (3 + p * 5) * 360 + target - (prev % 360))
-    setBallA((prev) => prev - (4 + p * 4) * 360)
-    const dur = 3000 + p * 2000
-    setTimeout(() => setBallP('fall'), dur * 0.75)
-    setTimeout(() => { setBallP('settled'); setSpin(false); setWonPrize(deal.prizes[winIdx]); setTimeout(() => setBallP('idle'), 3500) }, dur)
-  }
-
-  const orbitR = (r + 6) * (sz / (cx * 2))
-  const settledR = r * 0.5 * (sz / (cx * 2))
-  const bR = ballP === 'settled' || ballP === 'fall' ? settledR : orbitR
+  const COLORS = ['#FF1493', '#32CD32', '#FF4500', '#2a2a2a', '#00CED1', '#9400D3', '#4169E1', '#FFD700']
+  const dealPrizes = deal.prizes.map((label, i) => ({
+    label,
+    weight: label.toLowerCase().includes('try again') ? 25 : 12,
+    color: COLORS[i % COLORS.length],
+  }))
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70" />
-      <div className="relative rounded-3xl p-6 max-w-sm w-full max-h-[90vh] overflow-y-auto"
+      <div className="relative rounded-3xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
         style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.2)' }} onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-4 right-4 text-surface/30 hover:text-surface text-xl">&times;</button>
-
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-night text-xl" style={{ background: '#F7941D' }}>{deal.initial}</div>
-          <div>
-            <h3 className="font-bold text-surface text-lg">{deal.biz} — {deal.sale}</h3>
-          </div>
+          <h3 className="font-bold text-surface text-lg">{deal.biz} — {deal.sale}</h3>
         </div>
-
-        {/* Hold-to-spin wheel */}
-        <div className="flex justify-center">
-          <div className="relative select-none" style={{ width: sz, height: sz }}
-            onMouseDown={startH} onMouseUp={releaseH} onMouseLeave={() => { if (hold) releaseH() }}
-            onTouchStart={startH} onTouchEnd={releaseH}>
-            <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-10">
-              <div style={{ width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderTop: '14px solid #FFD700' }} />
-            </div>
-            {/* Ball */}
-            <div className="absolute inset-0 pointer-events-none z-10"
-              style={{ transform: `rotate(${ballA}deg)`, transition: spin ? `transform ${ballP === 'fall' ? '0.6s' : '4.6s'} cubic-bezier(0.08,0.65,0.05,1.02)` : 'none' }}>
-              <div style={{ position: 'absolute', left: '50%', top: sz / 2 - bR - 5, width: 10, height: 10, marginLeft: -5, borderRadius: '50%',
-                background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)', boxShadow: '0 1px 4px rgba(0,0,0,0.7)',
-                transition: `top ${ballP === 'fall' ? '0.5s cubic-bezier(0.36,0,0.66,-0.56)' : ballP === 'settled' ? '0.3s cubic-bezier(0.34,1.56,0.64,1)' : 'none'}` }} />
-            </div>
-            <svg viewBox={`0 0 ${sz} ${sz}`} width={sz} height={sz}
-              style={{ transform: `rotate(${rot}deg)`, transition: spin ? 'transform 4.2s cubic-bezier(0.12,0.6,0.07,1)' : 'none' }}>
-              <circle cx={cx} cy={cx} r={r + 8} fill="none" stroke="#D4AF37" strokeWidth="3" />
-              {deal.prizes.map((label, i) => {
-                const a1 = i * seg, a2 = a1 + seg
-                const p1 = pr(a1, r), p2 = pr(a2, r), mid = pr(a1 + seg / 2, r * 0.6)
-                const isO = i % 2 === 0
-                return (
-                  <g key={i}>
-                    <path d={`M${cx},${cx} L${p1.x},${p1.y} A${r},${r} 0 0 1 ${p2.x},${p2.y} Z`} fill={isO ? '#F7941D' : '#1a0e00'} stroke="#2a1400" strokeWidth="0.5" />
-                    <text x={mid.x} y={mid.y} fill={isO ? '#1a0e00' : '#F7941D'} fontSize="7" fontWeight="bold" textAnchor="middle" dominantBaseline="central"
-                      transform={`rotate(${a1 + seg / 2},${mid.x},${mid.y})`}>{label.length > 10 ? label.slice(0, 9) + '…' : label}</text>
-                  </g>
-                )
-              })}
-              <circle cx={cx} cy={cx} r="14" fill="#1a0e00" stroke="#D4AF37" strokeWidth="2" />
-              <text x={cx} y={cx} fill="#F7941D" fontSize="12" fontWeight="900" textAnchor="middle" dominantBaseline="central">S</text>
-            </svg>
-          </div>
-        </div>
-
-        {/* Power bar */}
-        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mt-2 mb-1">
-          <div className="h-full rounded-full" style={{ width: `${pwr}%`, background: pwr > 70 ? '#1D9E75' : '#F7941D', transition: hold ? 'none' : 'width 0.3s' }} />
-        </div>
-        <p className="text-surface/30 text-xs text-center mb-3">
-          {spin ? '\u00A0' : hold ? 'Release!' : wonPrize ? 'Hold to spin again' : 'Hold and release to spin'}
-        </p>
-
-        {wonPrize && (
-          <div className="rounded-xl p-4 text-center" style={{ background: 'rgba(29,158,117,0.1)', border: '1px solid rgba(29,158,117,0.3)' }}>
-            <p className="text-teal font-bold text-lg">You won: {wonPrize}!</p>
-            <p className="text-surface/40 text-sm mt-1">Sign up to claim it</p>
-            <Link href="/sign-up" className="inline-block mt-3 bg-btc text-night font-bold px-6 py-2 rounded-full text-sm hover:bg-btc-dark transition">Sign Up Free</Link>
-          </div>
-        )}
+        <PrizeWheel prizes={dealPrizes} isGuest={true} />
       </div>
     </div>
   )
@@ -218,234 +44,14 @@ function DealModal({ deal, onClose }: { deal: typeof SAMPLE_DEALS[0]; onClose: (
 
 /* ─── Main Page ─── */
 export default function LandingPage() {
-  const [rotation, setRotation] = useState(0)
-  const [spinning, setSpinning] = useState(false)
-  const [hasSpun, setHasSpun] = useState(false)
-  const [winToast, setWinToast] = useState<string | null>(null)
-  const [power, setPower] = useState(0)
-  const [holding, setHolding] = useState(false)
   const [modalDeal, setModalDeal] = useState<typeof SAMPLE_DEALS[0] | null>(null)
   const [cowardToast, setCowardToast] = useState(false)
-  const powerInterval = useRef<ReturnType<typeof setInterval> | null>(null)
-  const powerRef = useRef(0)
 
-  // Ball uses rAF for smooth multi-phase animation
-  const ballRef = useRef<HTMLDivElement>(null)
-  const ballAnimRef = useRef<number>(0)
-  const SCALE = WHEEL_PX / (CX * 2)
-  const BALL_SZ = 10
-  const ORBIT_R = (R + 8) * SCALE  // outer rim
-  const SETTLE_R = (R * 0.52) * SCALE // inside segment
-
-  // Animate ball — single continuous rAF loop, no jumps
-  function animateBall(duration: number, winIdx: number) {
-    const el = ballRef.current
-    if (!el) return
-    const start = performance.now()
-    const halfW = WHEEL_PX / 2
-
-    // All values calculated ONCE before animation starts
-    const startAngle = Math.random() * 360 // degrees, arbitrary start
-    // Winning angle: pointer is at top (0°). After wheel stops, winning segment
-    // is at top. Ball must end at 0° (top) with small offset within segment.
-    const jitter = (Math.random() - 0.5) * 0.5 * SEG_ANGLE
-    const winAngle = jitter // degrees from top (0°)
-    // Total orbit: ball ends at winAngle. Negative = counter-clockwise.
-    // totalOrbit = -(fullSpins * 360 + winAngle - startAngle)
-    const fullSpins = 5 + Math.floor(Math.random() * 3)
-    const totalOrbit = -(fullSpins * 360 + winAngle - startAngle)
-
-    function easeOut(t: number) { return 1 - Math.pow(1 - t, 3) }
-
-    function tick(now: number) {
-      if (!el) return
-      const t = Math.min((now - start) / duration, 1)
-
-      // Angle: always continuous — never jumps
-      const angle = startAngle + totalOrbit * easeOut(t)
-
-      // Radius: outer rim for orbit/slowdown, lerp inward during drift
-      let radius = ORBIT_R
-      if (t > 0.85) {
-        const driftT = Math.min((t - 0.85) / 0.10, 1) // 0→1 over 0.85→0.95
-        radius = ORBIT_R + (SETTLE_R - ORBIT_R) * driftT
-      }
-
-      // Settle bounce: small radial oscillation at t > 0.95
-      let bounceOffset = 0
-      if (t > 0.95) {
-        bounceOffset = Math.sin((t - 0.95) * 20 * Math.PI) * (1 - t) * 8
-      }
-
-      const finalRadius = radius + bounceOffset
-      const rad = ((angle - 90) * Math.PI) / 180
-      el.style.left = `${halfW + finalRadius * Math.cos(rad) - BALL_SZ / 2}px`
-      el.style.top = `${halfW + finalRadius * Math.sin(rad) - BALL_SZ / 2}px`
-
-      if (t < 1) ballAnimRef.current = requestAnimationFrame(tick)
-    }
-
-    ballAnimRef.current = requestAnimationFrame(tick)
-  }
-
-  const startHold = useCallback(() => {
-    if (spinning) return
-    setHolding(true)
-    powerRef.current = 0
-    setPower(0)
-    powerInterval.current = setInterval(() => {
-      powerRef.current = Math.min(powerRef.current + 100 / 30, 100)
-      setPower(powerRef.current)
-    }, 100)
-  }, [spinning])
-
-  const releaseHold = useCallback(() => {
-    if (!holding || spinning) return
-    setHolding(false)
-    if (powerInterval.current) { clearInterval(powerInterval.current); powerInterval.current = null }
-
-    const pwr = Math.max(powerRef.current, 15) / 100
-    setPower(0)
-    setSpinning(true)
-    setHasSpun(true)
-    setWinToast(null)
-
-    // Pick winning segment
-    const winIdx = Math.floor(Math.random() * NUM_SEGMENTS)
-
-    // Calculate exact rotation so winning segment lands under pointer (top)
-    // Segment center angle = winIdx * SEG_ANGLE + SEG_ANGLE/2
-    // We need this angle to be at the top (0°), so rotate wheel by -(that angle)
-    // Plus random offset within ±30% of segment width
-    const segCenter = winIdx * SEG_ANGLE + SEG_ANGLE / 2
-    const jitter = (Math.random() - 0.5) * 0.6 * SEG_ANGLE
-    const targetAngle = 360 - segCenter + jitter
-
-    // Normalize: add full spins so total is always forward
-    const fullSpins = Math.ceil(3 + pwr * 5) * 360
-    // Calculate delta from current rotation
-    const currentMod = ((rotation % 360) + 360) % 360
-    let delta = fullSpins + targetAngle - currentMod
-    if (delta < fullSpins) delta += 360 // ensure enough spins
-
-    setRotation((prev) => prev + delta)
-
-    const duration = 3000 + pwr * 2000
-
-    // Animate ball with rAF
-    animateBall(duration, winIdx)
-
-    setTimeout(() => {
-      setSpinning(false)
-      setWinToast(PRIZES[winIdx])
-      setTimeout(() => setWinToast(null), 3500)
-    }, duration)
-  }, [holding, spinning, rotation])
 
   return (
     <main className="min-h-screen bg-night flex flex-col items-center px-6 pt-12 pb-20">
       {/* ─── Roulette Wheel ─── */}
-      <div
-        className="relative cursor-pointer mb-1 select-none"
-        style={{ width: WHEEL_PX, height: WHEEL_PX }}
-        onMouseDown={startHold}
-        onMouseUp={releaseHold}
-        onMouseLeave={() => { if (holding) releaseHold() }}
-        onTouchStart={startHold}
-        onTouchEnd={releaseHold}
-      >
-        {/* Pointer */}
-        <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-20">
-          <svg width="30" height="28" viewBox="0 0 30 28">
-            <defs>
-              <linearGradient id="pGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#FFD700" />
-                <stop offset="100%" stopColor="#B8860B" />
-              </linearGradient>
-            </defs>
-            <polygon points="15,28 0,0 30,0" fill="url(#pGrad)" />
-          </svg>
-        </div>
-
-        {/* Ball — positioned via requestAnimationFrame */}
-        <div
-          ref={ballRef}
-          className="absolute pointer-events-none z-10"
-          style={{
-            width: BALL_SZ,
-            height: BALL_SZ,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.7), inset 0 -1px 2px rgba(0,0,0,0.2)',
-            left: WHEEL_PX / 2 - BALL_SZ / 2,
-            top: WHEEL_PX / 2 - ORBIT_R - BALL_SZ / 2,
-          }}
-        />
-
-        {/* Wheel SVG */}
-        <svg
-          viewBox={`0 0 ${CX * 2} ${CY * 2}`}
-          width={WHEEL_PX}
-          height={WHEEL_PX}
-          style={{
-            transform: `rotate(${rotation}deg)`,
-            transition: spinning ? 'transform 4.2s cubic-bezier(0.12, 0.6, 0.07, 1)' : 'none',
-          }}
-        >
-          <circle cx={CX} cy={CY} r={RING_R} fill="none" stroke="#D4AF37" strokeWidth="4" />
-          <circle cx={CX} cy={CY} r={R + 3} fill="none" stroke="#D4AF37" strokeWidth="1" opacity="0.4" />
-
-          {Array.from({ length: NUM_SEGMENTS }, (_, i) => {
-            const p = pol(i * SEG_ANGLE, PEG_R)
-            return (
-              <g key={`peg-${i}`}>
-                <circle cx={p.x} cy={p.y} r="4" fill="#D4AF37" />
-                <circle cx={p.x} cy={p.y} r="2.5" fill="#FFD700" />
-              </g>
-            )
-          })}
-
-          {PRIZES.map((label, i) => {
-            const isOrange = i % 2 === 0
-            const midA = i * SEG_ANGLE + SEG_ANGLE / 2
-            const lp = pol(midA, R * 0.62)
-            return (
-              <g key={`seg-${i}`}>
-                <path d={slicePath(i)} fill={isOrange ? '#F7941D' : '#1a0e00'} stroke="#2a1400" strokeWidth="0.5" />
-                <text x={lp.x} y={lp.y} fill={isOrange ? '#1a0e00' : '#F7941D'} fontSize="8" fontWeight="bold"
-                  textAnchor="middle" dominantBaseline="central" transform={`rotate(${midA},${lp.x},${lp.y})`}>
-                  {label.length > 11 ? label.slice(0, 10) + '…' : label}
-                </text>
-              </g>
-            )
-          })}
-
-          {Array.from({ length: NUM_SEGMENTS }, (_, i) => {
-            const a = i * SEG_ANGLE
-            const outer = pol(a, R), inner = pol(a, INNER_R + 4)
-            return <line key={`d-${i}`} x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="#D4AF37" strokeWidth="0.8" opacity="0.45" />
-          })}
-
-          <circle cx={CX} cy={CY} r={INNER_R + 2} fill="#1a0e00" stroke="#D4AF37" strokeWidth="2.5" />
-          <circle cx={CX} cy={CY} r={INNER_R - 4} fill="#1a0e00" stroke="#F7941D" strokeWidth="0.5" opacity="0.3" />
-          <text x={CX} y={CY} fill="#F7941D" fontSize="26" fontWeight="900" textAnchor="middle" dominantBaseline="central" fontFamily="Arial Black, Arial, sans-serif">S</text>
-        </svg>
-      </div>
-
-      {/* Power meter */}
-      <div className="w-48 h-2 bg-white/10 rounded-full overflow-hidden mb-2 mt-1">
-        <div className="h-full rounded-full" style={{ width: `${power}%`, background: power > 70 ? '#1D9E75' : '#F7941D', transition: holding ? 'none' : 'width 0.3s' }} />
-      </div>
-      <p className="text-surface/30 text-xs mb-6 tracking-wide">
-        {spinning ? '\u00A0' : holding ? 'Release to spin!' : hasSpun ? 'Hold to spin again' : 'Hold and release to spin'}
-      </p>
-
-      {/* Win toast */}
-      {winToast && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg animate-bounce" style={{ background: '#F7941D', color: '#1a0e00' }}>
-          <span className="font-black text-lg">You won: {winToast}!</span>
-        </div>
-      )}
+      <PrizeWheel />
 
       {/* Logo */}
       <div className="mb-3 flex flex-col items-end">
