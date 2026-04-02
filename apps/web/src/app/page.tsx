@@ -249,7 +249,7 @@ export default function LandingPage() {
 
       {/* ─── Tagline ─────────────────────────────────────────────────── */}
       <p className="text-lg md:text-xl font-bold tracking-wider text-surface/50 mb-10">
-        Spin. Win. Eat.
+        Spin. Win. Connect. Eat.
       </p>
 
       {/* ─── Buttons ─────────────────────────────────────────────────── */}
@@ -269,7 +269,7 @@ export default function LandingPage() {
       </div>
 
       {/* ─── How It Works ──────────────────────────────────────────── */}
-      <div className="flex items-center justify-center gap-12 md:gap-20 mb-14">
+      <div className="flex items-center justify-center gap-10 md:gap-16 mb-10">
         <div className="flex flex-col items-center gap-1">
           <span className="text-3xl">🎰</span>
           <span className="text-surface/50 text-xs font-bold">Spin</span>
@@ -279,9 +279,29 @@ export default function LandingPage() {
           <span className="text-surface/50 text-xs font-bold">Win</span>
         </div>
         <div className="flex flex-col items-center gap-1">
+          <span className="text-3xl">⚔️</span>
+          <span className="text-surface/50 text-xs font-bold">Connect</span>
+        </div>
+        <div className="flex flex-col items-center gap-1">
           <span className="text-3xl">🍽️</span>
           <span className="text-surface/50 text-xs font-bold">Eat</span>
         </div>
+      </div>
+
+      {/* ─── P2P Battle Teaser ───────────────────────────────────────── */}
+      <div
+        className="w-full max-w-lg rounded-2xl p-6 mb-14 text-center"
+        style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.1)' }}
+      >
+        <h3 className="text-xl font-black text-surface mb-2">
+          Your next friend is 10 feet away.
+        </h3>
+        <p className="text-surface/50 text-sm mb-2">
+          Battle nearby strangers in rock paper scissors. Winner loots the loser's deals.
+        </p>
+        <p className="text-surface/30 text-xs">
+          Turn strangers into friends, one battle at a time.
+        </p>
       </div>
 
       {/* ─── Sample Deal Cards ───────────────────────────────────────── */}

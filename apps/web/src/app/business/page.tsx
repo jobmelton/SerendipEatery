@@ -43,8 +43,11 @@ export default function BusinessPage() {
       </div>
 
       {/* Tagline */}
-      <p className="text-surface/50 text-center text-lg max-w-xl mb-12">
+      <p className="text-surface/50 text-center text-lg max-w-xl mb-4">
         Run flash sales. Monitor response rates. Pay when it proves itself.
+      </p>
+      <p className="text-btc/60 text-center text-sm max-w-md mb-12">
+        Your customers meet each other. They come back together.
       </p>
 
       {/* CTA */}

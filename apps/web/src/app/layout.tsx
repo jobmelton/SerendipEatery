@@ -4,12 +4,12 @@ import { dark } from '@clerk/themes'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'SerendipEatery — Spin your next meal',
-  description: 'Flash sales at food trucks and restaurants near you. Spin the wheel. Win a deal. Walk in.',
+  title: 'SerendipEatery — Spin. Win. Connect. Eat.',
+  description: 'Flash sales at restaurants and food trucks near you. Spin to win deals, battle strangers, make friends.',
   metadataBase: new URL('https://serendip.app'),
   openGraph: {
     title: 'SerendipEatery',
-    description: 'Spin your next meal. Win a deal. Walk in.',
+    description: 'Spin to win deals, battle strangers, make friends.',
     url: 'https://serendip.app',
     siteName: 'SerendipEatery',
     images: [{ url: '/og-default.png', width: 1200, height: 630 }],
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'SerendipEatery',
-    description: 'Spin your next meal. Win a deal. Walk in.',
+    description: 'Spin to win deals, battle strangers, make friends.',
     images: ['/og-default.png'],
   },
   icons: {

@@ -428,6 +428,23 @@ export default function ConsumerPage() {
             </div>
           </>
         )}
+
+        {/* Battle banner */}
+        {isSignedIn && (
+          <div
+            className="mt-8 rounded-2xl p-4 flex items-center gap-3"
+            style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.12)' }}
+          >
+            <span className="relative flex h-3 w-3 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-btc opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-btc" />
+            </span>
+            <div>
+              <p className="text-surface text-sm font-bold">Someone nearby wants to battle</p>
+              <p className="text-surface/40 text-xs">Your next friend is 10 feet away</p>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   )
