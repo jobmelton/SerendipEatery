@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useUser, SignInButton } from '@clerk/nextjs'
 
@@ -17,130 +17,171 @@ interface Sale {
   lng: number
 }
 
-/* ─── Spin Wheel Component ─── */
-const SEGMENT_COLORS = ['#F7941D', '#1a0e00']
+/* ─── Spin Wheel ─── */
 const NUM_SEGMENTS = 8
+const WHEEL_SIZE = 260
+const RADIUS = 110
+const CENTER = 140
+const INNER_RADIUS = 28
+const STUD_RADIUS = RADIUS + 12
+const STUD_COUNT = 24
+
+function polarToXY(angleDeg: number, r: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180
+  return { x: CENTER + r * Math.cos(rad), y: CENTER + r * Math.sin(rad) }
+}
+
+function arcPath(startDeg: number, endDeg: number, outerR: number, innerR: number) {
+  const s1 = polarToXY(startDeg, outerR)
+  const e1 = polarToXY(endDeg, outerR)
+  const s2 = polarToXY(endDeg, innerR)
+  const e2 = polarToXY(startDeg, innerR)
+  const large = endDeg - startDeg > 180 ? 1 : 0
+  return [
+    `M${s1.x},${s1.y}`,
+    `A${outerR},${outerR} 0 ${large} 1 ${e1.x},${e1.y}`,
+    `L${s2.x},${s2.y}`,
+    `A${innerR},${innerR} 0 ${large} 0 ${e2.x},${e2.y}`,
+    'Z',
+  ].join(' ')
+}
 
 function SpinWheel({
   prizes,
-  onSpinComplete,
   spinning,
+  onSpinComplete,
 }: {
   prizes: Array<{ label: string }>
-  onSpinComplete: () => void
   spinning: boolean
+  onSpinComplete: () => void
 }) {
   const [rotation, setRotation] = useState(0)
-  const [isAnimating, setIsAnimating] = useState(false)
-  const wheelRef = useRef<SVGSVGElement>(null)
+  const [animating, setAnimating] = useState(false)
 
-  // Pad or trim prizes to fill 8 segments
   const segments = Array.from({ length: NUM_SEGMENTS }, (_, i) => {
-    const prize = prizes[i % prizes.length]
-    return prize?.label || '🎉'
+    const p = prizes[i % (prizes.length || 1)]
+    return p?.label || '🎉'
   })
 
-  useEffect(() => {
-    if (spinning && !isAnimating) {
-      setIsAnimating(true)
-      // Spin 5-8 full rotations + random offset
-      const extraRotations = (5 + Math.random() * 3) * 360
-      const newRotation = rotation + extraRotations
-      setRotation(newRotation)
+  const segAngle = 360 / NUM_SEGMENTS
 
-      setTimeout(() => {
-        setIsAnimating(false)
+  useEffect(() => {
+    if (spinning && !animating) {
+      setAnimating(true)
+      const spins = (5 + Math.random() * 3) * 360
+      setRotation((prev) => prev + spins)
+      const timer = setTimeout(() => {
+        setAnimating(false)
         onSpinComplete()
-      }, 4000)
+      }, 4200)
+      return () => clearTimeout(timer)
     }
   }, [spinning])
 
-  const segmentAngle = 360 / NUM_SEGMENTS
-  const radius = 120
-  const center = 140
-
-  function polarToCartesian(angle: number, r: number) {
-    const rad = ((angle - 90) * Math.PI) / 180
-    return { x: center + r * Math.cos(rad), y: center + r * Math.sin(rad) }
-  }
-
-  function segmentPath(index: number) {
-    const startAngle = index * segmentAngle
-    const endAngle = startAngle + segmentAngle
-    const start = polarToCartesian(startAngle, radius)
-    const end = polarToCartesian(endAngle, radius)
-    const largeArc = segmentAngle > 180 ? 1 : 0
-    return `M${center},${center} L${start.x},${start.y} A${radius},${radius} 0 ${largeArc} 1 ${end.x},${end.y} Z`
-  }
-
-  function labelPosition(index: number) {
-    const midAngle = index * segmentAngle + segmentAngle / 2
-    const r = radius * 0.65
-    return polarToCartesian(midAngle, r)
-  }
-
   return (
-    <div className="relative flex items-center justify-center my-4">
-      {/* Pointer arrow at top */}
-      <div
-        className="absolute -top-1 z-10"
-        style={{
-          width: 0,
-          height: 0,
-          borderLeft: '12px solid transparent',
-          borderRight: '12px solid transparent',
-          borderTop: '20px solid #FFD700',
-          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
-        }}
-      />
+    <div className="relative flex items-center justify-center my-3">
+      {/* Pointer */}
+      <div className="absolute -top-0.5 z-10 flex flex-col items-center">
+        <svg width="28" height="24" viewBox="0 0 28 24">
+          <defs>
+            <linearGradient id="pointerGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#FFD700" />
+              <stop offset="100%" stopColor="#B8860B" />
+            </linearGradient>
+          </defs>
+          <polygon points="14,24 0,0 28,0" fill="url(#pointerGrad)" />
+          <polygon points="14,24 0,0 28,0" fill="none" stroke="#FFD700" strokeWidth="1" opacity="0.6" />
+        </svg>
+      </div>
 
       <svg
-        ref={wheelRef}
         viewBox="0 0 280 280"
-        width="260"
-        height="260"
+        width={WHEEL_SIZE}
+        height={WHEEL_SIZE}
         style={{
           transform: `rotate(${rotation}deg)`,
-          transition: isAnimating
-            ? 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)'
+          transition: animating
+            ? 'transform 4.2s cubic-bezier(0.15, 0.6, 0.08, 1)'
             : 'none',
         }}
       >
-        {/* Outer ring */}
-        <circle cx={center} cy={center} r={radius + 8} fill="none" stroke="#F7941D" strokeWidth="3" opacity="0.4" />
-        <circle cx={center} cy={center} r={radius + 2} fill="none" stroke="#F7941D" strokeWidth="1" opacity="0.2" />
+        {/* Outer decorative ring */}
+        <circle cx={CENTER} cy={CENTER} r={RADIUS + 16} fill="#1a0e00" stroke="#B8860B" strokeWidth="1.5" />
+        <circle cx={CENTER} cy={CENTER} r={RADIUS + 4} fill="none" stroke="#B8860B" strokeWidth="0.5" opacity="0.4" />
 
-        {/* Segments */}
-        {segments.map((label, i) => (
-          <g key={i}>
-            <path
-              d={segmentPath(i)}
-              fill={SEGMENT_COLORS[i % 2]}
-              stroke="#2a1800"
+        {/* Gold studs around the rim */}
+        {Array.from({ length: STUD_COUNT }, (_, i) => {
+          const pos = polarToXY((i * 360) / STUD_COUNT, STUD_RADIUS)
+          return (
+            <circle key={`stud-${i}`} cx={pos.x} cy={pos.y} r="2.5" fill="#FFD700" opacity="0.7" />
+          )
+        })}
+
+        {/* Segments — donut shape so center stays clear */}
+        {segments.map((label, i) => {
+          const startA = i * segAngle
+          const endA = startA + segAngle
+          const isOrange = i % 2 === 0
+          return (
+            <g key={i}>
+              <path
+                d={arcPath(startA, endA, RADIUS, INNER_RADIUS)}
+                fill={isOrange ? '#F7941D' : '#1a0e00'}
+                stroke="#2a1800"
+                strokeWidth="0.75"
+              />
+              {/* Radial text — positioned along the mid-angle, reading outward */}
+              {(() => {
+                const midA = startA + segAngle / 2
+                const textR = (RADIUS + INNER_RADIUS) / 2 + 8
+                const pos = polarToXY(midA, textR)
+                const displayLabel = label.length > 14 ? label.slice(0, 13) + '…' : label
+                return (
+                  <text
+                    x={pos.x}
+                    y={pos.y}
+                    fill={isOrange ? '#1a0e00' : '#F7941D'}
+                    fontSize="8.5"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    transform={`rotate(${midA}, ${pos.x}, ${pos.y})`}
+                  >
+                    {displayLabel}
+                  </text>
+                )
+              })()}
+            </g>
+          )
+        })}
+
+        {/* Segment divider lines (thin gold) */}
+        {Array.from({ length: NUM_SEGMENTS }, (_, i) => {
+          const a = i * segAngle
+          const inner = polarToXY(a, INNER_RADIUS)
+          const outer = polarToXY(a, RADIUS)
+          return (
+            <line
+              key={`div-${i}`}
+              x1={inner.x}
+              y1={inner.y}
+              x2={outer.x}
+              y2={outer.y}
+              stroke="#B8860B"
               strokeWidth="1"
+              opacity="0.5"
             />
-            <text
-              x={labelPosition(i).x}
-              y={labelPosition(i).y}
-              fill={i % 2 === 0 ? '#1a0e00' : '#F7941D'}
-              fontSize="9"
-              fontWeight="bold"
-              textAnchor="middle"
-              dominantBaseline="middle"
-              transform={`rotate(${i * segmentAngle + segmentAngle / 2}, ${labelPosition(i).x}, ${labelPosition(i).y})`}
-            >
-              {label.length > 12 ? label.slice(0, 11) + '…' : label}
-            </text>
-          </g>
-        ))}
+          )
+        })}
 
         {/* Center hub */}
-        <circle cx={center} cy={center} r="22" fill="#1a0e00" stroke="#F7941D" strokeWidth="2" />
+        <circle cx={CENTER} cy={CENTER} r={INNER_RADIUS + 2} fill="#1a0e00" stroke="#B8860B" strokeWidth="2" />
+        <circle cx={CENTER} cy={CENTER} r={INNER_RADIUS - 2} fill="#1a0e00" stroke="#F7941D" strokeWidth="0.5" opacity="0.3" />
         <text
-          x={center}
-          y={center}
+          x={CENTER}
+          y={CENTER}
           fill="#F7941D"
-          fontSize="20"
+          fontSize="22"
           fontWeight="900"
           textAnchor="middle"
           dominantBaseline="central"
@@ -224,11 +265,9 @@ export default function ConsumerPage() {
       })
   }
 
-  function handleSpinComplete(saleId: string) {
-    if (spinning === saleId) {
-      setSpinning(null)
-    }
-  }
+  const handleSpinComplete = useCallback((saleId: string) => {
+    setSpinning((prev) => (prev === saleId ? null : prev))
+  }, [])
 
   return (
     <main className="min-h-screen bg-night">
@@ -296,10 +335,10 @@ export default function ConsumerPage() {
               {sales.map((sale) => (
                 <div
                   key={sale.id}
-                  className="rounded-2xl p-5"
+                  className="rounded-2xl p-5 flex flex-col items-center"
                   style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.15)' }}
                 >
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start justify-between mb-3 w-full">
                     <div>
                       <h3 className="font-bold text-surface text-lg">{sale.business_name}</h3>
                       {sale.cuisine_type && (
@@ -312,17 +351,17 @@ export default function ConsumerPage() {
                   </div>
 
                   {sale.distance_m != null && (
-                    <p className="text-surface/40 text-sm mb-3">
+                    <p className="text-surface/40 text-sm mb-2 w-full">
                       {sale.distance_m < 1000
                         ? `${Math.round(sale.distance_m)}m away`
                         : `${(sale.distance_m / 1000).toFixed(1)}km away`}
                     </p>
                   )}
 
-                  {/* Spin Wheel */}
+                  {/* Wheel or result */}
                   {spinResult?.saleId === sale.id ? (
                     <div
-                      className="text-center py-4 rounded-2xl font-bold text-sm mb-3"
+                      className="text-center py-4 px-6 rounded-2xl font-bold text-sm my-3 w-full"
                       style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}
                     >
                       {spinResult.prize}
