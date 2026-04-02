@@ -31,6 +31,11 @@ const POINTS_BREAKDOWN = [
   { action: 'Refer a friend (they get)', pts: '+50 pts' },
   { action: 'Refer a business', pts: '+500 pts' },
   { action: 'Share a win on social', pts: '+25 pts' },
+  { action: 'Drop a challenge', pts: '+15 pts' },
+  { action: 'Challenge accepted', pts: '+10 pts bonus' },
+  { action: 'Win a battle', pts: '+25 pts' },
+  { action: 'Lose a battle', pts: '+5 pts' },
+  { action: 'Opponent backs down', pts: '+10 pts' },
 ]
 
 function getTierInfo(tierKey: string) {

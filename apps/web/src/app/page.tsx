@@ -150,7 +150,8 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <h3 className="text-surface font-bold text-[1.3rem] mb-4">Challenge Dropped</h3>
+        <h3 className="text-surface font-bold text-[1.3rem] mb-1">Challenge Dropped</h3>
+        <p className="text-btc/60 text-[11px] mb-4">Drop a challenge — earn 15 points</p>
 
         {/* Accept */}
         <Link href="/battle/demo"

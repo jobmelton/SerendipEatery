@@ -308,12 +308,17 @@ export default function DemoBattlePage() {
           )}
 
           {phase === 'done' && (
-            <p className="text-4xl font-black mb-4" style={{
-              color: winner === 'player' ? '#1D9E75' : winner === 'house' ? '#E53E3E' : '#F7941D',
-              animation: winner === 'player' ? 'none' : 'none',
-            }}>
-              {winner === 'player' ? 'YOU WIN! 🎉' : winner === 'house' ? 'YOU LOSE 😤' : 'DRAW 🤝'}
-            </p>
+            <div className="text-center mb-4">
+              <p className="text-4xl font-black" style={{
+                color: winner === 'player' ? '#1D9E75' : winner === 'house' ? '#E53E3E' : '#F7941D',
+              }}>
+                {winner === 'player' ? 'YOU WIN! 🎉' : winner === 'house' ? 'YOU LOSE 😤' : 'DRAW 🤝'}
+              </p>
+              <p className="text-btc font-black text-lg animate-[floatUp_1.5s_ease-out_forwards]">
+                +{winner === 'player' ? '25' : winner === 'house' ? '5' : '5'} pts
+              </p>
+              <style>{`@keyframes floatUp { 0% { opacity:1; transform:translateY(0); } 100% { opacity:0; transform:translateY(-30px); } }`}</style>
+            </div>
           )}
 
           {/* Score summary */}
