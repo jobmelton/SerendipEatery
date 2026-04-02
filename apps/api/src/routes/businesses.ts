@@ -1,9 +1,14 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import Stripe from 'stripe'
 import { supabase } from '../lib/supabase.js'
 import { validate } from '../lib/validate.js'
 import { AppError } from '../lib/errors.js'
 import { AuthenticatedRequest } from '../middleware/auth.js'
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
+  apiVersion: '2025-02-24.acacia' as any,
+})
 
 const createBusinessSchema = z.object({
   name: z.string().min(1).max(200),
@@ -140,4 +145,66 @@ export async function businessRoutes(app: FastifyInstance) {
     if (error) throw new AppError(500, 'FETCH_FAILED', 'Failed to fetch sales')
     return { ok: true, data: data ?? [] }
   })
+
+  // ─── Stripe Identity: start verification ──────────────────────────
+  app.post('/businesses/verify/start', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const body = request.body as { businessId: string }
+
+    if (!body.businessId) throw new AppError(400, 'MISSING_ID', 'businessId required')
+
+    const { data: biz } = await supabase
+      .from('businesses')
+      .select('id, verification_status')
+      .eq('id', body.businessId)
+      .eq('owner_id', userId)
+      .single()
+
+    if (!biz) throw new AppError(403, 'NOT_OWNER', 'You do not own this business')
+    if (biz.verification_status === 'verified') {
+      throw new AppError(400, 'ALREADY_VERIFIED', 'Business is already verified')
+    }
+
+    const session = await stripe.identity.verificationSessions.create({
+      type: 'document',
+      metadata: { business_id: body.businessId },
+      options: {
+        document: {
+          allowed_types: ['driving_license', 'passport', 'id_card'],
+          require_id_number: true,
+          require_live_capture: true,
+          require_matching_selfie: true,
+        },
+      },
+    })
+
+    await supabase.from('businesses').update({
+      stripe_identity_session_id: session.id,
+      verification_status: 'pending',
+    }).eq('id', body.businessId)
+
+    return { ok: true, data: { clientSecret: session.client_secret } }
+  })
+
+  // ─── Stripe Identity: get verification status ─────────────────────
+  app.get('/businesses/verify/status', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const { businessId } = request.query as { businessId: string }
+
+    if (!businessId) throw new AppError(400, 'MISSING_ID', 'businessId query param required')
+
+    const { data: biz } = await supabase
+      .from('businesses')
+      .select('verification_status, verified_at, rejection_reason')
+      .eq('id', businessId)
+      .eq('owner_id', userId)
+      .single()
+
+    if (!biz) throw new AppError(403, 'NOT_OWNER', 'You do not own this business')
+
+    return { ok: true, data: biz }
+  })
+
+  // Stripe Identity webhook is registered as a public route at /webhooks/stripe-identity
+  // See apps/api/src/routes/webhooks/stripe-identity.ts
 }

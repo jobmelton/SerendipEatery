@@ -58,12 +58,17 @@ export async function salesRoutes(app: FastifyInstance) {
     // Verify the user owns this business
     const { data: biz } = await supabase
       .from('businesses')
-      .select('id')
+      .select('id, verification_status')
       .eq('id', body.businessId)
       .eq('owner_id', userId)
       .single()
 
     if (!biz) throw new AppError(403, 'NOT_OWNER', 'You do not own this business')
+
+    // Business must be verified to go live
+    if (biz.verification_status !== 'verified') {
+      throw new AppError(403, 'VERIFICATION_REQUIRED', 'Business verification required before launching sales')
+    }
 
     const { prizes, ...saleData } = body
 

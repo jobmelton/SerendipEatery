@@ -25,6 +25,7 @@ import { analyticsRoutes } from './routes/analytics.js'
 import { adminRoutes } from './routes/admin.js'
 import { battleRoutes } from './routes/battles.js'
 import { clerkWebhookRoutes } from './routes/webhooks/clerk.js'
+import { stripeIdentityWebhookRoutes } from './routes/webhooks/stripe-identity.js'
 
 const app = Fastify({ logger: true })
 
@@ -59,6 +60,7 @@ try {
 // ─── Public routes ───────────────────────────────────────────────────────
 app.register(salesRoutes)
 app.register(clerkWebhookRoutes)
+app.register(stripeIdentityWebhookRoutes)
 
 // ─── Protected routes ────────────────────────────────────────────────────
 app.register(async (protectedRoutes) => {

@@ -1,8 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useUser, SignInButton } from '@clerk/nextjs'
+import { loadStripe } from '@stripe/stripe-js'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
 
 const BIZ_TYPES = ['Restaurant', 'Food Truck', 'Pop-up', 'Ghost Kitchen']
 const CUISINES = ['Mexican', 'Italian', 'American', 'Asian', 'Coffee', 'Pizza', 'BBQ', 'Sushi', 'Thai', 'Other']
@@ -37,6 +41,10 @@ export default function BusinessSetupPage() {
   ])
 
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [verifyStatus, setVerifyStatus] = useState<'unverified' | 'pending' | 'verified' | 'rejected'>('unverified')
+  const [verifyLoading, setVerifyLoading] = useState(false)
+  const [verifyError, setVerifyError] = useState<string | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const addPrize = () => {
     if (prizes.length >= 5) return
@@ -228,11 +236,105 @@ export default function BusinessSetupPage() {
               <p className="text-surface/30 text-xs mt-1">At $1.50/visit with {maxSpins} spins</p>
             </div>
 
+            {/* Verification */}
+            {isSignedIn && (
+              <div className="bg-[#1a1230] rounded-2xl p-5" style={{ border: '1px solid rgba(247,148,29,0.1)' }}>
+                <h4 className="text-surface font-bold mb-1">Verify Your Identity</h4>
+                <p className="text-surface/40 text-sm mb-3">
+                  We verify business owners to protect our community. Takes 2 minutes.
+                </p>
+                <div className="flex items-center gap-2 text-surface/30 text-xs mb-4">
+                  <span>📋 Government ID</span>
+                  <span>+</span>
+                  <span>🤳 Selfie</span>
+                  <span className="ml-auto text-teal">Free — covered by SerendipEatery</span>
+                </div>
+
+                {verifyStatus === 'unverified' && (
+                  <button
+                    onClick={async () => {
+                      setVerifyLoading(true)
+                      setVerifyError(null)
+                      try {
+                        const res = await fetch(`${API_URL}/businesses/verify/start`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ businessId: 'pending' }),
+                        })
+                        const data = await res.json()
+                        if (data.ok && data.data.clientSecret) {
+                          const stripeJs = await loadStripe(STRIPE_PK)
+                          if (stripeJs) {
+                            await (stripeJs as any).verifyIdentity(data.data.clientSecret)
+                          }
+                          setVerifyStatus('pending')
+                          // Poll for status
+                          pollRef.current = setInterval(async () => {
+                            try {
+                              const s = await fetch(`${API_URL}/businesses/verify/status?businessId=pending`)
+                              const sd = await s.json()
+                              if (sd.ok && sd.data.verification_status === 'verified') {
+                                setVerifyStatus('verified')
+                                if (pollRef.current) clearInterval(pollRef.current)
+                              } else if (sd.ok && sd.data.verification_status === 'rejected') {
+                                setVerifyStatus('rejected')
+                                setVerifyError(sd.data.rejection_reason)
+                                if (pollRef.current) clearInterval(pollRef.current)
+                              }
+                            } catch {}
+                          }, 3000)
+                        }
+                      } catch {
+                        setVerifyError('Failed to start verification')
+                      }
+                      setVerifyLoading(false)
+                    }}
+                    disabled={verifyLoading}
+                    className="w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition disabled:opacity-50"
+                  >
+                    {verifyLoading ? 'Starting...' : 'Start Verification'}
+                  </button>
+                )}
+
+                {verifyStatus === 'pending' && (
+                  <div className="flex items-center gap-2 text-btc">
+                    <span className="animate-spin">⏳</span>
+                    <span className="font-bold text-sm">Verification in progress...</span>
+                  </div>
+                )}
+
+                {verifyStatus === 'verified' && (
+                  <div className="flex items-center gap-2 text-teal">
+                    <span>✅</span>
+                    <span className="font-bold text-sm">Verified — you're good to go!</span>
+                  </div>
+                )}
+
+                {verifyStatus === 'rejected' && (
+                  <div>
+                    <div className="flex items-center gap-2 text-red-400 mb-2">
+                      <span>❌</span>
+                      <span className="font-bold text-sm">Verification failed</span>
+                    </div>
+                    {verifyError && <p className="text-surface/40 text-xs">{verifyError}</p>}
+                    <button onClick={() => setVerifyStatus('unverified')}
+                      className="mt-2 text-btc text-xs hover:underline">Try again</button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex gap-3">
               <button onClick={() => setStep(3)} className="flex-1 border border-surface/20 text-surface/60 py-3 rounded-xl font-bold">Back</button>
               {isSignedIn ? (
-                <button onClick={handleAction} className="flex-1 bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition">Go Live</button>
+                <button
+                  onClick={handleAction}
+                  disabled={verifyStatus !== 'verified'}
+                  className="flex-1 bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {verifyStatus === 'verified' ? 'Go Live' : 'Verify to Go Live'}
+                </button>
               ) : (
                 <SignInButton mode="modal">
                   <button className="flex-1 bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition">Sign Up to Go Live</button>
