@@ -225,6 +225,7 @@ export default function LandingPage() {
   const [power, setPower] = useState(0)
   const [holding, setHolding] = useState(false)
   const [modalDeal, setModalDeal] = useState<typeof SAMPLE_DEALS[0] | null>(null)
+  const [cowardToast, setCowardToast] = useState(false)
   const powerInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const powerRef = useRef(0)
 
@@ -536,22 +537,53 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Live challenge card */}
-      <div
-        className="w-full max-w-lg rounded-2xl p-6 mb-6 text-center animate-[challengePulse_2s_ease-in-out_infinite]"
-        style={{ background: '#1a1230' }}
-      >
-        <p className="text-3xl mb-3">✌️</p>
-        <h3 className="text-xl font-black text-surface mb-1">RPS Challenge Dropped</h3>
-        <p className="text-surface/50 text-sm mb-5">Someone nearby dropped a challenge. Accept or back down.</p>
-        <div className="flex gap-3 justify-center">
-          <Link href="/battle/demo" className="bg-btc text-night font-bold px-6 py-3 rounded-full hover:bg-btc-dark transition text-sm">
-            Accept Challenge
-          </Link>
-          <button className="border border-surface/20 text-surface/40 font-bold px-6 py-3 rounded-full text-sm hover:text-surface/60 transition">
-            Back Down
-          </button>
+      {/* Coward toast */}
+      {cowardToast && (
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg bg-[#1a1230] border border-surface/20">
+          <span className="text-surface font-bold">Coward 🐔</span>
         </div>
+      )}
+
+      {/* ─── RPS Challenge Card ─── */}
+      <div
+        className="w-full rounded-2xl p-6 mb-6 text-center animate-[cardPulse_2s_ease-in-out_infinite]"
+        style={{ maxWidth: 360, background: '#1a0e00', border: '2px solid #F7941D', borderRadius: 16 }}
+      >
+        {/* Emoji row */}
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <div className="flex flex-col items-center">
+            <span className="text-3xl animate-[rockPulse_1.8s_ease-in-out_infinite]" style={{ transform: 'rotate(-90deg)', display: 'inline-block' }}>✊</span>
+            <span className="text-surface/40 text-[11px] uppercase tracking-wider mt-1">Rock</span>
+          </div>
+          <span className="text-surface/20 text-xs font-bold">vs</span>
+          <div className="flex flex-col items-center">
+            <span className="text-3xl animate-[paperPulse_1.8s_ease-in-out_infinite]" style={{ transform: 'rotate(-90deg)', display: 'inline-block' }}>🤚</span>
+            <span className="text-surface/40 text-[11px] uppercase tracking-wider mt-1">Paper</span>
+          </div>
+          <span className="text-surface/20 text-xs font-bold">vs</span>
+          <div className="flex flex-col items-center">
+            <span className="text-3xl animate-[scissorsPulse_1.8s_ease-in-out_infinite]" style={{ transform: 'rotate(-90deg)', display: 'inline-block' }}>✌️</span>
+            <span className="text-surface/40 text-[11px] uppercase tracking-wider mt-1">Scissors</span>
+          </div>
+        </div>
+
+        <h3 className="text-surface font-bold text-[1.3rem] mb-4">Challenge Dropped</h3>
+
+        {/* Accept */}
+        <Link href="/battle/demo"
+          className="block w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition mb-1">
+          Accept
+        </Link>
+        <p className="text-surface/40 text-[11px] mb-3">Win and loot your challenger</p>
+
+        {/* Back Down */}
+        <button
+          onClick={() => { setCowardToast(true); setTimeout(() => setCowardToast(false), 2000) }}
+          className="block w-full border border-surface/15 text-surface/30 font-bold py-3 rounded-xl hover:text-surface/50 transition mb-1"
+        >
+          Back Down
+        </button>
+        <p className="text-surface/20 text-[11px]">Live with regrets forever</p>
       </div>
 
       {/* Drop a Challenge button */}
@@ -571,9 +603,21 @@ export default function LandingPage() {
       </button>
 
       <style>{`
-        @keyframes challengePulse {
-          0%, 100% { border: 2px solid rgba(247,148,29,0.15); }
-          50% { border: 2px solid rgba(247,148,29,0.5); box-shadow: 0 0 20px rgba(247,148,29,0.1); }
+        @keyframes cardPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(247,148,29,0); }
+          50% { box-shadow: 0 0 0 12px rgba(247,148,29,0); }
+        }
+        @keyframes rockPulse {
+          0%, 100% { transform: rotate(-90deg) translateY(0); }
+          50% { transform: rotate(-90deg) translateY(-6px); }
+        }
+        @keyframes paperPulse {
+          0%, 100% { transform: rotate(-90deg) scale(1); }
+          50% { transform: rotate(-90deg) scale(1.08); }
+        }
+        @keyframes scissorsPulse {
+          0%, 100% { transform: rotate(-90deg) translateY(0); }
+          50% { transform: rotate(-90deg) translateY(6px); }
         }
       `}</style>
 
