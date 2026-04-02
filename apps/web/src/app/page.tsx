@@ -298,6 +298,7 @@ export default function LandingPage() {
       const x = halfW + radius * Math.cos(rad) - BALL_SZ / 2
       const y = halfW + radius * Math.sin(rad) - BALL_SZ / 2
 
+      if (!el) return
       el.style.left = `${x}px`
       el.style.top = `${y}px`
 
