@@ -317,9 +317,18 @@ export default function ConsumerPage() {
         </Link>
         <div className="flex items-center gap-3">
           {isSignedIn ? (
-            <Link href="/dashboard" className="text-sm text-surface/60 hover:text-surface transition">
-              Dashboard
-            </Link>
+            <>
+              <Link
+                href="/profile"
+                className="flex items-center gap-1.5 text-sm text-surface/60 hover:text-surface transition"
+              >
+                <span className="text-xs">🧭</span>
+                Profile
+              </Link>
+              <Link href="/dashboard" className="text-sm text-surface/60 hover:text-surface transition">
+                Dashboard
+              </Link>
+            </>
           ) : (
             <>
               <SignInButton mode="modal">
