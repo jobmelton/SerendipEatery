@@ -148,6 +148,9 @@ export default function PricingPage() {
           <p className="text-surface/40 text-sm mt-2">
             Billing is web-only. No in-app purchases. No Apple/Google fees.
           </p>
+          <Link href="/" className="inline-block mt-6 text-surface/30 text-sm hover:text-surface/50 transition">
+            Back to home
+          </Link>
         </div>
       </div>
     </main>

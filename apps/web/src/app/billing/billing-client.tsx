@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { UserButton } from '@clerk/nextjs'
 
 const planLabels: Record<string, string> = {
@@ -81,7 +82,12 @@ export function BillingClient({ business, monthlyUsage, userEmail }: Props) {
     <main className="min-h-screen bg-night px-6 py-12">
       <div className="mx-auto max-w-3xl">
         <header className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold text-surface">Billing</h1>
+          <div>
+            <Link href="/dashboard" className="text-btc text-sm font-medium hover:underline">
+              &larr; Dashboard
+            </Link>
+            <h1 className="text-2xl font-bold text-surface mt-1">Billing</h1>
+          </div>
           <UserButton
             appearance={{ variables: { colorPrimary: '#F7941D' } }}
             afterSignOutUrl="/"

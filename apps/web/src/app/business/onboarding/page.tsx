@@ -141,7 +141,7 @@ export default function OnboardingPage() {
               href="/dashboard"
               className="px-8 py-3 rounded-full text-sm font-bold bg-btc text-night hover:bg-btc-dark transition"
             >
-              Go to Dashboard
+              Complete Setup
             </Link>
           )}
         </div>

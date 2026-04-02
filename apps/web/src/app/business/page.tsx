@@ -54,6 +54,13 @@ export default function BusinessPage() {
       >
         Start Free
       </Link>
+
+      <Link
+        href="/"
+        className="mt-8 text-surface/30 text-sm hover:text-surface/50 transition"
+      >
+        Back to home
+      </Link>
     </main>
   )
 }

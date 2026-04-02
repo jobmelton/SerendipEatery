@@ -66,6 +66,22 @@ export default function LandingPage() {
         </Link>
       </div>
 
+      {/* ─── App Download ────────────────────────────────────────────── */}
+      <div className="flex items-center gap-4 mt-8">
+        <Link
+          href="/coming-soon-app"
+          className="border border-surface/20 text-surface/50 text-sm px-5 py-2 rounded-full hover:border-surface/40 hover:text-surface/70 transition"
+        >
+          Download for iOS
+        </Link>
+        <Link
+          href="/coming-soon-app"
+          className="border border-surface/20 text-surface/50 text-sm px-5 py-2 rounded-full hover:border-surface/40 hover:text-surface/70 transition"
+        >
+          Download for Android
+        </Link>
+      </div>
+
       {/* ─── Wheel Spin Animation ────────────────────────────────────── */}
       <style>{`
         @keyframes wheelSpin {
