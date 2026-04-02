@@ -5,6 +5,7 @@ import {
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useApi } from '../lib/api'
+import { setActiveBattle } from '../lib/bluetooth'
 import { colors } from '../lib/theme'
 import type { MainStackParamList } from '../navigation/RootNavigator'
 
@@ -31,6 +32,12 @@ export function BattleArenaScreen() {
   const [revealIndex, setRevealIndex] = useState(-1)
   const [lootSpinning, setLootSpinning] = useState(false)
   const lootRotation = useRef(new Animated.Value(0)).current
+
+  // Switch to high-frequency scanning during active battle
+  useEffect(() => {
+    setActiveBattle(true)
+    return () => { setActiveBattle(false) }
+  }, [])
 
   // Load battle state
   useEffect(() => {

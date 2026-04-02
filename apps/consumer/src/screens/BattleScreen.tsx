@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   View, Text, FlatList, Pressable, Switch, StyleSheet, ActivityIndicator, RefreshControl,
 } from 'react-native'
@@ -6,6 +6,10 @@ import { useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useApi } from '../lib/api'
 import { getCurrentLocation, type Coords } from '../lib/location'
+import {
+  startScanning, stopScanning, onScanStateChange, touchActivity,
+  type ScanState, type NearbyPlayer,
+} from '../lib/bluetooth'
 import { colors } from '../lib/theme'
 import type { MainStackParamList } from '../navigation/RootNavigator'
 
@@ -23,6 +27,8 @@ const TIER_COLORS: Record<string, string> = {
   platinum: '#E5E4E2',
 }
 
+const GPS_REFRESH_MS = 60_000
+
 export function BattleScreen() {
   const api = useApi()
   const navigation = useNavigation<NativeStackNavigationProp<MainStackParamList>>()
@@ -32,8 +38,11 @@ export function BattleScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [challenging, setChallenging] = useState<string | null>(null)
   const [location, setLocation] = useState<Coords | null>(null)
+  const [scanState, setScanState] = useState<ScanState>('off')
+  const gpsTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const loadNearby = useCallback(async (coords: Coords) => {
+  // ─── GPS fallback: coarse location, 60s interval ─────────────────
+  const loadNearbyGPS = useCallback(async (coords: Coords) => {
     try {
       const data = await api.battlesNearby(coords.lat, coords.lng)
       setUsers(data)
@@ -42,29 +51,58 @@ export function BattleScreen() {
     }
   }, [api])
 
+  const refreshGPS = useCallback(async () => {
+    const coords = await getCurrentLocation() // uses Accuracy.Balanced via location.ts
+    if (coords) {
+      setLocation(coords)
+      await loadNearbyGPS(coords)
+    }
+  }, [loadNearbyGPS])
+
+  // ─── Battle mode toggle ───────────────────────────────────────────
   useEffect(() => {
-    ;(async () => {
-      const coords = await getCurrentLocation()
-      if (coords) {
-        setLocation(coords)
-        await loadNearby(coords)
-      }
+    if (!battleMode) {
+      stopScanning()
+      if (gpsTimer.current) { clearInterval(gpsTimer.current); gpsTimer.current = null }
+      setUsers([])
       setLoading(false)
-    })()
-  }, [loadNearby])
+      return
+    }
+
+    // Start BLE duty-cycle scanning
+    startScanning((_blePlayers: NearbyPlayer[]) => {
+      // BLE results are supplementary — primary discovery is GPS API
+      // We merge BLE-detected players with GPS results in a future iteration
+      touchActivity()
+    })
+
+    // GPS fallback: load immediately, then every 60s
+    setLoading(true)
+    refreshGPS().finally(() => setLoading(false))
+    gpsTimer.current = setInterval(refreshGPS, GPS_REFRESH_MS)
+
+    return () => {
+      stopScanning()
+      if (gpsTimer.current) { clearInterval(gpsTimer.current); gpsTimer.current = null }
+    }
+  }, [battleMode, refreshGPS])
+
+  // ─── Scan state indicator ─────────────────────────────────────────
+  useEffect(() => {
+    const unsub = onScanStateChange(setScanState)
+    return unsub
+  }, [])
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    const coords = await getCurrentLocation()
-    if (coords) {
-      setLocation(coords)
-      await loadNearby(coords)
-    }
+    touchActivity()
+    await refreshGPS()
     setRefreshing(false)
-  }, [loadNearby])
+  }, [refreshGPS])
 
   const handleChallenge = async (defenderId: string) => {
     setChallenging(defenderId)
+    touchActivity()
     try {
       const battle = await api.challengeUser(defenderId, location?.lat, location?.lng)
       navigation.navigate('BattleArena', { battleId: battle.id })
@@ -115,7 +153,18 @@ export function BattleScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Battle</Text>
+        <View>
+          <Text style={styles.title}>Battle</Text>
+          {/* Scanning indicator */}
+          {battleMode && scanState !== 'off' && (
+            <View style={styles.scanIndicator}>
+              <View style={[styles.scanDot, scanState === 'scanning' && styles.scanDotActive]} />
+              <Text style={styles.scanLabel}>
+                {scanState === 'scanning' ? 'Scanning...' : 'Listening'}
+              </Text>
+            </View>
+          )}
+        </View>
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>Battle Mode</Text>
           <Switch
@@ -163,11 +212,17 @@ export function BattleScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.night },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16,
   },
   title: { fontSize: 28, fontWeight: '900', color: colors.textPrimary },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  scanIndicator: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  scanDot: {
+    width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textMuted,
+  },
+  scanDotActive: { backgroundColor: colors.success },
+  scanLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '500' },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4 },
   toggleLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
   list: { padding: 16 },
   card: {
