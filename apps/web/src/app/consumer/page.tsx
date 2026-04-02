@@ -311,34 +311,40 @@ function PickAPlaceRoulette() {
     if (!el) return
     const start = performance.now()
     const halfW = PICK_WHL_SZ / 2
+
+    // All values calculated ONCE — no recalculation during animation
     const startA = Math.random() * 360
-    const totalOrbit = -(1800 + Math.random() * 1080)
-    const offsetInSeg = (Math.random() - 0.5) * 0.6 * seg
-    const finalA = offsetInSeg
+    const jitter = (Math.random() - 0.5) * 0.5 * seg
+    const winAngle = jitter // degrees from top (pointer at 0°)
+    const fullSpins = 5 + Math.floor(Math.random() * 3)
+    const totalOrbit = -(fullSpins * 360 + winAngle - startA)
+
+    function easeOut(t: number) { return 1 - Math.pow(1 - t, 3) }
 
     function tick(now: number) {
-      const t = Math.min((now - start) / dur, 1)
-      const orbitT = 1 - Math.pow(1 - t, 3)
-      let angle = startA + totalOrbit * orbitT
-      let r = PICK_ORBIT
-      if (t > 0.6) {
-        const ft = (t - 0.6) / 0.4
-        const e = ft < 0.85 ? ft / 0.85 : 1 + Math.sin((ft - 0.85) / 0.15 * Math.PI) * 0.08
-        r = PICK_ORBIT + (PICK_SETTLE - PICK_ORBIT) * e
-      }
-      if (t > 0.85) {
-        const bt = (t - 0.85) / 0.15
-        const e = bt * bt * (3 - 2 * bt)
-        const norm = ((angle % 360) + 360) % 360
-        let diff = finalA - norm
-        if (diff > 180) diff -= 360
-        if (diff < -180) diff += 360
-        angle = norm + diff * e
-      }
-      const rad = ((angle - 90) * Math.PI) / 180
       if (!el) return
-      el.style.left = `${halfW + r * Math.cos(rad) - 5}px`
-      el.style.top = `${halfW + r * Math.sin(rad) - 5}px`
+      const t = Math.min((now - start) / dur, 1)
+
+      // Angle: always continuous, never jumps
+      const angle = startA + totalOrbit * easeOut(t)
+
+      // Radius: outer rim until drift phase
+      let radius = PICK_ORBIT
+      if (t > 0.85) {
+        const driftT = Math.min((t - 0.85) / 0.10, 1)
+        radius = PICK_ORBIT + (PICK_SETTLE - PICK_ORBIT) * driftT
+      }
+
+      // Settle bounce
+      let bounce = 0
+      if (t > 0.95) {
+        bounce = Math.sin((t - 0.95) * 20 * Math.PI) * (1 - t) * 8
+      }
+
+      const finalR = radius + bounce
+      const rad = ((angle - 90) * Math.PI) / 180
+      el.style.left = `${halfW + finalR * Math.cos(rad) - 5}px`
+      el.style.top = `${halfW + finalR * Math.sin(rad) - 5}px`
       if (t < 1) ballAnim.current = requestAnimationFrame(tick)
     }
     ballAnim.current = requestAnimationFrame(tick)

@@ -237,75 +237,52 @@ export default function LandingPage() {
   const ORBIT_R = (R + 8) * SCALE  // outer rim
   const SETTLE_R = (R * 0.52) * SCALE // inside segment
 
-  // Animate ball with requestAnimationFrame
-  function animateBall(
-    duration: number,
-    winSegAngle: number, // angle of winning segment center in wheel's final position
-  ) {
+  // Animate ball — single continuous rAF loop, no jumps
+  function animateBall(duration: number, winIdx: number) {
     const el = ballRef.current
     if (!el) return
     const start = performance.now()
     const halfW = WHEEL_PX / 2
 
-    // Initial ball angle (random start)
-    const startAngle = Math.random() * 360
-    // Total orbit: ball spins opposite direction, more rotations
-    const totalOrbitDeg = -(1800 + Math.random() * 1080) // 5-8 counter-rotations
+    // All values calculated ONCE before animation starts
+    const startAngle = Math.random() * 360 // degrees, arbitrary start
+    // Winning angle: pointer is at top (0°). After wheel stops, winning segment
+    // is at top. Ball must end at 0° (top) with small offset within segment.
+    const jitter = (Math.random() - 0.5) * 0.5 * SEG_ANGLE
+    const winAngle = jitter // degrees from top (0°)
+    // Total orbit: ball ends at winAngle. Negative = counter-clockwise.
+    // totalOrbit = -(fullSpins * 360 + winAngle - startAngle)
+    const fullSpins = 5 + Math.floor(Math.random() * 3)
+    const totalOrbit = -(fullSpins * 360 + winAngle - startAngle)
 
-    // The winning segment's position at the pointer (top) after wheel stops.
-    // Ball must end at that angle. Pointer is at top = -90deg in standard coords.
-    // The winning segment center is at the top of the wheel after rotation.
-    // In the ball's coordinate system (absolute, not rotating with wheel),
-    // the ball needs to land at angle = 0 (top) to match the pointer.
-    // But we want it slightly offset within the segment.
-    const segWidth = SEG_ANGLE
-    const offsetWithinSeg = (Math.random() - 0.5) * 0.6 * segWidth // ±30% of segment
-    const finalBallAngle = offsetWithinSeg // near top (0 = top under pointer)
+    function easeOut(t: number) { return 1 - Math.pow(1 - t, 3) }
 
     function tick(now: number) {
-      const elapsed = now - start
-      const t = Math.min(elapsed / duration, 1)
-
-      // Eased progress for orbit (fast start, slow end)
-      const orbitT = 1 - Math.pow(1 - t, 3) // cubic ease-out
-      const angle = startAngle + totalOrbitDeg * orbitT
-
-      // Radius: stays at orbit until 60%, then eases inward
-      let radius = ORBIT_R
-      if (t > 0.6) {
-        const fallT = (t - 0.6) / 0.4 // 0→1 over last 40%
-        // Ease with slight bounce at end
-        const eased = fallT < 0.85
-          ? fallT / 0.85 // linear approach
-          : 1 + Math.sin((fallT - 0.85) / 0.15 * Math.PI) * 0.08 // small bounce
-        radius = ORBIT_R + (SETTLE_R - ORBIT_R) * eased
-      }
-
-      // At end, blend angle toward final position
-      let displayAngle = angle
-      if (t > 0.85) {
-        const blendT = (t - 0.85) / 0.15
-        const eased = blendT * blendT * (3 - 2 * blendT) // smoothstep
-        // Normalize current angle to 0-360
-        const normalizedAngle = ((angle % 360) + 360) % 360
-        // Find shortest path to final angle
-        let diff = finalBallAngle - normalizedAngle
-        if (diff > 180) diff -= 360
-        if (diff < -180) diff += 360
-        displayAngle = normalizedAngle + diff * eased
-      }
-
-      const rad = ((displayAngle - 90) * Math.PI) / 180
-      const x = halfW + radius * Math.cos(rad) - BALL_SZ / 2
-      const y = halfW + radius * Math.sin(rad) - BALL_SZ / 2
-
       if (!el) return
-      el.style.left = `${x}px`
-      el.style.top = `${y}px`
+      const t = Math.min((now - start) / duration, 1)
 
-      if (t < 1) {
-        ballAnimRef.current = requestAnimationFrame(tick)
+      // Angle: always continuous — never jumps
+      const angle = startAngle + totalOrbit * easeOut(t)
+
+      // Radius: outer rim for orbit/slowdown, lerp inward during drift
+      let radius = ORBIT_R
+      if (t > 0.85) {
+        const driftT = Math.min((t - 0.85) / 0.10, 1) // 0→1 over 0.85→0.95
+        radius = ORBIT_R + (SETTLE_R - ORBIT_R) * driftT
       }
+
+      // Settle bounce: small radial oscillation at t > 0.95
+      let bounceOffset = 0
+      if (t > 0.95) {
+        bounceOffset = Math.sin((t - 0.95) * 20 * Math.PI) * (1 - t) * 8
+      }
+
+      const finalRadius = radius + bounceOffset
+      const rad = ((angle - 90) * Math.PI) / 180
+      el.style.left = `${halfW + finalRadius * Math.cos(rad) - BALL_SZ / 2}px`
+      el.style.top = `${halfW + finalRadius * Math.sin(rad) - BALL_SZ / 2}px`
+
+      if (t < 1) ballAnimRef.current = requestAnimationFrame(tick)
     }
 
     ballAnimRef.current = requestAnimationFrame(tick)
@@ -356,7 +333,7 @@ export default function LandingPage() {
     const duration = 3000 + pwr * 2000
 
     // Animate ball with rAF
-    animateBall(duration, segCenter)
+    animateBall(duration, winIdx)
 
     setTimeout(() => {
       setSpinning(false)
