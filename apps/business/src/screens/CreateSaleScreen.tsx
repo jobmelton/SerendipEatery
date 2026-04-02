@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import {
-  View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert,
+  View, Text, TextInput, ScrollView, Pressable, Switch, StyleSheet, Alert,
 } from 'react-native'
 import { useRoute, useNavigation } from '@react-navigation/native'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
@@ -15,6 +15,7 @@ interface PrizeInput {
   type: 'percent' | 'amount' | 'free' | 'free_with'
   value: string
   maxSpins: string
+  isLongTerm: boolean
 }
 
 export function CreateSaleScreen() {
@@ -27,17 +28,21 @@ export function CreateSaleScreen() {
   const [radiusM, setRadiusM] = useState('500')
   const [maxSpinsTotal, setMaxSpinsTotal] = useState('100')
   const [prizes, setPrizes] = useState<PrizeInput[]>([
-    { name: '', type: 'percent', value: '', maxSpins: '' },
+    { name: '', type: 'percent', value: '', maxSpins: '', isLongTerm: false },
   ])
   const [submitting, setSubmitting] = useState(false)
 
   const addPrize = () => {
-    setPrizes([...prizes, { name: '', type: 'percent', value: '', maxSpins: '' }])
+    setPrizes([...prizes, { name: '', type: 'percent', value: '', maxSpins: '', isLongTerm: false }])
   }
 
   const updatePrize = (index: number, field: keyof PrizeInput, value: string) => {
     const updated = [...prizes]
-    updated[index] = { ...updated[index], [field]: value }
+    if (field === 'isLongTerm') {
+      updated[index] = { ...updated[index], isLongTerm: value === 'true' }
+    } else {
+      updated[index] = { ...updated[index], [field]: value }
+    }
     setPrizes(updated)
   }
 
@@ -69,6 +74,7 @@ export function CreateSaleScreen() {
           type: p.type,
           value: Number(p.value),
           maxSpins: Number(p.maxSpins),
+          isLongTermCoupon: p.isLongTerm,
         })),
       })
 
@@ -141,6 +147,20 @@ export function CreateSaleScreen() {
             ))}
           </View>
 
+          {/* Long-term coupon toggle */}
+          <View style={styles.longTermRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.longTermLabel}>Long-term coupon (valid 1 year)</Text>
+              <Text style={styles.longTermHint}>Stored in user wallet — builds loyalty</Text>
+            </View>
+            <Switch
+              value={prize.isLongTerm}
+              onValueChange={(v) => updatePrize(index, 'isLongTerm', v ? 'true' : '')}
+              trackColor={{ false: '#333', true: colors.primary }}
+              thumbColor="#fff"
+            />
+          </View>
+
           <View style={styles.prizeRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.miniLabel}>Value</Text>
@@ -202,6 +222,9 @@ const styles = StyleSheet.create({
   typeBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   typeBtnText: { fontSize: 13, color: colors.textSecondary },
   typeBtnTextActive: { color: colors.night, fontWeight: '700' },
+  longTermRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10, paddingVertical: 4 },
+  longTermLabel: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
+  longTermHint: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
   prizeRow: { flexDirection: 'row', gap: 10 },
   addPrizeBtn: { borderWidth: 1, borderColor: colors.primary, borderStyle: 'dashed', borderRadius: 12, padding: 14, alignItems: 'center', marginBottom: 20 },
   addPrizeText: { color: colors.primary, fontSize: 15, fontWeight: '600' },

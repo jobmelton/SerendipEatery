@@ -15,20 +15,29 @@ interface WalletItem {
   is_lootable: boolean
 }
 
+const TIER_COLORS: Record<string, string> = {
+  bronze: '#CD7F32',
+  silver: '#C0C0C0',
+  gold: '#FFD700',
+  platinum: '#E5E4E2',
+}
+
 export function WalletScreen() {
   const api = useApi()
   const [items, setItems] = useState<WalletItem[]>([])
+  const [points, setPoints] = useState(0)
+  const [tier, setTier] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const loadWallet = useCallback(async () => {
     try {
-      const data = await api.me() // wallet data comes via user profile
-      // For now, we'll use a dedicated endpoint when available
-      setItems([])
-    } catch {
-      setItems([])
-    }
+      const stats = await api.myStats()
+      setPoints(stats?.consumer_points ?? 0)
+      setTier(stats?.consumer_tier ?? null)
+    } catch {}
+    // Wallet items will come from a dedicated endpoint
+    setItems([])
     setLoading(false)
   }, [api])
 
@@ -82,7 +91,7 @@ export function WalletScreen() {
               styles.expiry,
               expired ? { color: colors.error } : item.is_long_term ? { color: colors.success } : {},
             ]}>
-              {item.is_long_term ? 'Long-term' : formatExpiry(item.expires_at)}
+              {item.is_long_term ? '🛡️ Long-term' : formatExpiry(item.expires_at)}
             </Text>
             {item.is_lootable && (
               <View style={styles.lootableBadge}>
@@ -107,7 +116,18 @@ export function WalletScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Wallet</Text>
-        <Text style={styles.subtitle}>{items.length} coupon{items.length !== 1 ? 's' : ''}</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.pointsBadge}>
+            <Text style={styles.pointsValue}>{points}</Text>
+            <Text style={styles.pointsLabel}>pts</Text>
+          </View>
+          {tier && (
+            <View style={[styles.tierBadge, { backgroundColor: TIER_COLORS[tier] || colors.primary }]}>
+              <Text style={styles.tierText}>{tier}</Text>
+            </View>
+          )}
+          <Text style={styles.subtitle}>{items.length} coupon{items.length !== 1 ? 's' : ''}</Text>
+        </View>
       </View>
 
       {loading ? (
@@ -129,7 +149,7 @@ export function WalletScreen() {
             <View style={styles.emptyState}>
               <Text style={styles.emptyIcon}>🎒</Text>
               <Text style={styles.emptyText}>No coupons yet</Text>
-              <Text style={styles.emptySubtext}>Win prizes from flash sales and battles</Text>
+              <Text style={styles.emptySubtext}>Win deals to fill your wallet</Text>
             </View>
           }
         />
@@ -144,7 +164,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 60, paddingBottom: 12,
   },
   title: { fontSize: 28, fontWeight: '900', color: colors.textPrimary },
-  subtitle: { color: colors.textMuted, fontSize: 14, marginTop: 2 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
+  pointsBadge: {
+    flexDirection: 'row', alignItems: 'baseline', gap: 3,
+    backgroundColor: colors.surfaceDim, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
+  },
+  pointsValue: { color: colors.primary, fontSize: 18, fontWeight: '900' },
+  pointsLabel: { color: colors.textMuted, fontSize: 12 },
+  tierBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  tierText: { fontSize: 10, fontWeight: '800', color: '#000', textTransform: 'uppercase' },
+  subtitle: { color: colors.textMuted, fontSize: 14 },
   list: { padding: 12 },
   gridRow: { gap: 12, marginBottom: 12 },
   card: {
