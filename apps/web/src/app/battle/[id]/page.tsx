@@ -16,6 +16,19 @@ const MOVES: { key: Move; icon: string; label: string }[] = [
 ]
 const BEATS: Record<Move, Move> = { rock: 'scissors', scissors: 'paper', paper: 'rock' }
 
+const HAND_STYLES = {
+  p1: {
+    rock:     { emoji: '✊', transform: 'rotate(-111deg) rotateX(-180deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+    paper:    { emoji: '🤚', transform: 'rotate(71deg) rotateX(0deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+    scissors: { emoji: '✌️', transform: 'rotate(-114deg) rotateX(-149deg) rotateY(2deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+  },
+  p2: {
+    rock:     { emoji: '✊', transform: 'rotate(-61deg) rotateX(-2deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+    paper:    { emoji: '🤚', transform: 'rotate(103deg) rotateX(-154deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+    scissors: { emoji: '✌️', transform: 'rotate(-61deg) rotateX(0deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+  },
+}
+
 type Phase = 'loading' | 'waiting' | 'join' | 'countdown' | 'pick' | 'waitingMove' | 'roundResult' | 'done' | 'error' | 'expired'
 
 const DEFAULT_MSG = "Accept the challenge and meet your fate — or decline and live with regret forever. 👊✋✌️"
@@ -623,20 +636,28 @@ export default function BattlePage() {
       {phase === 'roundResult' && roundResult && (
         <div className="text-center">
           <p className="text-surface/40 text-sm mb-4">Round {roundResult.round}</p>
-          <div className="flex items-center justify-center gap-8 mb-6">
-            <div className="text-center">
-              <span className="text-6xl block" style={{ transform: 'rotate(90deg)' }}>
-                {MOVES.find(m => m.key === (myRole === 'challenger' ? roundResult.challengerMove : roundResult.defenderMove))?.icon}
-              </span>
-              <span className="text-surface/40 text-xs mt-2 block">You</span>
-            </div>
-            <span className="text-surface/20 text-lg">vs</span>
-            <div className="text-center">
-              <span className="text-6xl block" style={{ transform: 'rotate(-90deg)' }}>
-                {MOVES.find(m => m.key === (myRole === 'challenger' ? roundResult.defenderMove : roundResult.challengerMove))?.icon}
-              </span>
-              <span className="text-surface/40 text-xs mt-2 block">{opponentName}</span>
-            </div>
+          <div className="flex items-center justify-center gap-8 mb-6" style={{ perspective: '400px', perspectiveOrigin: 'center' }}>
+            {(() => {
+              const myMove = (myRole === 'challenger' ? roundResult.challengerMove : roundResult.defenderMove) as Move
+              const oppMove = (myRole === 'challenger' ? roundResult.defenderMove : roundResult.challengerMove) as Move
+              return (
+                <>
+                  <div className="text-center">
+                    <span style={{ display: 'inline-block', fontSize: HAND_STYLES.p1[myMove].fontSize, transform: HAND_STYLES.p1[myMove].transform, transition: 'transform 0.3s ease' }}>
+                      {HAND_STYLES.p1[myMove].emoji}
+                    </span>
+                    <span className="text-surface/40 text-xs mt-2 block">You</span>
+                  </div>
+                  <span className="text-surface/20 text-lg">vs</span>
+                  <div className="text-center">
+                    <span style={{ display: 'inline-block', fontSize: HAND_STYLES.p2[oppMove].fontSize, transform: HAND_STYLES.p2[oppMove].transform, transition: 'transform 0.3s ease' }}>
+                      {HAND_STYLES.p2[oppMove].emoji}
+                    </span>
+                    <span className="text-surface/40 text-xs mt-2 block">{opponentName}</span>
+                  </div>
+                </>
+              )
+            })()}
           </div>
           <p className="text-3xl font-black" style={{
             color: roundResult.winner === myRole ? '#1D9E75'
@@ -671,11 +692,11 @@ export default function BattlePage() {
                 const iWon = r.winner === myRole
                 const isDraw = r.winner === 'draw'
                 return (
-                  <div key={i} className="flex items-center justify-center gap-4 text-sm">
+                  <div key={i} className="flex items-center justify-center gap-4 text-sm" style={{ perspective: '400px' }}>
                     <span className="w-6 text-surface/30">R{r.round}</span>
-                    <span className="text-xl" style={{ transform: 'rotate(90deg)' }}>{MOVES.find(m => m.key === myMove)?.icon}</span>
+                    <span style={{ display: 'inline-block', fontSize: '1.5rem', transform: HAND_STYLES.p1[myMove as Move].transform.replace('scale(1)', 'scale(0.5)') }}>{HAND_STYLES.p1[myMove as Move].emoji}</span>
                     <span className="text-surface/20">vs</span>
-                    <span className="text-xl" style={{ transform: 'rotate(-90deg)' }}>{MOVES.find(m => m.key === oppMove)?.icon}</span>
+                    <span style={{ display: 'inline-block', fontSize: '1.5rem', transform: HAND_STYLES.p2[oppMove as Move].transform.replace('scale(1)', 'scale(0.5)') }}>{HAND_STYLES.p2[oppMove as Move].emoji}</span>
                     <span className="w-6 font-bold" style={{ color: iWon ? '#1D9E75' : isDraw ? '#888' : '#E53E3E' }}>
                       {iWon ? 'W' : isDraw ? '—' : 'L'}
                     </span>

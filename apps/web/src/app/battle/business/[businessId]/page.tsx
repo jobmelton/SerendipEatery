@@ -13,6 +13,19 @@ const MOVES: { key: Move; icon: string; label: string }[] = [
   { key: 'scissors', icon: '✌️', label: 'Scissors' },
 ]
 
+const HAND_STYLES = {
+  p1: {
+    rock:     { emoji: '✊', transform: 'rotate(-111deg) rotateX(-180deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+    paper:    { emoji: '🤚', transform: 'rotate(71deg) rotateX(0deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+    scissors: { emoji: '✌️', transform: 'rotate(-114deg) rotateX(-149deg) rotateY(2deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+  },
+  p2: {
+    rock:     { emoji: '✊', transform: 'rotate(-61deg) rotateX(-2deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+    paper:    { emoji: '🤚', transform: 'rotate(103deg) rotateX(-154deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+    scissors: { emoji: '✌️', transform: 'rotate(-61deg) rotateX(0deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+  },
+}
+
 type Phase = 'loading' | 'intro' | 'picking' | 'reveal' | 'done'
 
 function getSessionId() {
@@ -205,13 +218,13 @@ export default function BusinessBattlePage() {
               const shown = i <= revealIdx && houseMoves[i]
               const ri = shown ? resolveIcon(myMoves[i], houseMoves[i]) : null
               return (
-                <div key={i} className="flex items-center justify-center gap-6" style={{ opacity: shown ? 1 : 0.2 }}>
-                  <span className="text-3xl w-12 text-right">
-                    {MOVES.find((m) => m.key === myMoves[i])?.icon}
+                <div key={i} className="flex items-center justify-center gap-6" style={{ opacity: shown ? 1 : 0.2, perspective: '400px' }}>
+                  <span style={{ display: 'inline-block', fontSize: '2rem', transform: HAND_STYLES.p1[myMoves[i] as Move]?.transform.replace('scale(1)', 'scale(0.6)') ?? '', transition: 'transform 0.3s ease', width: '3rem', textAlign: 'right' }}>
+                    {HAND_STYLES.p1[myMoves[i] as Move]?.emoji ?? '✊'}
                   </span>
                   <span className="text-surface/30 text-sm">vs</span>
-                  <span className="text-3xl w-12">
-                    {shown ? MOVES.find((m) => m.key === houseMoves[i])?.icon : '❓'}
+                  <span style={{ display: 'inline-block', fontSize: '2rem', transform: shown ? HAND_STYLES.p2[houseMoves[i] as Move]?.transform.replace('scale(1)', 'scale(0.6)') ?? '' : '', transition: 'transform 0.3s ease', width: '3rem' }}>
+                    {shown ? HAND_STYLES.p2[houseMoves[i] as Move]?.emoji ?? '❓' : '❓'}
                   </span>
                   <span className="text-sm font-bold w-10" style={{ color: ri?.color ?? '#888' }}>
                     {ri?.text ?? ''}

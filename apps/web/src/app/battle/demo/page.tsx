@@ -12,6 +12,19 @@ const MOVES: { key: Move; icon: string; label: string }[] = [
 ]
 const BEATS: Record<Move, Move> = { rock: 'scissors', scissors: 'paper', paper: 'rock' }
 
+const HAND_STYLES = {
+  p1: {
+    rock:     { emoji: '✊', transform: 'rotate(-111deg) rotateX(-180deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+    paper:    { emoji: '🤚', transform: 'rotate(71deg) rotateX(0deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+    scissors: { emoji: '✌️', transform: 'rotate(-114deg) rotateX(-149deg) rotateY(2deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+  },
+  p2: {
+    rock:     { emoji: '✊', transform: 'rotate(-61deg) rotateX(-2deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+    paper:    { emoji: '🤚', transform: 'rotate(103deg) rotateX(-154deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+    scissors: { emoji: '✌️', transform: 'rotate(-61deg) rotateX(0deg) rotateY(0deg) scale(1) translate(0px, 0px)', fontSize: '4rem' },
+  },
+}
+
 type Phase = 'pick' | 'intro' | 'round' | 'nextPick' | 'suddenDeath' | 'done'
 
 /* ─── Retro Audio ─── */
@@ -280,13 +293,13 @@ export default function DemoBattlePage() {
       {phase === 'round' && roundResult && (
         <div className="text-center">
           <p className="text-surface/40 text-sm mb-4">Round {currentRound}</p>
-          <div className="flex items-center justify-center gap-8 mb-6">
-            <span className="text-6xl" style={{ transform: 'rotate(90deg)' }}>
-              {MOVES.find((m) => m.key === roundResult.my)?.icon}
+          <div className="flex items-center justify-center gap-8 mb-6" style={{ perspective: '400px', perspectiveOrigin: 'center' }}>
+            <span style={{ display: 'inline-block', fontSize: HAND_STYLES.p1[roundResult.my].fontSize, transform: HAND_STYLES.p1[roundResult.my].transform, transition: 'transform 0.3s ease' }}>
+              {HAND_STYLES.p1[roundResult.my].emoji}
             </span>
             <span className="text-surface/20 text-lg">vs</span>
-            <span className="text-6xl" style={{ transform: 'rotate(-90deg)' }}>
-              {MOVES.find((m) => m.key === roundResult.opp)?.icon}
+            <span style={{ display: 'inline-block', fontSize: HAND_STYLES.p2[roundResult.opp].fontSize, transform: HAND_STYLES.p2[roundResult.opp].transform, transition: 'transform 0.3s ease' }}>
+              {HAND_STYLES.p2[roundResult.opp].emoji}
             </span>
           </div>
           <p className="text-3xl font-black" style={{ color: roundResult.color }}>
@@ -347,11 +360,11 @@ export default function DemoBattlePage() {
           {/* Round history */}
           <div className="space-y-2 mb-6 max-w-xs mx-auto">
             {rounds.map((r, i) => (
-              <div key={i} className="flex items-center justify-center gap-4 text-sm">
+              <div key={i} className="flex items-center justify-center gap-4 text-sm" style={{ perspective: '400px' }}>
                 <span className="w-6 text-surface/30">R{i + 1}</span>
-                <span className="text-xl" style={{ transform: 'rotate(90deg)' }}>{MOVES.find((m) => m.key === r.my)?.icon}</span>
+                <span style={{ display: 'inline-block', fontSize: '1.5rem', transform: HAND_STYLES.p1[r.my].transform.replace('scale(1)', 'scale(0.5)') }}>{HAND_STYLES.p1[r.my].emoji}</span>
                 <span className="text-surface/20">vs</span>
-                <span className="text-xl" style={{ transform: 'rotate(-90deg)' }}>{MOVES.find((m) => m.key === r.opp)?.icon}</span>
+                <span style={{ display: 'inline-block', fontSize: '1.5rem', transform: HAND_STYLES.p2[r.opp].transform.replace('scale(1)', 'scale(0.5)') }}>{HAND_STYLES.p2[r.opp].emoji}</span>
                 <span className="w-6 font-bold" style={{ color: r.result === 'win' ? '#1D9E75' : r.result === 'lose' ? '#E53E3E' : '#888' }}>
                   {r.result === 'win' ? 'W' : r.result === 'lose' ? 'L' : '—'}
                 </span>
