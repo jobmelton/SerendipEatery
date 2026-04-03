@@ -230,7 +230,7 @@ export function WinCelebration({
       {screenFlash && <div className="fixed inset-0 z-[70] bg-white/30 pointer-events-none" />}
 
       {/* Fireworks canvas */}
-      <Fireworks active={showFireworks} cx={window?.innerWidth / 2 ?? 200} cy={window?.innerHeight / 2 ?? 300} />
+      <Fireworks active={showFireworks} cx={typeof window !== 'undefined' ? window.innerWidth / 2 : 200} cy={typeof window !== 'undefined' ? window.innerHeight / 2 : 300} />
 
       {/* Confetti rain */}
       <ConfettiRain active={showConfetti} />
