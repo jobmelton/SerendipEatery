@@ -28,6 +28,22 @@ function playBeep(freq: number, dur: number) {
   } catch {}
 }
 
+/* ─── Speech Synthesis ─── */
+function speak(text: string, opts: { rate?: number; pitch?: number } = {}) {
+  try {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return
+    const u = new SpeechSynthesisUtterance(text)
+    u.rate = opts.rate ?? 0.9
+    u.pitch = opts.pitch ?? 1.2
+    u.volume = 1
+    window.speechSynthesis.speak(u)
+  } catch {}
+}
+
+const WIN_PHRASES = ['Nice!', 'Good move!', 'Boom!']
+const LOSE_PHRASES = ['Ooh!', 'Tough break!', 'Ouch!']
+function randomPick(arr: string[]) { return arr[Math.floor(Math.random() * arr.length)] }
+
 function playIntroSequence(onDone: () => void) {
   // FIRST TO 3 WINS — ascending
   setTimeout(() => playBeep(440, 0.15), 0)
@@ -57,7 +73,10 @@ function cpuMove(): Move {
 
 export default function DemoBattlePage() {
   const [phase, setPhase] = useState<Phase>('pick')
-  const [muted, setMuted] = useState(false)
+  const [muted, setMuted] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('rps_muted') === 'true'
+    return false
+  })
   const [introText, setIntroText] = useState('')
   const [rounds, setRounds] = useState<Array<{ my: Move; opp: Move; result: string }>>([])
   const [myScore, setMyScore] = useState(0)
@@ -81,15 +100,16 @@ export default function DemoBattlePage() {
     setMyScore(0); setOppScore(0); setRounds([]); setCurrentRound(0)
     setFinalResult(null); setRoundResult(null)
 
-    // Show intro sequence
+    // Show intro sequence with voice
     setPhase('intro')
     setIntroText('FIRST TO 3 WINS')
     if (!muted) {
       playIntroSequence(() => {})
+      speak('First to 3 wins!', { rate: 0.8, pitch: 1.3 })
     }
-    setTimeout(() => setIntroText('READY...'), 1200)
-    setTimeout(() => setIntroText('SET...'), 1800)
-    setTimeout(() => setIntroText('GO!'), 2400)
+    setTimeout(() => { setIntroText('READY...'); if (!muted) speak('Ready', { rate: 0.7, pitch: 1.0 }) }, 1200)
+    setTimeout(() => { setIntroText('SET...'); if (!muted) speak('Set', { rate: 0.7, pitch: 1.1 }) }, 1800)
+    setTimeout(() => { setIntroText('GO!'); if (!muted) speak('Go!', { rate: 1.2, pitch: 1.5 }) }, 2400)
     setTimeout(() => playRound(firstMove), 3000)
   }
 
@@ -102,8 +122,15 @@ export default function DemoBattlePage() {
 
     let ms = myScoreRef.current
     let os = oppScoreRef.current
-    if (result === 'win') { ms++; myScoreRef.current = ms; if (!muted) playWinBeep() }
-    else if (result === 'lose') { os++; oppScoreRef.current = os; if (!muted) playLoseBeep() }
+    if (result === 'win') {
+      ms++; myScoreRef.current = ms
+      if (!muted) { playWinBeep(); speak(randomPick(WIN_PHRASES), { rate: 1.1, pitch: 1.3 }) }
+    } else if (result === 'lose') {
+      os++; oppScoreRef.current = os
+      if (!muted) { playLoseBeep(); speak(randomPick(LOSE_PHRASES), { rate: 0.9, pitch: 0.9 }) }
+    } else {
+      if (!muted) speak('Draw!', { rate: 0.9, pitch: 1.0 })
+    }
     setMyScore(ms); setOppScore(os)
 
     const newRound = { my: myMove, opp, result }
@@ -119,13 +146,16 @@ export default function DemoBattlePage() {
     setTimeout(() => {
       if (ms >= 3) {
         setFinalResult('win'); setPhase('done')
-        if (!muted) playWinBeep()
+        if (!muted) { playWinBeep(); speak('You win! Amazing!', { rate: 1.1, pitch: 1.4 }) }
       } else if (os >= 3) {
         setFinalResult('lose'); setPhase('done')
-        if (!muted) playLoseBeep()
+        if (!muted) { playLoseBeep(); speak('You lose! Better luck next time!', { rate: 0.7, pitch: 0.8 }) }
       } else if (ms === 2 && os === 2 && rn >= 4) {
         setPhase('suddenDeath')
+        if (!muted) speak('Sudden death!', { rate: 0.6, pitch: 0.9 })
       } else {
+        // Check for match point
+        if ((ms === 2 || os === 2) && !muted) speak('Match point!', { rate: 0.7, pitch: 1.0 })
         setPhase('nextPick')
       }
     }, 1500)
@@ -147,7 +177,7 @@ export default function DemoBattlePage() {
   return (
     <main className="min-h-screen bg-night flex flex-col items-center justify-center px-6 relative">
       {/* Mute button */}
-      <button onClick={() => setMuted(!muted)} className="fixed top-4 right-4 z-40 text-xl" title={muted ? 'Unmute' : 'Mute'}>
+      <button onClick={() => { const v = !muted; setMuted(v); localStorage.setItem('rps_muted', String(v)) }} className="fixed top-4 right-4 z-40 text-xl" title={muted ? 'Unmute' : 'Mute'}>
         {muted ? '🔇' : '🔊'}
       </button>
 

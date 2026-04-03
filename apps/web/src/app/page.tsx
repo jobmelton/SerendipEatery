@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { RouletteWheel, DEFAULT_PRIZES } from '@/components/RouletteWheel'
+import { RouletteWheel, type WheelPrize } from '@/components/RouletteWheel'
+import { WinCelebration } from '@/components/WinCelebration'
 
 export default function LandingPage() {
   const [cowardToast, setCowardToast] = useState(false)
-  const [wonPrize, setWonPrize] = useState<string | null>(null)
+  const [celebration, setCelebration] = useState<{ prize: string; color: string; isTryAgain: boolean } | null>(null)
 
   return (
     <main className="min-h-screen bg-night flex flex-col items-center px-6 pt-10 pb-16">
@@ -26,15 +27,22 @@ export default function LandingPage() {
 
       {/* ─── Roulette Wheel ─── */}
       <RouletteWheel onSpinComplete={(prize) => {
-        if (prize.label !== 'Try Again') setWonPrize(prize.label)
-        else setWonPrize(null)
+        setCelebration({
+          prize: prize.label,
+          color: prize.color,
+          isTryAgain: prize.label === 'Try Again',
+        })
       }} />
 
-      {/* Win toast */}
-      {wonPrize && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg animate-bounce" style={{ background: '#F7941D', color: '#1a0e00' }}>
-          <span className="font-black text-lg">You won: {wonPrize}!</span>
-        </div>
+      {/* Win celebration */}
+      {celebration && (
+        <WinCelebration
+          prize={celebration.prize}
+          prizeColor={celebration.color}
+          isGuest={true}
+          isTryAgain={celebration.isTryAgain}
+          onDismiss={() => setCelebration(null)}
+        />
       )}
 
       {/* ─── More Deals ─── */}
