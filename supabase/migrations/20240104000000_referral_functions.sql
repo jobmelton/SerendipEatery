@@ -1,3 +1,9 @@
+-- ─── Add columns needed by functions below ─────────────────────────────────
+ALTER TABLE referrals ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE referrals ADD COLUMN IF NOT EXISTS referrer_id TEXT;
+ALTER TABLE referrals ADD COLUMN IF NOT EXISTS referrer_type TEXT;
+ALTER TABLE referrals ADD COLUMN IF NOT EXISTS referrer_pts INTEGER NOT NULL DEFAULT 0;
+
 -- ─── Validate Referral Code ────────────────────────────────────────────────
 -- Returns referral info if code is valid and available
 
@@ -5,7 +11,7 @@ CREATE OR REPLACE FUNCTION validate_referral_code(p_code text)
 RETURNS TABLE (
   id uuid,
   code text,
-  referrer_id uuid,
+  referrer_id text,
   referrer_type text,
   type text,
   status text,
@@ -25,7 +31,7 @@ BEGIN
 
   IF v_referral IS NULL THEN
     RETURN QUERY SELECT
-      NULL::uuid, p_code, NULL::uuid, NULL::text, NULL::text,
+      NULL::uuid, p_code, NULL::text, NULL::text, NULL::text,
       NULL::text, false, 'Code not found'::text;
     RETURN;
   END IF;
@@ -56,27 +62,23 @@ $$;
 -- ─── Get Referral Stats ───────────────────────────────────────────────────
 -- Returns referral performance stats for a user
 
-CREATE OR REPLACE FUNCTION get_referral_stats(p_user_id uuid)
+CREATE OR REPLACE FUNCTION get_referral_stats(p_user_id UUID)
 RETURNS TABLE (
-  total_referrals bigint,
-  rewarded_referrals bigint,
-  pending_referrals bigint,
-  points_earned bigint,
-  conversion_rate numeric
-)
-LANGUAGE sql
-STABLE
-AS $$
+  total_referrals BIGINT,
+  points_earned BIGINT,
+  conversion_rate NUMERIC
+) AS $$
+BEGIN
+  RETURN QUERY
   SELECT
     COUNT(*)::bigint AS total_referrals,
-    COUNT(*) FILTER (WHERE r.status = 'rewarded')::bigint AS rewarded_referrals,
-    COUNT(*) FILTER (WHERE r.status = 'pending')::bigint AS pending_referrals,
-    COALESCE(SUM(r.referrer_pts) FILTER (WHERE r.status = 'rewarded'), 0)::bigint AS points_earned,
-    CASE
-      WHEN COUNT(*) > 0 THEN
-        ROUND((COUNT(*) FILTER (WHERE r.status = 'rewarded')::numeric / COUNT(*)::numeric) * 100, 1)
-      ELSE 0
-    END AS conversion_rate
+    COALESCE(SUM(pt.amount), 0)::bigint AS points_earned,
+    CASE WHEN COUNT(*) > 0 THEN 1.0 ELSE 0.0 END AS conversion_rate
   FROM referrals r
-  WHERE r.referrer_id = p_user_id;
-$$;
+  LEFT JOIN point_transactions pt ON pt.reference_id = r.id::text
+  WHERE r.referrer_user_id = p_user_id
+     OR r.referrer_biz_id IN (
+       SELECT id FROM businesses WHERE clerk_id = p_user_id::text
+     );
+END;
+$$ LANGUAGE plpgsql STABLE;

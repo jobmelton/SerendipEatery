@@ -49,7 +49,7 @@ CREATE POLICY "businesses_public_read"
 
 CREATE POLICY "flash_sales_public_read"
   ON flash_sales FOR SELECT
-  USING (status IN ('active', 'scheduled', 'live'));
+  USING (status IN ('active', 'scheduled'));
 
 CREATE POLICY "flash_sales_owner_all"
   ON flash_sales FOR ALL
@@ -107,20 +107,6 @@ CREATE POLICY "visit_intents_business_read"
     )
   );
 
--- ─── BILLING EVENTS ──────────────────────────────────────────────────────
--- Businesses can only read their own billing events
-
-CREATE POLICY "billing_events_owner_read"
-  ON billing_events FOR SELECT
-  USING (
-    business_id IN (
-      SELECT id FROM businesses
-      WHERE owner_clerk_id = current_setting('app.clerk_id', TRUE)
-    )
-  );
-
--- Insert is service-role only (API server creates billing events)
-
 -- ─── NOTIFICATIONS ────────────────────────────────────────────────────────
 -- Users can only read their own notifications
 
@@ -142,16 +128,6 @@ CREATE POLICY "point_transactions_user_read"
     user_id IN (
       SELECT id FROM users
       WHERE clerk_id = current_setting('app.clerk_id', TRUE)
-    )
-  );
-
--- Businesses can read their own point history
-CREATE POLICY "point_transactions_biz_read"
-  ON point_transactions FOR SELECT
-  USING (
-    business_id IN (
-      SELECT id FROM businesses
-      WHERE owner_clerk_id = current_setting('app.clerk_id', TRUE)
     )
   );
 

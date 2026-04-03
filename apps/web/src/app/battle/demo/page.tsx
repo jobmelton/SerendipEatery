@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 type Move = 'rock' | 'paper' | 'scissors'
@@ -74,7 +75,12 @@ function cpuMove(): Move {
   return (['rock', 'paper', 'scissors'] as Move[])[Math.floor(Math.random() * 3)]
 }
 
+const DEFAULT_CHALLENGE_MSG = "Accept the challenge and meet your fate — or decline and live with regret forever. 👊✋✌️"
+
 export default function DemoBattlePage() {
+  const searchParams = useSearchParams()
+  const challengeMessage = searchParams.get('msg') || DEFAULT_CHALLENGE_MSG
+
   const [phase, setPhase] = useState<Phase>('pick')
   const [muted, setMuted] = useState(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('rps_muted') === 'true'
@@ -99,7 +105,7 @@ export default function DemoBattlePage() {
   const [roundResult, setRoundResult] = useState<{ my: Move; opp: Move; text: string; color: string } | null>(null)
   const [finalResult, setFinalResult] = useState<'win' | 'lose' | null>(null)
   const [showLeaveModal, setShowLeaveModal] = useState(false)
-  const [shareMsg, setShareMsg] = useState("Accept and meet your fate — or decline and regret it for life 👊✋✌️")
+  const [shareMsg, setShareMsg] = useState(DEFAULT_CHALLENGE_MSG)
   const [showShareCustom, setShowShareCustom] = useState(false)
   const myScoreRef = useRef(0)
   const oppScoreRef = useRef(0)
@@ -198,10 +204,10 @@ export default function DemoBattlePage() {
   }
 
   const doShare = () => {
-    const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/battle/demo`
-    const sd = { title: 'SerendipEatery RPS', text: shareMsg, url }
+    const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/battle/demo?msg=${encodeURIComponent(shareMsg)}`
+    const sd = { title: 'SerendipEatery Challenge', text: shareMsg, url }
     if (navigator.share) navigator.share(sd).catch(() => {})
-    else navigator.clipboard.writeText(`${shareMsg} ${url}`)
+    else navigator.clipboard.writeText(`${shareMsg}\n\n${url}`)
   }
 
   return (
@@ -240,6 +246,12 @@ export default function DemoBattlePage() {
       {/* ─── PICK FIRST MOVE ─── */}
       {phase === 'pick' && (
         <div className="text-center">
+          {/* Challenge message quote card */}
+          <div className="mb-6 max-w-sm mx-auto rounded-xl px-5 py-4 text-left"
+            style={{ background: '#1a0e00', borderLeft: '4px solid #F7941D' }}>
+            <p className="text-surface/80 text-sm italic leading-relaxed">{challengeMessage}</p>
+          </div>
+
           <h1 className="text-2xl font-black text-surface mb-2">Pick your opening move</h1>
           <p className="text-surface/40 text-sm mb-8">First to 3 wins</p>
           <div className="flex gap-6 justify-center">
@@ -370,26 +382,29 @@ export default function DemoBattlePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={() => setShowShareCustom(false)}>
           <div className="absolute inset-0 bg-black/70" />
           <div className="relative rounded-2xl p-6 max-w-sm w-full" style={{ background: '#1a1230' }} onClick={(e) => e.stopPropagation()}>
-            <p className="text-surface font-bold mb-2">Customize your challenge</p>
+            <p className="text-surface font-bold text-lg mb-3">Your Challenge Message</p>
             <textarea
               value={shareMsg}
               onChange={(e) => setShareMsg(e.target.value.slice(0, 150))}
               maxLength={150}
               rows={3}
-              className="w-full bg-night text-surface border border-white/10 rounded-lg px-3 py-2 text-sm mb-1 focus:border-btc focus:outline-none resize-none"
+              className="w-full text-surface rounded-lg px-3 py-2 text-sm mb-1 focus:outline-none resize-none"
+              style={{ background: '#1a0e00', border: '1px solid #F7941D' }}
             />
-            <p className="text-surface/20 text-xs mb-3">{shareMsg.length}/150</p>
-            <button onClick={() => setShareMsg("Accept and meet your fate — or decline and regret it for life 👊✋✌️")}
-              className="text-btc text-xs hover:underline mb-4 block">Restore default</button>
-            <div className="flex gap-3">
+            <p className="text-surface/30 text-xs text-right mb-1">{shareMsg.length}/150</p>
+            <button onClick={() => setShareMsg(DEFAULT_CHALLENGE_MSG)}
+              className="text-surface/40 text-xs hover:text-surface/60 transition mb-4 block">Restore Default</button>
+            <div className="flex flex-col gap-3">
               <button onClick={() => { doShare(); setShowShareCustom(false) }}
-                className="flex-1 bg-btc text-night font-bold py-3 rounded-xl">📱 Share</button>
+                className="w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition">📱 AirDrop / Share</button>
               <button onClick={() => {
-                const url = `${window.location.origin}/battle/demo`
-                window.open(`sms:?body=${encodeURIComponent(shareMsg + ' ' + url)}`, '_self')
+                const url = `${window.location.origin}/battle/demo?msg=${encodeURIComponent(shareMsg)}`
+                window.open(`sms:?body=${encodeURIComponent(shareMsg + '\n\n' + url)}`, '_self')
                 setShowShareCustom(false)
-              }} className="flex-1 border border-surface/20 text-surface/60 font-bold py-3 rounded-xl">💬 Text</button>
+              }} className="w-full border border-surface/20 text-surface/60 font-bold py-3 rounded-xl hover:bg-white/5 transition">💬 Send as Text</button>
             </div>
+            <button onClick={() => setShowShareCustom(false)}
+              className="w-full text-center text-surface/30 text-sm mt-3 hover:text-surface/50 transition">Cancel</button>
           </div>
         </div>
       )}

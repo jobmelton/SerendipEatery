@@ -5,9 +5,13 @@ import Link from 'next/link'
 import { RouletteWheel, type WheelPrize } from '@/components/RouletteWheel'
 import { WinCelebration } from '@/components/WinCelebration'
 
+const DEFAULT_CHALLENGE_MSG = "Accept the challenge and meet your fate — or decline and live with regret forever. 👊✋✌️"
+
 export default function LandingPage() {
   const [cowardToast, setCowardToast] = useState(false)
   const [celebration, setCelebration] = useState<{ prize: string; color: string; isTryAgain: boolean } | null>(null)
+  const [showChallengeComposer, setShowChallengeComposer] = useState(false)
+  const [challengeMsg, setChallengeMsg] = useState(DEFAULT_CHALLENGE_MSG)
 
   return (
     <main className="min-h-screen bg-night flex flex-col items-center px-6 pt-10 pb-16">
@@ -52,16 +56,52 @@ export default function LandingPage() {
 
       {/* ─── Drop a Challenge ─── */}
       <button
-        onClick={() => {
-          const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/battle/demo`
-          const sd = { title: 'SerendipEatery RPS', text: "I just dropped a Rock Paper Scissors challenge. Winner takes deals. You in? 👊", url }
-          if (typeof navigator !== 'undefined' && navigator.share) navigator.share(sd).catch(() => {})
-          else if (typeof navigator !== 'undefined') navigator.clipboard.writeText(url)
-        }}
+        onClick={() => { setChallengeMsg(DEFAULT_CHALLENGE_MSG); setShowChallengeComposer(true) }}
         className="bg-btc/10 text-btc font-bold px-8 py-3 rounded-full text-sm border border-btc/30 hover:bg-btc/20 transition mb-8"
       >
         <span style={{ display: 'inline-block', transform: 'rotate(-45deg)' }}>✌️</span> Drop a Challenge
       </button>
+
+      {/* ─── Challenge Composer Modal ─── */}
+      {showChallengeComposer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={() => setShowChallengeComposer(false)}>
+          <div className="absolute inset-0 bg-black/70" />
+          <div className="relative rounded-2xl p-6 max-w-sm w-full" style={{ background: '#1a1230' }} onClick={(e) => e.stopPropagation()}>
+            <p className="text-surface font-bold text-lg mb-3">Your Challenge Message</p>
+            <textarea
+              value={challengeMsg}
+              onChange={(e) => setChallengeMsg(e.target.value.slice(0, 150))}
+              maxLength={150}
+              rows={3}
+              className="w-full text-surface rounded-lg px-3 py-2 text-sm mb-1 focus:outline-none resize-none"
+              style={{ background: '#1a0e00', border: '1px solid #F7941D' }}
+            />
+            <p className="text-surface/30 text-xs text-right mb-1">{challengeMsg.length}/150</p>
+            <button onClick={() => setChallengeMsg(DEFAULT_CHALLENGE_MSG)}
+              className="text-surface/40 text-xs hover:text-surface/60 transition mb-4 block">Restore Default</button>
+            <div className="flex flex-col gap-3">
+              <button onClick={() => {
+                const url = `${window.location.origin}/battle/demo?msg=${encodeURIComponent(challengeMsg)}`
+                const sd = { title: 'SerendipEatery Challenge', text: challengeMsg, url }
+                if (navigator.share) navigator.share(sd).catch(() => {})
+                else navigator.clipboard.writeText(`${challengeMsg}\n\n${url}`)
+                setShowChallengeComposer(false)
+              }} className="w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition">
+                📱 AirDrop / Share
+              </button>
+              <button onClick={() => {
+                const url = `${window.location.origin}/battle/demo?msg=${encodeURIComponent(challengeMsg)}`
+                window.open(`sms:?body=${encodeURIComponent(challengeMsg + '\n\n' + url)}`, '_self')
+                setShowChallengeComposer(false)
+              }} className="w-full border border-surface/20 text-surface/60 font-bold py-3 rounded-xl hover:bg-white/5 transition">
+                💬 Send as Text
+              </button>
+            </div>
+            <button onClick={() => setShowChallengeComposer(false)}
+              className="w-full text-center text-surface/30 text-sm mt-3 hover:text-surface/50 transition">Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* ─── RPS Challenge Card ─── */}
       {cowardToast && (
