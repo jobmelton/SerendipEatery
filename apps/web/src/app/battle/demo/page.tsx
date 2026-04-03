@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 
 type Move = 'rock' | 'paper' | 'scissors'
@@ -28,17 +28,20 @@ function playBeep(freq: number, dur: number) {
   } catch {}
 }
 
-/* ─── Speech Synthesis ─── */
+/* ─── Speech Synthesis (cancel-before-speak to avoid lag) ─── */
 function speak(text: string, opts: { rate?: number; pitch?: number } = {}) {
   try {
     if (typeof window === 'undefined' || !window.speechSynthesis) return
+    window.speechSynthesis.cancel()
     const u = new SpeechSynthesisUtterance(text)
-    u.rate = opts.rate ?? 0.9
+    u.rate = opts.rate ?? 1.0
     u.pitch = opts.pitch ?? 1.2
     u.volume = 1
     window.speechSynthesis.speak(u)
   } catch {}
 }
+
+function delay(ms: number) { return new Promise(resolve => setTimeout(resolve, ms)) }
 
 const WIN_PHRASES = ['Nice!', 'Good move!', 'Boom!']
 const LOSE_PHRASES = ['Ooh!', 'Tough break!', 'Ouch!']
@@ -77,6 +80,17 @@ export default function DemoBattlePage() {
     if (typeof window !== 'undefined') return localStorage.getItem('rps_muted') === 'true'
     return false
   })
+  // Pre-warm speech synthesis to reduce first-speak latency
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        const warmup = new SpeechSynthesisUtterance('')
+        warmup.volume = 0
+        window.speechSynthesis.speak(warmup)
+      }
+    } catch {}
+  }, [])
+
   const [introText, setIntroText] = useState('')
   const [rounds, setRounds] = useState<Array<{ my: Move; opp: Move; result: string }>>([])
   const [myScore, setMyScore] = useState(0)
@@ -93,24 +107,40 @@ export default function DemoBattlePage() {
 
   const isMidGame = phase !== 'pick' && phase !== 'done'
 
-  const startMatch = (firstMove: Move) => {
+  const startMatch = async (firstMove: Move) => {
     myScoreRef.current = 0
     oppScoreRef.current = 0
     roundRef.current = 0
     setMyScore(0); setOppScore(0); setRounds([]); setCurrentRound(0)
     setFinalResult(null); setRoundResult(null)
 
-    // Show intro sequence with voice
+    // Speech fires FIRST, graphics follow with delay
     setPhase('intro')
+
+    // "FIRST TO 3 WINS"
+    if (!muted) { speak('First to 3 wins!', { rate: 0.8, pitch: 1.3 }); playIntroSequence(() => {}) }
+    await delay(200)
     setIntroText('FIRST TO 3 WINS')
-    if (!muted) {
-      playIntroSequence(() => {})
-      speak('First to 3 wins!', { rate: 0.8, pitch: 1.3 })
-    }
-    setTimeout(() => { setIntroText('READY...'); if (!muted) speak('Ready', { rate: 0.7, pitch: 1.0 }) }, 1200)
-    setTimeout(() => { setIntroText('SET...'); if (!muted) speak('Set', { rate: 0.7, pitch: 1.1 }) }, 1800)
-    setTimeout(() => { setIntroText('GO!'); if (!muted) speak('Go!', { rate: 1.2, pitch: 1.5 }) }, 2400)
-    setTimeout(() => playRound(firstMove), 3000)
+
+    // "READY"
+    await delay(1000)
+    if (!muted) speak('Ready', { rate: 0.7, pitch: 1.0 })
+    await delay(300)
+    setIntroText('READY...')
+
+    // "SET"
+    await delay(600)
+    if (!muted) speak('Set', { rate: 0.7, pitch: 1.1 })
+    await delay(300)
+    setIntroText('SET...')
+
+    // "GO!" — speech and graphic simultaneous
+    await delay(600)
+    if (!muted) speak('Go!', { rate: 1.2, pitch: 1.5 })
+    setIntroText('GO!')
+
+    await delay(500)
+    playRound(firstMove)
   }
 
   const playRound = (myMove: Move) => {
