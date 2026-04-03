@@ -26,9 +26,23 @@ const CENTER = 140
 const INNER_RADIUS = 28
 const STUD_RADIUS = RADIUS + 12
 const STUD_COUNT = 24
-const BALL_ORBIT_R = RADIUS + 8 // SVG units — between studs and outer ring
-const BALL_ORBIT_PX = BALL_ORBIT_R * (WHEEL_SIZE / 280) // pixel-space orbit radius
 const BALL_SIZE = 12
+
+// Physics constants
+const SW_SPIN_DURATION = 5000
+const SW_FULL_ROTATIONS = 5
+const SW_EASE_POWER = 3
+const SW_ORBIT_RADIUS = 95    // px screen space (scaled for 260px wheel)
+const SW_POCKET_RADIUS = 72   // px screen space
+const SW_DRIFT_START = 0.75
+const SW_SETTLE_START = 0.90
+const SW_BOUNCE_AMOUNT = 6
+const SW_BOUNCE_COUNT = 3
+const SW_BALL_SPEED_MULT = 1.3
+
+function swEaseOut(t: number, power = 3): number {
+  return 1 - Math.pow(1 - t, power)
+}
 
 function polarToXY(angleDeg: number, r: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180
@@ -59,9 +73,21 @@ function SpinWheel({
   spinning: boolean
   onSpinComplete: () => void
 }) {
-  const [rotation, setRotation] = useState(0)
-  const [ballRotation, setBallRotation] = useState(45) // initial resting angle
+  const [wheelDeg, setWheelDeg] = useState(0)
+  const [ballPos, setBallPos] = useState({ x: WHEEL_SIZE / 2, y: WHEEL_SIZE / 2 + SW_POCKET_RADIUS })
   const [animating, setAnimating] = useState(false)
+  const wheelRotRef = useRef(0)
+  const animRefSW = useRef<number>(0)
+  const swStateRef = useRef<{
+    animating: boolean
+    startTime: number
+    wheelStart: number
+    totalWheelRot: number
+    ballStartAngle: number
+    totalBallRot: number
+    finalBallX: number
+    finalBallY: number
+  } | null>(null)
 
   const segments = Array.from({ length: NUM_SEGMENTS }, (_, i) => {
     const p = prizes[i % (prizes.length || 1)]
@@ -70,66 +96,101 @@ function SpinWheel({
 
   const segAngle = 360 / NUM_SEGMENTS
 
+  const animateSW = useCallback(() => {
+    const s = swStateRef.current
+    if (!s || !s.animating) return
+    const elapsed = Date.now() - s.startTime
+    const t = Math.min(elapsed / SW_SPIN_DURATION, 1)
+
+    const currentRot = s.wheelStart + s.totalWheelRot * swEaseOut(t, SW_EASE_POWER)
+    setWheelDeg(currentRot)
+    wheelRotRef.current = currentRot
+
+    const cx = WHEEL_SIZE / 2, cy = WHEEL_SIZE / 2
+    let bx: number, by: number
+
+    if (t < SW_DRIFT_START) {
+      const ballAngle = s.ballStartAngle + s.totalBallRot * swEaseOut(t / SW_DRIFT_START, 1.2)
+      bx = cx + SW_ORBIT_RADIUS * Math.cos(ballAngle)
+      by = cy + SW_ORBIT_RADIUS * Math.sin(ballAngle)
+    } else if (t < SW_SETTLE_START) {
+      const p = (t - SW_DRIFT_START) / (SW_SETTLE_START - SW_DRIFT_START)
+      const lastAngle = s.ballStartAngle + s.totalBallRot * swEaseOut(1, 1.2)
+      const lastX = cx + SW_ORBIT_RADIUS * Math.cos(lastAngle)
+      const lastY = cy + SW_ORBIT_RADIUS * Math.sin(lastAngle)
+      bx = lastX + (s.finalBallX - lastX) * swEaseOut(p, 2)
+      by = lastY + (s.finalBallY - lastY) * swEaseOut(p, 2)
+    } else {
+      const p = (t - SW_SETTLE_START) / (1 - SW_SETTLE_START)
+      const decay = 1 - p
+      const rattle = Math.sin(p * Math.PI * SW_BOUNCE_COUNT) * decay * SW_BOUNCE_AMOUNT
+      bx = s.finalBallX + rattle
+      by = s.finalBallY
+    }
+
+    setBallPos({ x: bx, y: by })
+
+    if (t < 1) {
+      animRefSW.current = requestAnimationFrame(animateSW)
+    } else {
+      s.animating = false
+      setAnimating(false)
+      onSpinComplete()
+    }
+  }, [onSpinComplete])
+
   useEffect(() => {
     if (spinning && !animating) {
       setAnimating(true)
-      // Wheel spins clockwise
-      const wheelSpins = (5 + Math.random() * 3) * 360
-      setRotation((prev) => prev + wheelSpins)
-      // Ball orbits counter-clockwise (opposite), slightly more rotations
-      const ballSpins = (6 + Math.random() * 3) * 360
-      setBallRotation((prev) => prev - ballSpins)
-      const timer = setTimeout(() => {
-        setAnimating(false)
-        onSpinComplete()
-      }, 4200)
-      return () => clearTimeout(timer)
+
+      const targetAngle = 180 - (Math.floor(Math.random() * NUM_SEGMENTS) * segAngle + segAngle / 2)
+      const currentMod = ((wheelRotRef.current % 360) + 360) % 360
+      const totalWheelRot = SW_FULL_ROTATIONS * 360 + ((targetAngle - currentMod) + 360) % 360
+
+      swStateRef.current = {
+        animating: true,
+        startTime: Date.now(),
+        wheelStart: wheelRotRef.current,
+        totalWheelRot,
+        ballStartAngle: -Math.PI / 2,
+        totalBallRot: -(SW_FULL_ROTATIONS * SW_BALL_SPEED_MULT * 2 * Math.PI),
+        finalBallX: WHEEL_SIZE / 2,
+        finalBallY: WHEEL_SIZE / 2 + SW_POCKET_RADIUS,
+      }
+
+      animRefSW.current = requestAnimationFrame(animateSW)
     }
   }, [spinning])
+
+  useEffect(() => {
+    return () => { if (animRefSW.current) cancelAnimationFrame(animRefSW.current) }
+  }, [])
 
   return (
     <div
       className="relative my-3"
       style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}
     >
-      {/* Ball position determines winner — no pointer needed */}
-
-      {/* Ball — orbits counter-clockwise, decelerates independently */}
+      {/* Ball — screen space, does NOT rotate with wheel */}
       <div
-        className="absolute inset-0 pointer-events-none z-10"
+        className="absolute z-10 pointer-events-none"
         style={{
-          transform: `rotate(${ballRotation}deg)`,
-          transition: animating
-            ? 'transform 4.6s cubic-bezier(0.10, 0.65, 0.06, 1.02)'
-            : 'none',
+          width: BALL_SIZE,
+          height: BALL_SIZE,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle at 35% 30%, #ffffff, #d0d0d0 50%, #a0a0a0)',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.6), inset 0 -1px 2px rgba(0,0,0,0.15)',
+          left: ballPos.x - BALL_SIZE / 2,
+          top: ballPos.y - BALL_SIZE / 2,
         }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            left: '50%',
-            top: WHEEL_SIZE / 2 - BALL_ORBIT_PX - BALL_SIZE / 2,
-            width: BALL_SIZE,
-            height: BALL_SIZE,
-            marginLeft: -BALL_SIZE / 2,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 30%, #ffffff, #d0d0d0 50%, #a0a0a0)',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.6), inset 0 -1px 2px rgba(0,0,0,0.15)',
-          }}
-        />
-      </div>
+      />
 
       {/* Wheel */}
       <svg
         viewBox="0 0 280 280"
         width={WHEEL_SIZE}
         height={WHEEL_SIZE}
-        style={{
-          transform: `rotate(${rotation}deg)`,
-          transition: animating
-            ? 'transform 4.2s cubic-bezier(0.15, 0.6, 0.08, 1)'
-            : 'none',
-        }}
+        style={{ transform: `rotate(${wheelDeg}deg)` }}
       >
         {/* Outer decorative ring */}
         <circle cx={CENTER} cy={CENTER} r={RADIUS + 16} fill="#1a0e00" stroke="#B8860B" strokeWidth="1.5" />

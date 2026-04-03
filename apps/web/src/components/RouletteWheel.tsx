@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 
 export interface WheelPrize {
   label: string
@@ -19,15 +19,29 @@ export const DEFAULT_PRIZES: WheelPrize[] = [
   { label: 'Jackpot',     weight: 3,  color: '#FFD700' },
 ]
 
+// ─── Physics constants ───────────────────────────────────────────────────
 const SIZE = 340
 const VB = 400
 const CX = 200
 const CY = 200
 const R = 170
 const INNER_R = 32
-const POCKET_R = R * 0.6   // ball sits this far from center (inside segment)
-const ORBIT_TX = 120
 const BALL_SZ = 12
+
+const SPIN_DURATION = 5000        // 5s total
+const FULL_ROTATIONS = 5
+const EASE_POWER = 3
+const BALL_ORBIT_RADIUS = 115     // px (screen space)
+const BALL_POCKET_RADIUS = 88     // px (screen space) — where ball settles
+const DRIFT_START = 0.75          // 75% of animation
+const SETTLE_START = 0.90         // 90% of animation
+const BOUNCE_AMOUNT = 8           // px
+const BOUNCE_COUNT = 3
+const BALL_SPEED_MULT = 1.3
+
+function easeOut(t: number, power = 3): number {
+  return 1 - Math.pow(1 - t, power)
+}
 
 export function RouletteWheel({
   prizes = DEFAULT_PRIZES,
@@ -36,18 +50,31 @@ export function RouletteWheel({
   prizes?: WheelPrize[]
   onSpinComplete?: (prize: WheelPrize, index: number) => void
 }) {
-  const [wheelDeg, setWheelDeg] = useState(0)
   const [spinning, setSpinning] = useState(false)
-  const [ballState, setBallState] = useState<'idle' | 'spinning' | 'settling'>('idle')
   const [power, setPower] = useState(0)
   const [holding, setHolding] = useState(false)
   const [hasSpun, setHasSpun] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const animRef = useRef<number>(0)
+  const wheelRotRef = useRef(0)
+  const stateRef = useRef<{
+    animating: boolean
+    startTime: number
+    wheelStart: number
+    totalWheelRot: number
+    winIdx: number
+    ballStartAngle: number
+    totalBallRot: number
+    finalBallX: number
+    finalBallY: number
+  } | null>(null)
 
   const N = prizes.length
   const DEG = 360 / N
+  const scale = SIZE / VB
 
-  // ─── Segment SVG path (segment 0 starts at TOP via -90° offset) ────
+  // ─── Segment SVG path ──────────────────────────────────────────────
   function segPath(i: number) {
     const startRad = (i * DEG - 90) * Math.PI / 180
     const endRad = ((i + 1) * DEG - 90) * Math.PI / 180
@@ -65,6 +92,84 @@ export function RouletteWheel({
     return { x: CX + lr * Math.cos(midRad), y: CY + lr * Math.sin(midRad), deg: midDeg }
   }
 
+  // ─── Ball position (screen-space px relative to wheel center) ──────
+  const ballPosRef = useRef({ x: SIZE / 2, y: SIZE / 2 + BALL_POCKET_RADIUS })
+
+  const computeBallPos = useCallback((t: number) => {
+    const s = stateRef.current
+    if (!s) return { x: SIZE / 2, y: SIZE / 2 + BALL_POCKET_RADIUS }
+
+    const cx = SIZE / 2
+    const cy = SIZE / 2
+
+    if (t >= 1) {
+      return { x: s.finalBallX, y: s.finalBallY }
+    }
+
+    if (t < DRIFT_START) {
+      // ORBIT phase: ball spins on outer rim in screen space
+      const ballAngle = s.ballStartAngle + s.totalBallRot * easeOut(t / DRIFT_START, 1.2)
+      return {
+        x: cx + BALL_ORBIT_RADIUS * Math.cos(ballAngle),
+        y: cy + BALL_ORBIT_RADIUS * Math.sin(ballAngle),
+      }
+    }
+
+    if (t < SETTLE_START) {
+      // DRIFT phase: ball moves from last orbit to final pocket
+      const p = (t - DRIFT_START) / (SETTLE_START - DRIFT_START)
+      const lastAngle = s.ballStartAngle + s.totalBallRot * easeOut(1, 1.2) // easeOut at driftT=1 (full drift)
+      // Recalc: use driftT normalized
+      const lastAngleActual = s.ballStartAngle + s.totalBallRot * easeOut(DRIFT_START / DRIFT_START, 1.2)
+      const lastX = cx + BALL_ORBIT_RADIUS * Math.cos(lastAngleActual)
+      const lastY = cy + BALL_ORBIT_RADIUS * Math.sin(lastAngleActual)
+      return {
+        x: lastX + (s.finalBallX - lastX) * easeOut(p, 2),
+        y: lastY + (s.finalBallY - lastY) * easeOut(p, 2),
+      }
+    }
+
+    // SETTLE phase: ball rattles left-right at pocket position
+    const p = (t - SETTLE_START) / (1 - SETTLE_START)
+    const decay = 1 - p
+    const rattle = Math.sin(p * Math.PI * BOUNCE_COUNT) * decay * BOUNCE_AMOUNT
+    return {
+      x: s.finalBallX + rattle,
+      y: s.finalBallY,
+    }
+  }, [])
+
+  // ─── Animation loop ────────────────────────────────────────────────
+  const [wheelDeg, setWheelDeg] = useState(0)
+  const [ballPos, setBallPos] = useState({ x: SIZE / 2, y: SIZE / 2 + BALL_POCKET_RADIUS })
+
+  const animate = useCallback(() => {
+    const s = stateRef.current
+    if (!s || !s.animating) return
+
+    const elapsed = Date.now() - s.startTime
+    const t = Math.min(elapsed / SPIN_DURATION, 1)
+
+    // Wheel rotation
+    const currentRot = s.wheelStart + s.totalWheelRot * easeOut(t, EASE_POWER)
+    setWheelDeg(currentRot)
+    wheelRotRef.current = currentRot
+
+    // Ball position
+    const bp = computeBallPos(t)
+    setBallPos(bp)
+    ballPosRef.current = bp
+
+    if (t < 1) {
+      animRef.current = requestAnimationFrame(animate)
+    } else {
+      // Animation complete
+      s.animating = false
+      setSpinning(false)
+      onSpinComplete?.(prizes[s.winIdx], s.winIdx)
+    }
+  }, [computeBallPos, onSpinComplete, prizes])
+
   // ─── Power bar: hold to charge ─────────────────────────────────────
   function startHold() {
     if (spinning) return
@@ -76,7 +181,7 @@ export function RouletteWheel({
           if (intervalRef.current) clearInterval(intervalRef.current)
           return 100
         }
-        return prev + 2 // fills in ~2.5s
+        return prev + 2
       })
     }, 50)
   }
@@ -85,14 +190,12 @@ export function RouletteWheel({
     if (!holding) return
     if (intervalRef.current) clearInterval(intervalRef.current)
     setHolding(false)
-
-    const currentPower = power // capture before resetting
+    const currentPower = power
     setPower(0)
 
     if (spinning) return
     setSpinning(true)
     setHasSpun(true)
-    setBallState('spinning')
 
     // Pick winner (weighted random)
     const total = prizes.reduce((s, p) => s + p.weight, 0)
@@ -103,47 +206,42 @@ export function RouletteWheel({
       if (rand <= 0) { winIdx = i; break }
     }
 
-    // Rotate wheel so winning segment lands at BOTTOM (6 o'clock)
-    // Segment i center from top = i * DEG + DEG/2
-    // To bring to bottom: subtract 180°
+    // Calculate wheel rotation so winIdx lands at BOTTOM (6 o'clock)
     const segCenter = winIdx * DEG + DEG / 2
-    const targetAngle = segCenter - 180
-    const spinTo = -targetAngle + 5 * 360
+    const targetAngle = 180 - segCenter
+    const currentMod = ((wheelRotRef.current % 360) + 360) % 360
+    const totalWheelRot = FULL_ROTATIONS * 360 + ((targetAngle - currentMod) + 360) % 360
 
-    // Account for accumulated rotation
-    const currentMod = ((wheelDeg % 360) + 360) % 360
-    const targetMod = ((spinTo % 360) + 360) % 360
-    let delta = 5 * 360 + targetMod - currentMod
-    if (delta < 5 * 360) delta += 360
+    // Ball: starts at 12 o'clock, spins opposite direction
+    const ballStartAngle = -Math.PI / 2
+    const totalBallRot = -(FULL_ROTATIONS * BALL_SPEED_MULT * 2 * Math.PI)
 
-    setWheelDeg(prev => prev + delta)
+    // Final ball position: bottom center (in screen pixels)
+    const finalBallX = SIZE / 2
+    const finalBallY = SIZE / 2 + BALL_POCKET_RADIUS
 
-    // Spin duration based on power: 3-8 seconds
-    const spinDuration = 3000 + (currentPower / 100) * 5000
+    stateRef.current = {
+      animating: true,
+      startTime: Date.now(),
+      wheelStart: wheelRotRef.current,
+      totalWheelRot,
+      winIdx,
+      ballStartAngle,
+      totalBallRot,
+      finalBallX,
+      finalBallY,
+    }
 
-    // After CSS transition: settle ball to bottom
-    setTimeout(() => {
-      setBallState('settling')
-      setSpinning(false)
-
-      // After ball slides into position (0.5s)
-      setTimeout(() => {
-        setBallState('idle')
-        console.log('Winner:', winIdx, prizes[winIdx].label)
-        onSpinComplete?.(prizes[winIdx], winIdx)
-      }, 600)
-    }, spinDuration)
+    animRef.current = requestAnimationFrame(animate)
   }
 
-  // ─── Ball positions (pixel space) ──────────────────────────────────
-  const scale = SIZE / VB
-  // Ball settled at BOTTOM: x = center, y = center + pocketRadius
-  const ballSettledX = CX * scale - BALL_SZ / 2
-  const ballSettledY = (CY + POCKET_R) * scale - BALL_SZ / 2
-
-  // Spin duration for CSS (use a fixed 5s for the CSS transition,
-  // the setTimeout handles actual timing)
-  const cssDuration = spinning ? '5s' : '0s'
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [])
 
   return (
     <div className="relative">
@@ -156,33 +254,19 @@ export function RouletteWheel({
         onTouchStart={startHold}
         onTouchEnd={endHold}
       >
-        {/* Ball */}
-        {ballState === 'spinning' ? (
-          <div
-            className="absolute z-10 pointer-events-none"
-            style={{ left: SIZE / 2 - BALL_SZ / 2, top: SIZE / 2 - BALL_SZ / 2, width: BALL_SZ, height: BALL_SZ }}
-          >
-            <div
-              className="animate-[ballOrbit_0.4s_linear_infinite]"
-              style={{
-                width: BALL_SZ, height: BALL_SZ, borderRadius: '50%',
-                background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.6)',
-              }}
-            />
-          </div>
-        ) : (
-          <div
-            className="absolute z-10 pointer-events-none"
-            style={{
-              width: BALL_SZ, height: BALL_SZ, borderRadius: '50%',
-              background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.6)',
-              left: ballSettledX, top: ballSettledY,
-              transition: ballState === 'settling' ? 'left 0.5s ease, top 0.5s ease' : 'none',
-            }}
-          />
-        )}
+        {/* Ball — positioned in screen space, does NOT rotate with wheel */}
+        <div
+          className="absolute z-10 pointer-events-none"
+          style={{
+            width: BALL_SZ,
+            height: BALL_SZ,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.6)',
+            left: ballPos.x - BALL_SZ / 2,
+            top: ballPos.y - BALL_SZ / 2,
+          }}
+        />
 
         {/* Wheel SVG */}
         <svg
@@ -191,7 +275,6 @@ export function RouletteWheel({
           height={SIZE}
           style={{
             transform: `rotate(${wheelDeg}deg)`,
-            transition: spinning ? `transform ${cssDuration} cubic-bezier(0.17, 0.67, 0.12, 0.99)` : 'none',
           }}
         >
           <circle cx={CX} cy={CY} r={R + 10} fill="none" stroke="#FFD700" strokeWidth="3" />
@@ -233,15 +316,8 @@ export function RouletteWheel({
         </div>
       </div>
       <p className="text-center text-xs mb-4" style={{ color: '#a09080' }}>
-        {spinning ? '\u00A0' : holding ? `${Math.round(power)}% — release to spin!` : hasSpun ? 'Hold to power up — release to spin' : 'Hold to power up — release to spin'}
+        {spinning ? '\u00A0' : holding ? `${Math.round(power)}% — release to spin!` : 'Hold to power up — release to spin'}
       </p>
-
-      <style>{`
-        @keyframes ballOrbit {
-          from { transform: rotate(0deg) translateX(${ORBIT_TX}px) rotate(0deg); }
-          to { transform: rotate(-360deg) translateX(${ORBIT_TX}px) rotate(360deg); }
-        }
-      `}</style>
     </div>
   )
 }
