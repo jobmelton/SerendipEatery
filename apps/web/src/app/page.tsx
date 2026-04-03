@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { RouletteWheel, type WheelPrize } from '@/components/RouletteWheel'
 import { WinCelebration } from '@/components/WinCelebration'
+import { createBattleLink, smsCharInfo } from '@/lib/branch'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 const DEFAULT_CHALLENGE_MSG = "Accept the challenge and meet your fate — or decline and live with regret forever. 👊✋✌️"
@@ -109,10 +110,10 @@ export default function LandingPage() {
                   })
                   const json = await res.json()
                   if (json.ok) {
-                    const battleUrl = `${window.location.origin}/battle/${json.data.id}`
-                    const sd = { title: 'SerendipEatery Challenge', text: challengeMsg, url: battleUrl }
+                    const branchUrl = await createBattleLink({ battleId: json.data.id, challengerName: getGuestName(), message: challengeMsg })
+                    const sd = { title: 'SerendipEatery Challenge', text: challengeMsg, url: branchUrl }
                     if (navigator.share) await navigator.share(sd).catch(() => {})
-                    else navigator.clipboard.writeText(`${challengeMsg}\n\n${battleUrl}`)
+                    else navigator.clipboard.writeText(`${challengeMsg}\n\n${branchUrl}`)
                     setShowChallengeComposer(false)
                     router.push(`/battle/${json.data.id}`)
                   }
@@ -130,8 +131,8 @@ export default function LandingPage() {
                   })
                   const json = await res.json()
                   if (json.ok) {
-                    const battleUrl = `${window.location.origin}/battle/${json.data.id}`
-                    const smsBody = `${challengeMsg}\n\nTap to battle: ${battleUrl}\n\nSerendipEatery — Spin. Win. Connect. Eat.`
+                    const branchUrl = await createBattleLink({ battleId: json.data.id, challengerName: getGuestName(), message: challengeMsg })
+                    const smsBody = `${challengeMsg}\n\nTap to battle: ${branchUrl}\n\nSerendipEatery — Spin. Win. Connect. Eat.`
                     window.open(`sms:?body=${encodeURIComponent(smsBody)}`, '_self')
                     setShowChallengeComposer(false)
                     router.push(`/battle/${json.data.id}`)
@@ -140,6 +141,13 @@ export default function LandingPage() {
               }} className="w-full border border-surface/20 text-surface/60 font-bold py-3 rounded-xl hover:bg-white/5 transition disabled:opacity-50">
                 {creating ? 'Creating...' : '💬 Send as Text'}
               </button>
+              {(() => {
+                const smsBody = `${challengeMsg}\n\nTap to battle: serendipeatery.com/battle/...\n\nSerendipEatery — Spin. Win. Connect. Eat.`
+                const info = smsCharInfo(smsBody)
+                return info.warning ? (
+                  <p className="text-red-400/60 text-xs text-center">SMS may split into {info.segments} messages ({info.length}+ chars)</p>
+                ) : null
+              })()}
             </div>
             <button onClick={() => setShowChallengeComposer(false)}
               className="w-full text-center text-surface/30 text-sm mt-3 hover:text-surface/50 transition">Cancel</button>

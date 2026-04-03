@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { createBattleLink, getBattleWebUrl, smsCharInfo } from '@/lib/branch'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -292,7 +293,7 @@ export default function BattlePage() {
       const res = await fetch(`${API_URL}/battles/${id}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId: myId, playerName: getGuestName() }),
+        body: JSON.stringify({ playerId: myId, challengerName: getGuestName() }),
       })
       const json = await res.json()
       if (!json.ok) {
@@ -498,19 +499,29 @@ export default function BattlePage() {
 
           {/* Share buttons */}
           <div className="flex flex-col gap-3 mb-6 w-full">
-            <button onClick={() => {
-              const sd = { title: 'SerendipEatery Challenge', text: challengeMessage, url: battleUrl }
+            <button onClick={async () => {
+              const branchUrl = await createBattleLink({ battleId: id, challengerName: battle?.challenger_name || undefined, message: challengeMessage })
+              const sd = { title: 'SerendipEatery Challenge', text: challengeMessage, url: branchUrl }
               if (navigator.share) navigator.share(sd).catch(() => {})
-              else navigator.clipboard.writeText(`${challengeMessage}\n\n${battleUrl}`)
+              else navigator.clipboard.writeText(`${challengeMessage}\n\n${branchUrl}`)
             }} className="w-full bg-btc text-night font-bold py-3 rounded-xl">
               📱 AirDrop / Share
             </button>
-            <button onClick={() => {
-              const smsUrl = `sms:?body=${encodeURIComponent(challengeMessage + '\n\nTap to battle: ' + battleUrl + '\n\nSerendipEatery — Spin. Win. Connect. Eat.')}`
-              window.open(smsUrl, '_self')
+            <button onClick={async () => {
+              const branchUrl = await createBattleLink({ battleId: id, challengerName: battle?.challenger_name || undefined, message: challengeMessage })
+              const smsBody = `${challengeMessage}\n\nTap to battle: ${branchUrl}\n\nSerendipEatery — Spin. Win. Connect. Eat.`
+              const info = smsCharInfo(smsBody)
+              window.open(`sms:?body=${encodeURIComponent(smsBody)}`, '_self')
             }} className="w-full border border-surface/20 text-surface/60 font-bold py-3 rounded-xl">
               💬 Send as Text
             </button>
+            {(() => {
+              const smsBody = `${challengeMessage}\n\nTap to battle: ${battleUrl}\n\nSerendipEatery — Spin. Win. Connect. Eat.`
+              const info = smsCharInfo(smsBody)
+              return info.warning ? (
+                <p className="text-red-400/60 text-xs text-center">SMS will split into {info.segments} messages ({info.length} chars)</p>
+              ) : null
+            })()}
           </div>
 
           {/* Battle URL display */}
@@ -575,18 +586,18 @@ export default function BattlePage() {
           {(myScore === 2 || oppScore === 2) && !(myScore === 2 && oppScore === 2) && (
             <p className="text-btc font-bold text-sm mb-2">Match point!</p>
           )}
-          <div className="flex gap-6 justify-center">
+          <div className="flex gap-4 justify-center w-full max-w-sm mx-auto">
             {MOVES.map((m) => (
               <button key={m.key} onClick={() => submitMove(m.key)}
-                className="w-24 h-28 rounded-2xl flex flex-col items-center justify-center gap-1 transition hover:bg-white/10 active:scale-95"
+                className="flex-1 rounded-2xl flex flex-col items-center justify-center gap-2 transition hover:bg-white/10 active:scale-95"
                 style={{
                   background: '#1a1230',
                   border: currentRound >= 4 && myScore === 2 && oppScore === 2
                     ? '2px solid rgba(239,68,68,0.3)'
                     : '1px solid rgba(247,148,29,0.15)',
-                  minHeight: 80,
+                  minHeight: 88,
                 }}>
-                <span className="text-4xl">{m.icon}</span>
+                <span className="text-5xl">{m.icon}</span>
                 <span className="text-surface/50 text-xs font-bold">{m.label}</span>
               </button>
             ))}
@@ -682,11 +693,15 @@ export default function BattlePage() {
             <Link href="/" className="w-full text-center py-3 text-sm" style={{ color: '#a09080' }}>← Home</Link>
           </div>
 
-          {/* Sign up CTA */}
+          {/* App CTA */}
           <div className="rounded-2xl p-5 max-w-sm mx-auto text-center" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.1)' }}>
-            <p className="text-surface font-bold mb-1">{finalWinner === 'win' ? 'Sign up to keep your winnings' : 'Sign up for a rematch'}</p>
-            <p className="text-surface/40 text-sm mb-3">Battle real people for real deals</p>
-            <Link href="/sign-up" className="inline-block bg-btc text-night font-bold px-6 py-2.5 rounded-full text-sm hover:bg-btc-dark transition">Sign Up Free</Link>
+            <p className="text-surface font-bold mb-1">Play in the app for the full experience</p>
+            <p className="text-surface/40 text-sm mb-3">Battle real people, keep your winnings, climb the leaderboard</p>
+            <div className="flex gap-3 justify-center mb-3">
+              <Link href="/coming-soon-app" className="border border-surface/20 text-surface/50 text-xs px-4 py-2 rounded-full hover:text-surface/70 transition">iOS</Link>
+              <Link href="/coming-soon-app" className="border border-surface/20 text-surface/50 text-xs px-4 py-2 rounded-full hover:text-surface/70 transition">Android</Link>
+            </div>
+            <Link href="/sign-up" className="inline-block text-btc text-sm hover:underline">or sign up on web →</Link>
           </div>
         </div>
       )}
@@ -710,19 +725,18 @@ export default function BattlePage() {
               className="text-surface/40 text-xs hover:text-surface/60 transition mb-4 block">Restore Default</button>
             <div className="flex flex-col gap-3">
               <button onClick={async () => {
-                // Create a new battle then share
                 try {
                   const res = await fetch(`${API_URL}/battles/create`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ playerId: myId, playerName: getGuestName(), message: shareMsg }),
+                    body: JSON.stringify({ playerId: myId, challengerName: getGuestName(), message: shareMsg }),
                   })
                   const json = await res.json()
                   if (json.ok) {
-                    const newUrl = `${window.location.origin}/battle/${json.data.id}`
-                    const sd = { title: 'SerendipEatery Challenge', text: shareMsg, url: newUrl }
+                    const branchUrl = await createBattleLink({ battleId: json.data.id, challengerName: getGuestName(), message: shareMsg })
+                    const sd = { title: 'SerendipEatery Challenge', text: shareMsg, url: branchUrl }
                     if (navigator.share) navigator.share(sd).catch(() => {})
-                    else navigator.clipboard.writeText(`${shareMsg}\n\n${newUrl}`)
+                    else navigator.clipboard.writeText(`${shareMsg}\n\n${branchUrl}`)
                   }
                 } catch {}
                 setShowShareModal(false)
@@ -734,12 +748,12 @@ export default function BattlePage() {
                   const res = await fetch(`${API_URL}/battles/create`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ playerId: myId, playerName: getGuestName(), message: shareMsg }),
+                    body: JSON.stringify({ playerId: myId, challengerName: getGuestName(), message: shareMsg }),
                   })
                   const json = await res.json()
                   if (json.ok) {
-                    const newUrl = `${window.location.origin}/battle/${json.data.id}`
-                    const body = `${shareMsg}\n\nTap to battle: ${newUrl}\n\nSerendipEatery — Spin. Win. Connect. Eat.`
+                    const branchUrl = await createBattleLink({ battleId: json.data.id, challengerName: getGuestName(), message: shareMsg })
+                    const body = `${shareMsg}\n\nTap to battle: ${branchUrl}\n\nSerendipEatery — Spin. Win. Connect. Eat.`
                     window.open(`sms:?body=${encodeURIComponent(body)}`, '_self')
                   }
                 } catch {}
