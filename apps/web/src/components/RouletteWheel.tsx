@@ -110,14 +110,17 @@ export function RouletteWheel({
       if (rand <= 0) { winIdx = i; break }
     }
 
-    // Rotate wheel so winning segment lands at TOP
-    // Segment i center = i * DEG + DEG/2 degrees from start
-    // To bring to top (0°): rotate by -(that angle)
-    // Add 5 full spins
+    // Rotate wheel so winning segment lands at TOP (0°)
+    // Segment i center = i * DEG + DEG/2 degrees from segment 0
+    // To bring to top: final rotation mod 360 must equal -segCenter
+    // Account for current rotation so the delta is always correct
     const segCenter = winIdx * DEG + DEG / 2
-    const spinTo = -segCenter + 5 * 360
+    const targetMod = ((-segCenter % 360) + 360) % 360
+    const currentMod = ((wheelDeg % 360) + 360) % 360
+    let delta = 5 * 360 + targetMod - currentMod
+    if (delta < 5 * 360) delta += 360 // ensure at least 5 full spins
 
-    setWheelDeg(prev => prev + spinTo)
+    setWheelDeg(prev => prev + delta)
 
     // After CSS transition ends (5s): settle ball to top
     setTimeout(() => {
