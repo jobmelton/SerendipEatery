@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -90,7 +90,15 @@ function cpuMove(): Move {
 
 const DEFAULT_CHALLENGE_MSG = "Accept the challenge and meet your fate — or decline and live with regret forever. 👊✋✌️"
 
-export default function DemoBattlePage() {
+export default function DemoBattlePageWrapper() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-night flex items-center justify-center"><p className="text-surface/30 animate-pulse">Loading...</p></main>}>
+      <DemoBattlePage />
+    </Suspense>
+  )
+}
+
+function DemoBattlePage() {
   const searchParams = useSearchParams()
   const challengeMessage = searchParams.get('msg') || DEFAULT_CHALLENGE_MSG
 
