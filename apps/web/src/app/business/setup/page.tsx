@@ -10,9 +10,19 @@ const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
 
 const BIZ_TYPES = ['Restaurant', 'Food Truck', 'Pop-up', 'Ghost Kitchen']
 const CUISINES = ['Mexican', 'Italian', 'American', 'Asian', 'Coffee', 'Pizza', 'BBQ', 'Sushi', 'Thai', 'Other']
-const DURATIONS = ['30 min', '1 hour', '2 hours', '4 hours', 'All day']
-const MAX_SPINS = ['50', '100', '200', '500', 'Unlimited']
 const PRIZE_TYPES = ['Free item', 'Percentage off', 'Fixed discount', 'Free upgrade']
+const REPEAT_OPTIONS = ['One time', 'Daily', 'Weekdays', 'Weekends', 'Weekly']
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const COST_PER_VISIT = 1.50
+
+// Generate 30-min time slots
+const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
+  const h = Math.floor(i / 2)
+  const m = i % 2 === 0 ? '00' : '30'
+  const ampm = h < 12 ? 'AM' : 'PM'
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return { value: `${String(h).padStart(2, '0')}:${m}`, label: `${h12}:${m} ${ampm}` }
+})
 
 interface Prize {
   name: string
@@ -31,10 +41,15 @@ export default function BusinessSetupPage() {
   const [bizType, setBizType] = useState(BIZ_TYPES[0])
   const [cuisine, setCuisine] = useState(CUISINES[0])
 
-  // Step 2
+  // Step 2: Schedule & ROI
   const [saleName, setSaleName] = useState('')
-  const [duration, setDuration] = useState(DURATIONS[1])
-  const [maxSpins, setMaxSpins] = useState(MAX_SPINS[1])
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
+  const [startTime, setStartTime] = useState('11:30')
+  const [endTime, setEndTime] = useState('14:00')
+  const [repeatMode, setRepeatMode] = useState('One time')
+  const [weeklyDays, setWeeklyDays] = useState<string[]>([])
+  const [expectedCustomers, setExpectedCustomers] = useState('50')
+  const [avgSpend, setAvgSpend] = useState('15')
 
   // Step 3
   const [prizes, setPrizes] = useState<Prize[]>([
@@ -82,7 +97,25 @@ export default function BusinessSetupPage() {
   }
 
   const validPrizes = prizes.filter((p) => p.name && p.value)
-  const estimatedCost = maxSpins === 'Unlimited' ? '—' : `$${(Number(maxSpins) * 1.5).toFixed(0)} max`
+
+  // Schedule calculations
+  const startIdx = TIME_SLOTS.findIndex((t) => t.value === startTime)
+  const endIdx = TIME_SLOTS.findIndex((t) => t.value === endTime)
+  const durationMins = endIdx > startIdx ? (endIdx - startIdx) * 30 : 0
+  const durationLabel = durationMins > 0
+    ? `${Math.floor(durationMins / 60)}h${durationMins % 60 > 0 ? ` ${durationMins % 60}m` : ''}`
+    : ''
+  const startLabel = TIME_SLOTS.find((t) => t.value === startTime)?.label ?? ''
+  const endLabel = TIME_SLOTS.find((t) => t.value === endTime)?.label ?? ''
+  const dateObj = new Date(startDate + 'T12:00:00')
+  const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' })
+
+  // ROI calculations
+  const custNum = Number(expectedCustomers) || 0
+  const maxCost = custNum * COST_PER_VISIT
+  const avgSpendNum = Number(avgSpend) || 0
+  const revenuePotential = custNum * avgSpendNum
+  const roi = maxCost > 0 ? revenuePotential / maxCost : 0
 
   const handleAction = () => {
     if (!isSignedIn) {
@@ -105,10 +138,14 @@ export default function BusinessSetupPage() {
           <Link href="/business" className="text-btc text-sm hover:underline">&larr; Back</Link>
           <span className="text-surface/30 text-sm">Step {step} of 4</span>
         </div>
-
         <h1 className="text-2xl font-bold text-surface mb-6">
-          {step === 1 ? 'Your Business' : step === 2 ? 'Flash Sale Details' : step === 3 ? 'Add Prizes' : 'Preview & Launch'}
+          {step === 1 ? 'Your Business' : step === 2 ? 'Schedule Your Sale' : step === 3 ? 'Add Prizes' : 'Preview & Launch'}
         </h1>
+        {/* hide the old h1 */}
+        <div className="hidden">
+        </div>
+
+        </div>
 
         {/* ─── Step 1: Business Info ─── */}
         {step === 1 && (
@@ -139,31 +176,126 @@ export default function BusinessSetupPage() {
           </div>
         )}
 
-        {/* ─── Step 2: Sale Details ─── */}
+        {/* ─── Step 2: Schedule & ROI ─── */}
         {step === 2 && (
-          <div className="space-y-4">
+          <div className="space-y-5">
+            {/* Sale Name */}
             <div>
               <label className="text-surface/50 text-sm block mb-1">Sale name</label>
               <input value={saleName} onChange={(e) => setSaleName(e.target.value)} placeholder="Friday Lunch Rush"
                 className="w-full bg-[#1a1230] text-surface border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-btc focus:outline-none" />
             </div>
+
+            {/* Schedule */}
             <div>
-              <label className="text-surface/50 text-sm block mb-1">Duration</label>
-              <select value={duration} onChange={(e) => setDuration(e.target.value)}
-                className="w-full bg-[#1a1230] text-surface border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-btc focus:outline-none">
-                {DURATIONS.map((d) => <option key={d}>{d}</option>)}
-              </select>
+              <label className="text-surface/50 text-sm block mb-1">Start date</label>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                className="w-full bg-[#1a1230] text-surface border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-btc focus:outline-none" />
             </div>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="text-surface/50 text-sm block mb-1">Start time</label>
+                <select value={startTime} onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full bg-[#1a1230] text-surface border border-white/10 rounded-xl px-4 py-3 text-sm">
+                  {TIME_SLOTS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="text-surface/50 text-sm block mb-1">End time</label>
+                <select value={endTime} onChange={(e) => setEndTime(e.target.value)}
+                  className="w-full bg-[#1a1230] text-surface border border-white/10 rounded-xl px-4 py-3 text-sm">
+                  {TIME_SLOTS.filter((t) => t.value > startTime).map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+            </div>
+            {durationMins > 0 && (
+              <p className="text-surface/30 text-xs">This sale runs for {durationLabel}</p>
+            )}
+
+            {/* Repeat */}
             <div>
-              <label className="text-surface/50 text-sm block mb-1">Max spins</label>
-              <select value={maxSpins} onChange={(e) => setMaxSpins(e.target.value)}
-                className="w-full bg-[#1a1230] text-surface border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-btc focus:outline-none">
-                {MAX_SPINS.map((s) => <option key={s}>{s}</option>)}
-              </select>
+              <label className="text-surface/50 text-sm block mb-2">Repeat</label>
+              <div className="flex flex-wrap gap-2">
+                {REPEAT_OPTIONS.map((r) => (
+                  <button key={r} onClick={() => { setRepeatMode(r); if (r !== 'Weekly') setWeeklyDays([]) }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${repeatMode === r ? 'bg-btc text-night' : 'bg-white/5 text-surface/40 border border-white/10'}`}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+              {repeatMode === 'Weekly' && (
+                <div className="flex gap-2 mt-2">
+                  {DAYS.map((d) => (
+                    <button key={d} onClick={() => setWeeklyDays((prev) => prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d])}
+                      className={`w-10 h-10 rounded-lg text-xs font-bold transition ${weeklyDays.includes(d) ? 'bg-btc text-night' : 'bg-white/5 text-surface/40 border border-white/10'}`}>
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {/* Preview */}
+            {durationMins > 0 && (
+              <div className="bg-[#1a1230] rounded-xl p-3 text-sm text-surface/60">
+                Your sale will be live <span className="text-surface font-bold">{dayName} {startLabel} – {endLabel}</span>
+                {repeatMode !== 'One time' && <span className="text-btc"> ({repeatMode})</span>}
+              </div>
+            )}
+
+            {/* Expected Customers */}
+            <div>
+              <label className="text-surface/50 text-sm block mb-1">Expected customers</label>
+              <input type="number" value={expectedCustomers} onChange={(e) => setExpectedCustomers(e.target.value)} placeholder="50" min="1"
+                className="w-full bg-[#1a1230] text-surface border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-btc focus:outline-none" />
+              <p className="text-surface/20 text-xs mt-1">
+                We charge ${COST_PER_VISIT.toFixed(2)} per verified visit. {custNum} customers = max ${maxCost.toFixed(2)} campaign cost.
+                You only pay when someone spins AND walks into your location.
+              </p>
+              <p className="text-surface/30 text-xs mt-0.5">
+                Cost per visit: <span className="text-btc font-bold">${COST_PER_VISIT.toFixed(2)}</span> — Growth plan
+              </p>
+            </div>
+
+            {/* ROI Calculator */}
+            <div className="bg-[#1a1230] rounded-2xl p-5" style={{ border: '1px solid rgba(247,148,29,0.1)' }}>
+              <h4 className="text-surface font-bold mb-3 flex items-center gap-2">📊 Your ROI Estimate</h4>
+              <div className="space-y-2 text-sm mb-4">
+                <div className="flex justify-between"><span className="text-surface/40">Expected customers</span><span className="text-surface">{custNum}</span></div>
+                <div className="flex justify-between"><span className="text-surface/40">Cost per visit</span><span className="text-surface">${COST_PER_VISIT.toFixed(2)}</span></div>
+                <div className="flex justify-between border-t border-white/5 pt-2"><span className="text-surface/40">Max campaign cost</span><span className="text-btc font-bold">${maxCost.toFixed(2)}</span></div>
+              </div>
+
+              <div>
+                <label className="text-surface/40 text-xs block mb-1">Average spend per customer</label>
+                <div className="flex items-center gap-2">
+                  <span className="text-surface/30">$</span>
+                  <input type="number" value={avgSpend} onChange={(e) => setAvgSpend(e.target.value)} placeholder="15" min="1"
+                    className="w-24 bg-night text-surface border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-btc focus:outline-none" />
+                  <span className="text-surface/20 text-xs">(your typical check)</span>
+                </div>
+              </div>
+
+              {avgSpendNum > 0 && custNum > 0 && (
+                <div className="mt-4 space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-surface/40">Revenue potential</span><span className="text-surface">${revenuePotential.toLocaleString()}</span></div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-surface/40">ROI</span>
+                    <span className="text-btc font-black text-2xl">{roi.toFixed(0)}x</span>
+                  </div>
+                  {roi > 5 && <p className="text-teal text-xs font-bold">🟢 Great ROI potential!</p>}
+                  {roi >= 2 && roi <= 5 && <p className="text-surface/40 text-xs">Solid return on investment</p>}
+                  {roi > 0 && roi < 2 && <p className="text-yellow-400 text-xs">⚠️ Low ROI — consider increasing average spend or reducing prizes</p>}
+                </div>
+              )}
+
+              <p className="text-surface/20 text-xs mt-3">You only pay for confirmed visits — customers who physically walked in</p>
+            </div>
+
             <div className="flex gap-3 mt-4">
               <button onClick={() => setStep(1)} className="flex-1 border border-surface/20 text-surface/60 py-3 rounded-xl font-bold">Back</button>
-              <button onClick={() => setStep(3)} className="flex-1 bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition">Next</button>
+              <button onClick={() => setStep(3)} disabled={!saleName || durationMins <= 0}
+                className="flex-1 bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition disabled:opacity-40">Next</button>
             </div>
           </div>
         )}
@@ -283,7 +415,7 @@ export default function BusinessSetupPage() {
                 {(bizName || '?')[0].toUpperCase()}
               </div>
               <h3 className="text-xl font-bold text-surface">{bizName || 'Your Business'}</h3>
-              <p className="text-surface/40 text-sm">{saleName || 'Flash Sale'} • {duration}</p>
+              <p className="text-surface/40 text-sm">{saleName || 'Flash Sale'} • {durationLabel}</p>
               <p className="text-surface/30 text-xs mt-1">{cuisine} {bizType}</p>
 
               {/* Mini wheel preview */}
@@ -313,9 +445,10 @@ export default function BusinessSetupPage() {
               </div>
 
               <div className="text-surface/40 text-sm">
-                <span className="text-btc font-bold">{maxSpins}</span> spins • Estimated cost: <span className="text-btc font-bold">{estimatedCost}</span>
+                <span className="text-btc font-bold">{custNum}</span> customers • Max cost: <span className="text-btc font-bold">${maxCost.toFixed(2)}</span>
+                {roi > 0 && <> • ROI: <span className="text-btc font-bold">{roi.toFixed(0)}x</span></>}
               </div>
-              <p className="text-surface/30 text-xs mt-1">At $1.50/visit with {maxSpins} spins</p>
+              <p className="text-surface/30 text-xs mt-1">{dayName} {startLabel} – {endLabel}{repeatMode !== 'One time' ? ` (${repeatMode})` : ''}</p>
             </div>
 
             {/* Verification */}
