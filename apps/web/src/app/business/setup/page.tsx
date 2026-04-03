@@ -1,12 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { useUser, SignInButton } from '@clerk/nextjs'
-import { loadStripe } from '@stripe/stripe-js'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
 
 const BIZ_TYPES = ['Restaurant', 'Food Truck', 'Pop-up', 'Ghost Kitchen']
 const CUISINES = ['Mexican', 'Italian', 'American', 'Asian', 'Coffee', 'Pizza', 'BBQ', 'Sushi', 'Thai', 'Other']
@@ -61,7 +59,10 @@ export default function BusinessSetupPage() {
   const [verifyStatus, setVerifyStatus] = useState<'unverified' | 'pending' | 'verified' | 'rejected'>('unverified')
   const [verifyLoading, setVerifyLoading] = useState(false)
   const [verifyError, setVerifyError] = useState<string | null>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [idDoc, setIdDoc] = useState<File | null>(null)
+  const [selfie, setSelfie] = useState<File | null>(null)
+  const [agreeTerms, setAgreeTerms] = useState(false)
+  const [agreeLiability, setAgreeLiability] = useState(false)
 
   // Probability helpers
   const assignedTotal = prizes.reduce((s, p) => s + p.probability, 0)
@@ -446,91 +447,87 @@ export default function BusinessSetupPage() {
               <p className="text-surface/30 text-xs mt-1">{dayName} {startLabel} – {endLabel}{repeatMode !== 'One time' ? ` (${repeatMode})` : ''}</p>
             </div>
 
-            {/* Verification */}
-            {isSignedIn && (
-              <div className="bg-[#1a1230] rounded-2xl p-5" style={{ border: '1px solid rgba(247,148,29,0.1)' }}>
-                <h4 className="text-surface font-bold mb-1">Verify Your Identity</h4>
-                <p className="text-surface/40 text-sm mb-3">
-                  We verify business owners to protect our community. Takes 2 minutes.
-                </p>
-                <div className="flex items-center gap-2 text-surface/30 text-xs mb-4">
-                  <span>📋 Government ID</span>
-                  <span>+</span>
-                  <span>🤳 Selfie</span>
-                  <span className="ml-auto text-teal">Free — covered by SerendipEatery</span>
+            {/* Self-Attestation Verification */}
+            {isSignedIn && verifyStatus !== 'verified' && (
+              <div className="bg-[#1a1230] rounded-2xl p-5 space-y-4" style={{ border: '1px solid rgba(247,148,29,0.1)' }}>
+                <h4 className="text-surface font-bold">Verify Your Identity</h4>
+                <p className="text-surface/40 text-sm">We verify business owners to protect our community. Takes 2 minutes.</p>
+
+                {/* Photo ID */}
+                <div>
+                  <label className="text-surface/50 text-xs block mb-1">📋 Government-issued ID (Driver's License, Passport, or State ID)</label>
+                  <input type="file" accept="image/*,.pdf" onChange={(e) => setIdDoc(e.target.files?.[0] ?? null)}
+                    className="w-full bg-night text-surface/60 border border-white/10 rounded-lg px-3 py-2 text-xs file:mr-3 file:bg-btc file:text-night file:border-0 file:rounded file:px-3 file:py-1 file:text-xs file:font-bold" />
+                  {idDoc && <p className="text-teal text-xs mt-1">✓ {idDoc.name}</p>}
                 </div>
 
-                {verifyStatus === 'unverified' && (
-                  <button
-                    onClick={async () => {
-                      setVerifyLoading(true)
-                      setVerifyError(null)
-                      try {
-                        const res = await fetch(`${API_URL}/businesses/verify/start`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ businessId: 'pending' }),
-                        })
-                        const data = await res.json()
-                        if (data.ok && data.data.clientSecret) {
-                          const stripeJs = await loadStripe(STRIPE_PK)
-                          if (stripeJs) {
-                            await (stripeJs as any).verifyIdentity(data.data.clientSecret)
-                          }
-                          setVerifyStatus('pending')
-                          // Poll for status
-                          pollRef.current = setInterval(async () => {
-                            try {
-                              const s = await fetch(`${API_URL}/businesses/verify/status?businessId=pending`)
-                              const sd = await s.json()
-                              if (sd.ok && sd.data.verification_status === 'verified') {
-                                setVerifyStatus('verified')
-                                if (pollRef.current) clearInterval(pollRef.current)
-                              } else if (sd.ok && sd.data.verification_status === 'rejected') {
-                                setVerifyStatus('rejected')
-                                setVerifyError(sd.data.rejection_reason)
-                                if (pollRef.current) clearInterval(pollRef.current)
-                              }
-                            } catch {}
-                          }, 3000)
-                        }
-                      } catch {
-                        setVerifyError('Failed to start verification')
-                      }
-                      setVerifyLoading(false)
-                    }}
-                    disabled={verifyLoading}
-                    className="w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition disabled:opacity-50"
-                  >
-                    {verifyLoading ? 'Starting...' : 'Start Verification'}
-                  </button>
-                )}
+                {/* Selfie */}
+                <div>
+                  <label className="text-surface/50 text-xs block mb-1">🤳 Selfie holding your ID (both face and ID visible)</label>
+                  <input type="file" accept="image/*" onChange={(e) => setSelfie(e.target.files?.[0] ?? null)}
+                    className="w-full bg-night text-surface/60 border border-white/10 rounded-lg px-3 py-2 text-xs file:mr-3 file:bg-btc file:text-night file:border-0 file:rounded file:px-3 file:py-1 file:text-xs file:font-bold" />
+                  {selfie && <p className="text-teal text-xs mt-1">✓ {selfie.name}</p>}
+                </div>
 
-                {verifyStatus === 'pending' && (
-                  <div className="flex items-center gap-2 text-btc">
-                    <span className="animate-spin">⏳</span>
-                    <span className="font-bold text-sm">Verification in progress...</span>
-                  </div>
-                )}
+                {/* Legal Agreement */}
+                <div className="bg-night rounded-xl p-3 max-h-40 overflow-y-auto text-surface/30 text-[10px] leading-relaxed">
+                  <p className="font-bold text-surface/50 mb-2">SERENDIPEATERY BUSINESS VERIFICATION AGREEMENT</p>
+                  <p className="mb-2">By checking the box below and submitting your verification, you confirm under penalty of civil liability that:</p>
+                  <p className="mb-1">1. IDENTITY: You are the person depicted in the uploaded selfie and government ID.</p>
+                  <p className="mb-1">2. BUSINESS AUTHORITY: You are the owner, operator, or authorized representative of the business you are registering.</p>
+                  <p className="mb-1">3. BUSINESS LEGITIMACY: The business you are registering is a real, operating food service business.</p>
+                  <p className="mb-1">4. NO GAMING: You will not use this account to fraudulently earn points, manipulate referrals, or game any aspect of the platform.</p>
+                  <p className="mb-1">5. REPUTATIONAL HARM: Fraudulent use may result in liability for damages up to $50,000 per fraudulent act.</p>
+                  <p className="mb-1">6. ACCURATE INFORMATION: All information provided is true and accurate.</p>
+                  <p>7. ONGOING COMPLIANCE: You agree to maintain these standards. SerendipEatery reserves the right to terminate any account found in violation.</p>
+                </div>
 
-                {verifyStatus === 'verified' && (
-                  <div className="flex items-center gap-2 text-teal">
-                    <span>✅</span>
-                    <span className="font-bold text-sm">Verified — you're good to go!</span>
-                  </div>
-                )}
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} className="mt-0.5 accent-btc" />
+                  <span className="text-surface/60 text-xs">I have read, understood, and agree to the Business Verification Agreement. All information I have provided is truthful.</span>
+                </label>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input type="checkbox" checked={agreeLiability} onChange={(e) => setAgreeLiability(e.target.checked)} className="mt-0.5 accent-btc" />
+                  <span className="text-surface/60 text-xs">I understand that misrepresentation may result in civil liability and account termination.</span>
+                </label>
 
-                {verifyStatus === 'rejected' && (
-                  <div>
-                    <div className="flex items-center gap-2 text-red-400 mb-2">
-                      <span>❌</span>
-                      <span className="font-bold text-sm">Verification failed</span>
-                    </div>
-                    {verifyError && <p className="text-surface/40 text-xs">{verifyError}</p>}
-                    <button onClick={() => setVerifyStatus('unverified')}
-                      className="mt-2 text-btc text-xs hover:underline">Try again</button>
-                  </div>
-                )}
+                <button
+                  onClick={async () => {
+                    setVerifyLoading(true)
+                    setVerifyError(null)
+                    try {
+                      // In production: upload files to Supabase Storage first
+                      // For now: submit with placeholder URLs
+                      const res = await fetch(`${API_URL}/businesses/verify/submit`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          businessId: 'pending',
+                          idDocumentUrl: idDoc ? `uploaded/${idDoc.name}` : '',
+                          selfieUrl: selfie ? `uploaded/${selfie.name}` : '',
+                        }),
+                      })
+                      const data = await res.json()
+                      if (data.ok) setVerifyStatus('verified')
+                      else setVerifyError(data.error ?? 'Verification failed')
+                    } catch {
+                      setVerifyError('Failed to submit verification')
+                    }
+                    setVerifyLoading(false)
+                  }}
+                  disabled={!idDoc || !selfie || !agreeTerms || !agreeLiability || verifyLoading}
+                  className="w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  {verifyLoading ? 'Submitting...' : 'Submit Verification'}
+                </button>
+                {verifyError && <p className="text-red-400 text-xs">{verifyError}</p>}
+              </div>
+            )}
+
+            {verifyStatus === 'verified' && (
+              <div className="flex items-center gap-2 text-teal bg-teal/10 rounded-xl p-3">
+                <span>✅</span>
+                <span className="font-bold text-sm">Verified — you're good to go!</span>
               </div>
             )}
 

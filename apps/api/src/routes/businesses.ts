@@ -1,14 +1,11 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import Stripe from 'stripe'
 import { supabase } from '../lib/supabase.js'
 import { validate } from '../lib/validate.js'
 import { AppError } from '../lib/errors.js'
 import { AuthenticatedRequest } from '../middleware/auth.js'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
-  apiVersion: '2025-02-24.acacia' as any,
-})
+// Stripe Identity removed — using self-attestation verification
 
 const createBusinessSchema = z.object({
   name: z.string().min(1).max(200),
@@ -146,12 +143,19 @@ export async function businessRoutes(app: FastifyInstance) {
     return { ok: true, data: data ?? [] }
   })
 
-  // ─── Stripe Identity: start verification ──────────────────────────
-  app.post('/businesses/verify/start', async (request) => {
+  // ─── Self-attestation verification: submit ─────────────────────────
+  app.post('/businesses/verify/submit', async (request) => {
     const { userId } = (request as AuthenticatedRequest).auth
-    const body = request.body as { businessId: string }
+    const body = request.body as {
+      businessId: string
+      idDocumentUrl: string
+      selfieUrl: string
+      ipAddress?: string
+    }
 
-    if (!body.businessId) throw new AppError(400, 'MISSING_ID', 'businessId required')
+    if (!body.businessId || !body.idDocumentUrl || !body.selfieUrl) {
+      throw new AppError(400, 'MISSING_FIELDS', 'businessId, idDocumentUrl, and selfieUrl required')
+    }
 
     const { data: biz } = await supabase
       .from('businesses')
@@ -165,28 +169,27 @@ export async function businessRoutes(app: FastifyInstance) {
       throw new AppError(400, 'ALREADY_VERIFIED', 'Business is already verified')
     }
 
-    const session = await stripe.identity.verificationSessions.create({
-      type: 'document',
-      metadata: { business_id: body.businessId },
-      options: {
-        document: {
-          allowed_types: ['driving_license', 'passport', 'id_card'],
-          require_id_number: true,
-          require_live_capture: true,
-          require_matching_selfie: true,
-        },
-      },
-    })
-
+    // TODO: For now auto-approve. Add manual admin review via /admin portal later.
     await supabase.from('businesses').update({
-      stripe_identity_session_id: session.id,
-      verification_status: 'pending',
+      id_document_url: body.idDocumentUrl,
+      selfie_url: body.selfieUrl,
+      agreement_accepted_at: new Date().toISOString(),
+      agreement_ip: body.ipAddress ?? (request.headers['x-forwarded-for'] as string)?.split(',')[0] ?? 'unknown',
+      verification_submitted_at: new Date().toISOString(),
+      verification_status: 'verified', // Auto-approve for now
+      verified_at: new Date().toISOString(),
     }).eq('id', body.businessId)
 
-    return { ok: true, data: { clientSecret: session.client_secret } }
+    return {
+      ok: true,
+      data: {
+        status: 'verified',
+        message: 'Verification approved! You can now go live.',
+      },
+    }
   })
 
-  // ─── Stripe Identity: get verification status ─────────────────────
+  // ─── Get verification status ──────────────────────────────────────
   app.get('/businesses/verify/status', async (request) => {
     const { userId } = (request as AuthenticatedRequest).auth
     const { businessId } = request.query as { businessId: string }
@@ -204,7 +207,4 @@ export async function businessRoutes(app: FastifyInstance) {
 
     return { ok: true, data: biz }
   })
-
-  // Stripe Identity webhook is registered as a public route at /webhooks/stripe-identity
-  // See apps/api/src/routes/webhooks/stripe-identity.ts
 }
