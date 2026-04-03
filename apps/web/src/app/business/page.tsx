@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { cookies } from 'next/headers'
 
 export const metadata: Metadata = {
   title: 'SerendipEatery for Business',
@@ -13,8 +14,12 @@ const steps = [
 ]
 
 export default function BusinessPage() {
+  // Shadow mode banner data would come from the API in a real implementation
+  // For now, we render the structure that the client can hydrate
   return (
     <main className="min-h-screen bg-night flex flex-col items-center justify-center px-6">
+      {/* Shadow Mode Banner — shown when business.shadow_mode = true */}
+      {/* This is rendered client-side via the BusinessShadowBanner component below */}
       {/* Logo */}
       <div className="flex items-baseline gap-0.5 mb-16">
         <span className="font-display text-3xl md:text-4xl font-black text-btc">S</span>

@@ -8,14 +8,14 @@ const planLabels: Record<string, string> = {
   trial: 'Free Trial',
   starter: 'Starter ($29/mo)',
   growth: 'Growth ($79/mo)',
-  pro: 'Pro (5-year)',
+  pro: 'Pro ($99/mo)',
 }
 
 const planDescriptions: Record<string, string> = {
   trial: 'No time limit. Evidence-based system — upgrade when you see results.',
-  starter: '$1.50 per confirmed visit. $150 monthly cap.',
-  growth: '$1.00/visit + $0.25/influenced. $300 monthly cap.',
-  pro: 'Unlimited visits. Rate locked for 5 years.',
+  starter: 'Month to month · Cancel anytime · $1.50 per confirmed visit · $150 cap.',
+  growth: '1-year commitment · $1.00/visit + $0.25/influenced · $300 cap.',
+  pro: '5-year commitment · Unlimited visits · Rate locked forever.',
 }
 
 interface Props {
@@ -33,6 +33,23 @@ export function BillingClient({ business, monthlyUsage, userEmail }: Props) {
 
   const currentPlan = business?.plan ?? 'trial'
   const isOnTrial = currentPlan === 'trial'
+  const commitmentMonths = business?.commitment_months ?? 0
+  const commitmentStart = business?.commitment_start_date ? new Date(business.commitment_start_date) : null
+
+  // Calculate commitment progress
+  let monthsElapsed = 0
+  let monthsRemaining = 0
+  let etf = 0
+  let commitmentEndDate: Date | null = null
+
+  if (commitmentStart && commitmentMonths > 0) {
+    monthsElapsed = Math.max(0, Math.floor((Date.now() - commitmentStart.getTime()) / (30.44 * 24 * 60 * 60 * 1000)))
+    monthsRemaining = Math.max(0, commitmentMonths - monthsElapsed)
+    const rate = currentPlan === 'pro' ? 99 : currentPlan === 'growth' ? 79 : 0
+    etf = monthsRemaining * rate
+    commitmentEndDate = new Date(commitmentStart)
+    commitmentEndDate.setMonth(commitmentEndDate.getMonth() + commitmentMonths)
+  }
 
   const handleCheckout = async (plan: string) => {
     if (!business) return
@@ -106,11 +123,72 @@ export function BillingClient({ business, monthlyUsage, userEmail }: Props) {
           </p>
           {business?.subscription_ends_at && (
             <p className="text-surface/40 text-sm mt-2">
-              {currentPlan === 'pro' ? 'Locked until' : 'Renews'}{' '}
-              {new Date(business.subscription_ends_at).toLocaleDateString()}
+              Next bill: {new Date(business.subscription_ends_at).toLocaleDateString()}
             </p>
           )}
         </section>
+
+        {/* Commitment Status (Growth/Pro) */}
+        {commitmentMonths > 0 && commitmentStart && (
+          <section className="bg-[#1a1230] rounded-2xl p-6 mb-6">
+            <h2 className="text-lg font-bold text-surface mb-3">Commitment Status</h2>
+
+            {/* Progress bar */}
+            <div className="mb-4">
+              <div className="flex justify-between text-xs text-surface/40 mb-1">
+                <span>Month {monthsElapsed} of {commitmentMonths}</span>
+                <span>{monthsRemaining} months remaining</span>
+              </div>
+              <div className="h-3 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-full rounded-full bg-btc transition-all" style={{ width: `${Math.min((monthsElapsed / commitmentMonths) * 100, 100)}%` }} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-surface/40 text-xs">ETF if cancelled today</p>
+                <p className="text-red-400 font-bold text-lg">${etf.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-surface/40 text-xs">
+                  {currentPlan === 'pro' ? 'Rate locked through' : 'Converts to month-to-month'}
+                </p>
+                <p className="text-surface font-bold">
+                  {commitmentEndDate?.toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+
+            {currentPlan === 'pro' && (
+              <p className="text-btc/60 text-xs mt-3">
+                Rate locked at $99/mo through {commitmentEndDate?.toLocaleDateString()} — no price increases ever.
+              </p>
+            )}
+
+            {currentPlan === 'growth' && monthsRemaining > 0 && (
+              <p className="text-btc/60 text-xs mt-3">
+                After commitment: converts to month-to-month at $79/mo. Cancel anytime with 30 days notice.
+              </p>
+            )}
+
+            {currentPlan === 'starter' && (
+              <p className="text-surface/40 text-xs mt-3">
+                Month to month — no commitment. Cancel anytime.
+              </p>
+            )}
+          </section>
+        )}
+
+        {/* Starter: no commitment note */}
+        {currentPlan === 'starter' && commitmentMonths === 0 && (
+          <section className="bg-[#1a1230] rounded-2xl p-6 mb-6">
+            <h2 className="text-lg font-bold text-surface mb-2">Subscription</h2>
+            <p className="text-surface/50 text-sm">Month to month — no commitment. Cancel anytime, no fee.</p>
+            {business?.subscription_ends_at && (
+              <p className="text-surface/40 text-sm mt-2">Next bill: {new Date(business.subscription_ends_at).toLocaleDateString()}</p>
+            )}
+          </section>
+        )}
 
         {/* Usage This Month */}
         <section className="bg-[#1a1230] rounded-2xl p-6 mb-6">
@@ -145,7 +223,7 @@ export function BillingClient({ business, monthlyUsage, userEmail }: Props) {
                 disabled={loading === 'starter'}
                 className="w-full bg-white/10 hover:bg-white/20 text-surface font-bold py-3 px-4 rounded-xl transition disabled:opacity-50"
               >
-                {loading === 'starter' ? 'Loading...' : 'Starter — $29/mo'}
+                {loading === 'starter' ? 'Loading...' : 'Starter — $29/mo (month to month)'}
               </button>
             )}
             {currentPlan !== 'growth' && (
@@ -154,7 +232,7 @@ export function BillingClient({ business, monthlyUsage, userEmail }: Props) {
                 disabled={loading === 'growth'}
                 className="w-full bg-btc hover:bg-btc-dark text-night font-bold py-3 px-4 rounded-xl transition disabled:opacity-50"
               >
-                {loading === 'growth' ? 'Loading...' : 'Growth — $79/mo'}
+                {loading === 'growth' ? 'Loading...' : 'Growth — $79/mo (1-year commitment)'}
               </button>
             )}
             {currentPlan !== 'pro' && (
@@ -163,7 +241,7 @@ export function BillingClient({ business, monthlyUsage, userEmail }: Props) {
                 disabled={loading === 'pro'}
                 className="w-full bg-purple hover:bg-purple/80 text-white font-bold py-3 px-4 rounded-xl transition disabled:opacity-50"
               >
-                {loading === 'pro' ? 'Loading...' : 'Pro — $5,940 (5-year)'}
+                {loading === 'pro' ? 'Loading...' : 'Pro — $99/mo (5-year commitment)'}
               </button>
             )}
           </div>
@@ -174,7 +252,7 @@ export function BillingClient({ business, monthlyUsage, userEmail }: Props) {
           <section className="bg-[#1a1230] rounded-2xl p-6">
             <h2 className="text-lg font-bold text-surface mb-2">Invoice History</h2>
             <p className="text-surface/50 text-sm mb-4">
-              View invoices, update payment method, or cancel your subscription.
+              View invoices, update payment method, or manage your subscription.
             </p>
             <button
               onClick={handlePortal}

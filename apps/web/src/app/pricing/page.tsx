@@ -6,74 +6,90 @@ const plans = [
     price: 'Free',
     period: '',
     description: 'No time limit. No credit card needed.',
+    commitment: '',
     features: [
-      'Up to 10 flash sales',
-      '5 confirmed visit credits',
-      'Basic analytics',
-      'Evidence-based trial system',
-      'Upgrade when you see results',
+      { text: 'Run unlimited flash sales', included: true },
+      { text: '5 confirmed visits per sale to prove it works', included: true },
+      { text: 'See who spun and what they won', included: true },
+      { text: 'Full funnel metrics up to visit limit', included: true },
+      { text: 'Missed opportunity data shown (upgrade to capture them)', included: false },
+      { text: 'Unlimited visits locked (upgrade to remove limit)', included: false },
+      { text: 'Full geofence analytics locked', included: false },
+      { text: 'Time-of-day optimization locked', included: false },
     ],
+    visitLimit: '5 visits per sale',
     cta: 'Start Free Trial',
     href: '/sign-up',
     highlight: false,
     badge: null,
+    etfNote: null,
   },
   {
     name: 'Starter',
     price: '$29',
     period: '/mo',
-    description: '$1.50 per confirmed visit. $150 monthly cap.',
+    description: 'Month to month. Cancel anytime.',
+    commitment: 'Month to month · Cancel anytime',
     features: [
-      'Unlimited flash sales',
-      'Real-time analytics',
-      'Customer tier insights',
-      '$1.50 per confirmed visit',
-      '$150/mo billing cap',
-      'Priority support',
+      { text: 'Unlimited flash sales', included: true },
+      { text: 'Up to 100 confirmed visits/month', included: true },
+      { text: '$1.50 per confirmed visit · $150 cap', included: true },
+      { text: 'Real-time analytics', included: true },
+      { text: 'Customer tier insights', included: true },
+      { text: 'Priority support', included: true },
     ],
+    visitLimit: 'Up to 100 confirmed visits/month · $150 max',
     cta: 'Get Starter',
     href: '/billing?plan=starter',
     highlight: false,
     badge: null,
+    etfNote: null,
   },
   {
     name: 'Growth',
     price: '$79',
     period: '/mo',
-    description: '$1.00/visit + $0.25/influenced. $300 cap.',
+    description: '1-year commitment. $1.00/visit.',
+    commitment: '1-year commitment',
     features: [
-      'Everything in Starter',
-      '$1.00 per confirmed visit',
-      '$0.25 per influenced visit',
-      '$300/mo billing cap',
-      'Advanced analytics & reports',
-      'Multi-location support',
-      'Custom prize templates',
+      { text: 'Everything in Starter', included: true },
+      { text: 'Up to 300 confirmed visits/month', included: true },
+      { text: '$1.00 per confirmed visit', included: true },
+      { text: '$0.25 per influenced visit', included: true },
+      { text: '$300/mo billing cap', included: true },
+      { text: 'Advanced analytics & reports', included: true },
+      { text: 'Multi-location support', included: true },
     ],
+    visitLimit: 'Up to 300 confirmed visits/month · $300 max',
     cta: 'Get Growth',
     href: '/billing?plan=growth',
     highlight: true,
     badge: 'Most Popular',
+    etfNote: 'Early termination: remaining months × $79',
   },
   {
     name: 'Pro',
     price: '$99',
-    period: '/mo equivalent',
-    description: '5-year upfront: $5,940. Rate locked forever.',
+    period: '/mo',
+    description: '5-year commitment · Rate locked forever',
+    commitment: '5-year commitment',
     features: [
-      'Everything in Growth',
-      'Unlimited confirmed visits',
-      'Unlimited influenced visits',
-      'No per-visit charges ever',
-      'Rate locked for 5 years',
-      'White-label share cards',
-      'API access',
-      'Dedicated account manager',
+      { text: 'Everything in Growth', included: true },
+      { text: 'Unlimited confirmed visits', included: true },
+      { text: 'Unlimited influenced visits', included: true },
+      { text: 'No per-visit charges ever', included: true },
+      { text: 'No shadow mode — ever', included: true },
+      { text: 'Rate locked for 5 years', included: true },
+      { text: 'White-label share cards', included: true },
+      { text: 'API access', included: true },
+      { text: 'Dedicated account manager', included: true },
     ],
-    cta: 'Go Pro — $5,940',
+    visitLimit: 'Unlimited confirmed visits · No caps',
+    cta: 'Go Pro — $99/mo',
     href: '/billing?plan=pro',
     highlight: false,
     badge: 'Best Value',
+    etfNote: 'Early termination: remaining months × $99',
   },
 ]
 
@@ -87,7 +103,7 @@ export default function PricingPage() {
           </h1>
           <p className="mt-4 text-lg text-surface/60 max-w-2xl mx-auto">
             Start free. Only pay when customers actually show up.
-            No hidden fees. No long-term contracts (except Pro).
+            No hidden fees. Shadow mode activates at limit — upgrade anytime to resume.
           </p>
         </div>
 
@@ -118,18 +134,52 @@ export default function PricingPage() {
 
               <p className="mt-2 text-sm text-surface/50">{plan.description}</p>
 
-              <ul className="mt-6 space-y-3 flex-1">
+              {plan.commitment && (
+                <p className="mt-1 text-xs text-btc/60">{plan.commitment}</p>
+              )}
+
+              {/* Visit limit badge */}
+              <div className="mt-3 px-3 py-1.5 rounded-lg text-xs text-surface/60" style={{ background: 'rgba(247,148,29,0.08)' }}>
+                {plan.visitLimit}
+              </div>
+
+              <ul className="mt-4 space-y-2.5 flex-1">
                 {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 text-sm text-surface/80">
-                    <span className="text-teal mt-0.5">✓</span>
-                    {feature}
+                  <li key={feature.text} className={`flex items-start gap-2 text-sm ${feature.included ? 'text-surface/80' : 'text-surface/30'}`}>
+                    <span className={`mt-0.5 ${feature.included ? 'text-teal' : 'text-red-400/50'}`}>
+                      {feature.included ? '✓' : '✗'}
+                    </span>
+                    {feature.text}
                   </li>
                 ))}
               </ul>
 
+              {plan.etfNote && (
+                <p className="mt-3 text-xs text-surface/30 border-t border-white/5 pt-3">
+                  {plan.etfNote}
+                </p>
+              )}
+
+              {/* Pro plan: ETF callout */}
+              {plan.name === 'Pro' && (
+                <div className="mt-3 rounded-lg p-3 text-xs text-surface/40" style={{ background: 'rgba(247,148,29,0.05)', border: '1px solid rgba(247,148,29,0.1)' }}>
+                  <p className="font-bold text-surface/60 mb-1">Early Termination Fee</p>
+                  <p>If you cancel before 5 years, you owe the remaining balance.</p>
+                  <p className="mt-1">Example: Cancel after year 2 = 36 months × $99 = $3,564 due.</p>
+                  <p className="mt-1 text-btc/60">Rate locked at $99/mo for the full 5 years — no price increases ever.</p>
+                </div>
+              )}
+
+              {/* Growth plan: upgrade nudge */}
+              {plan.name === 'Growth' && (
+                <p className="mt-2 text-xs text-btc/50">
+                  Or <Link href="/billing?plan=pro" className="underline hover:text-btc">upgrade to Pro</Link> and lock your rate for 5 years →
+                </p>
+              )}
+
               <Link
                 href={plan.href}
-                className={`mt-6 block text-center py-3 px-4 rounded-xl font-bold text-sm transition ${
+                className={`mt-4 block text-center py-3 px-4 rounded-xl font-bold text-sm transition ${
                   plan.highlight
                     ? 'bg-btc text-night hover:bg-btc-dark'
                     : 'bg-white/10 text-surface hover:bg-white/20'

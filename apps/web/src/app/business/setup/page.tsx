@@ -63,6 +63,9 @@ export default function BusinessSetupPage() {
   const [selfie, setSelfie] = useState<File | null>(null)
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [agreeLiability, setAgreeLiability] = useState(false)
+  const [showPlanAgreement, setShowPlanAgreement] = useState<'growth' | 'pro' | null>(null)
+  const [planAgreeCommit, setPlanAgreeCommit] = useState(false)
+  const [planAgreeETF, setPlanAgreeETF] = useState(false)
 
   // Probability helpers
   const assignedTotal = prizes.reduce((s, p) => s + p.probability, 0)
@@ -558,6 +561,84 @@ export default function BusinessSetupPage() {
           ))}
         </div>
       </div>
+
+      {/* ─── Plan Agreement Modal ─── */}
+      {showPlanAgreement && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/70" onClick={() => { setShowPlanAgreement(null); setPlanAgreeCommit(false); setPlanAgreeETF(false) }} />
+          <div className="relative rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto" style={{ background: '#1a1230' }}>
+            <h2 className="text-xl font-bold text-surface mb-4">
+              {showPlanAgreement === 'pro' ? '5-Year Pro Commitment' : '1-Year Growth Commitment'}
+            </h2>
+
+            <div className="rounded-xl p-4 mb-4 text-xs text-surface/60 leading-relaxed max-h-64 overflow-y-auto" style={{ background: '#0f0a1e', border: '1px solid rgba(255,255,255,0.1)' }}>
+              {showPlanAgreement === 'pro' ? (
+                <>
+                  <p className="font-bold text-surface/80 mb-2">PRO PLAN SERVICE AGREEMENT</p>
+                  <p className="mb-2">By subscribing to the SerendipEatery Pro Plan, you agree to the following terms:</p>
+                  <p className="mb-2"><strong>COMMITMENT PERIOD:</strong> You are committing to a 5-year (60-month) subscription at $99 per month, totaling $5,940 over the commitment period.</p>
+                  <p className="mb-2"><strong>MONTHLY BILLING:</strong> Your card will be charged $99 on the same date each month. Payments are non-refundable.</p>
+                  <p className="mb-2"><strong>RATE LOCK GUARANTEE:</strong> SerendipEatery guarantees your rate will not exceed $99/month for the full 60-month commitment period, regardless of future price increases.</p>
+                  <p className="mb-2"><strong>EARLY TERMINATION:</strong> If you choose to cancel your Pro subscription before the 60-month commitment period ends, you agree to pay an early termination fee equal to the remaining monthly payments due.</p>
+                  <p className="mb-2">Early termination fee formula: Remaining months × $99 = Amount due immediately upon cancellation</p>
+                  <p className="mb-2">Example: If you cancel after 18 months, you owe 42 × $99 = $4,158.</p>
+                  <p className="mb-2"><strong>AUTOMATIC RENEWAL:</strong> After the initial 60-month period, your subscription converts to month-to-month at the then-current Pro rate unless cancelled with 30 days notice.</p>
+                  <p className="mb-2"><strong>UNLIMITED VISITS:</strong> Pro plan includes unlimited confirmed visits with no monthly caps and no shadow mode activation.</p>
+                  <p>By checking the boxes below and completing checkout, you create a legally binding service agreement.</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-bold text-surface/80 mb-2">GROWTH PLAN SERVICE AGREEMENT</p>
+                  <p className="mb-2"><strong>COMMITMENT PERIOD:</strong> You are committing to a 1-year (12-month) subscription at $79 per month.</p>
+                  <p className="mb-2"><strong>MONTHLY BILLING:</strong> Your card will be charged $79 on the same date each month.</p>
+                  <p className="mb-2"><strong>EARLY TERMINATION:</strong> If you cancel before 12 months, you owe remaining months × $79 immediately.</p>
+                  <p className="mb-2"><strong>AFTER 12 MONTHS:</strong> Your plan converts to month-to-month at $79/mo. Cancel anytime with 30 days notice.</p>
+                  <p>By checking the boxes below and completing checkout, you create a legally binding service agreement.</p>
+                </>
+              )}
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" checked={planAgreeCommit} onChange={(e) => setPlanAgreeCommit(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded border-white/20 accent-btc" />
+                <span className="text-surface/70 text-sm">
+                  {showPlanAgreement === 'pro'
+                    ? 'I agree to a 60-month (5-year) commitment at $99/month'
+                    : 'I agree to a 12-month commitment at $79/month'}
+                </span>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" checked={planAgreeETF} onChange={(e) => setPlanAgreeETF(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded border-white/20 accent-btc" />
+                <span className="text-surface/70 text-sm">
+                  {showPlanAgreement === 'pro'
+                    ? 'I understand the early termination fee equals remaining months × $99 and is due immediately upon cancellation'
+                    : 'I understand early termination fee = remaining months × $79'}
+                </span>
+              </label>
+            </div>
+
+            <button
+              disabled={!planAgreeCommit || !planAgreeETF}
+              onClick={() => {
+                setShowPlanAgreement(null)
+                setPlanAgreeCommit(false)
+                setPlanAgreeETF(false)
+                // Redirect to Stripe checkout
+                window.location.href = `/billing?plan=${showPlanAgreement}&agreed=true`
+              }}
+              className="w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Continue to Payment
+            </button>
+            <button onClick={() => { setShowPlanAgreement(null); setPlanAgreeCommit(false); setPlanAgreeETF(false) }}
+              className="w-full text-center text-surface/30 text-sm mt-3 hover:text-surface/50 transition">
+              Go Back
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

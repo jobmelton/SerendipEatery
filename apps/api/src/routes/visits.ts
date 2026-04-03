@@ -12,6 +12,7 @@ import {
   createBillingEvent,
 } from '../lib/geofence.js'
 import { awardPoints } from '../lib/loyalty.js'
+import { checkVisitLimit, triggerShadowMode, sendLimitNotification, logMissedOpportunity } from '../lib/billing.js'
 
 const checkinSchema = z.object({
   visitIntentId: z.string().uuid(),
@@ -105,12 +106,52 @@ export async function visitRoutes(app: FastifyInstance) {
 
     if (error) throw new AppError(500, 'CHECKIN_FAILED', 'Failed to confirm visit')
 
-    // 5. Award points via loyalty engine and create billing event
+    // 5. Check visit limit before billing
     if (billingEvent) {
+      const limitCheck = await checkVisitLimit(intent.business_id, intent.sale_id)
+
+      if (!limitCheck.allowed) {
+        // Shadow mode — log missed opportunity but don't error
+        await logMissedOpportunity(intent.sale_id, intent.business_id, userId, 'spin_blocked')
+
+        // Trigger shadow mode if not already active
+        const { data: bizCheck } = await supabase
+          .from('businesses')
+          .select('shadow_mode')
+          .eq('id', intent.business_id)
+          .single()
+
+        if (bizCheck && !bizCheck.shadow_mode) {
+          await triggerShadowMode(intent.business_id, limitCheck.reason)
+          await sendLimitNotification(intent.business_id, limitCheck.visitsUsed, limitCheck.visitLimit, limitCheck.missedCount)
+        }
+
+        return {
+          ok: true,
+          data: {
+            ...updated,
+            confirmed: false,
+            shadow_mode: true,
+            reason: limitCheck.reason,
+          },
+        }
+      }
+
+      // Within limits — proceed with billing
       await Promise.all([
         awardPoints(userId, EARN_POINTS.confirmed_visit, 'confirmed_visit', visitIntentId),
         createBillingEvent(intent.business_id, visitIntentId, newState),
       ])
+
+      // Increment monthly visit count
+      try {
+        await supabase.rpc('increment_monthly_visits', { p_business_id: intent.business_id })
+      } catch {
+        await supabase
+          .from('businesses')
+          .update({ monthly_visit_count: (limitCheck.visitsUsed + 1) })
+          .eq('id', intent.business_id)
+      }
     }
 
     return { ok: true, data: updated }

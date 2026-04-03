@@ -25,6 +25,7 @@ interface PlanConfig {
   priceId: string
   monthlyAmount: number
   mode: 'subscription' | 'payment'
+  commitmentMonths?: number
 }
 
 export const PLANS: Record<PlanId, PlanConfig> = {
@@ -35,16 +36,18 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     mode: 'subscription',
   },
   growth: {
-    name: 'Growth',
+    name: 'Growth (1-year commitment)',
     priceId: process.env.STRIPE_PRICE_GROWTH!,
     monthlyAmount: 7900, // $79/mo
     mode: 'subscription',
+    commitmentMonths: 12,
   },
   pro: {
-    name: 'Pro (5-year)',
+    name: 'Pro (5-year commitment)',
     priceId: process.env.STRIPE_PRICE_PRO!,
-    monthlyAmount: 594000, // $5,940 one-time
-    mode: 'payment',
+    monthlyAmount: 9900, // $99/mo
+    mode: 'subscription',
+    commitmentMonths: 60,
   },
 }
 
@@ -80,8 +83,15 @@ export async function createCheckoutSession(
   }
 
   if (planConfig.mode === 'subscription') {
+    const commitmentMonths = planConfig.commitmentMonths ?? 0
     sessionParams.subscription_data = {
-      metadata: { business_id: businessId, plan },
+      metadata: {
+        business_id: businessId,
+        plan,
+        commitment_months: String(commitmentMonths),
+        commitment_start: new Date().toISOString(),
+        plan_type: commitmentMonths > 0 ? `${plan}_committed` : plan,
+      },
     }
   }
 
@@ -114,6 +124,8 @@ export async function syncSubscriptionToSupabase(
   const status = subscription.status
   const currentPeriodEnd = new Date(subscription.current_period_end * 1000)
 
+  const commitmentMonths = parseInt(subscription.metadata.commitment_months || '0', 10)
+
   const updates: Record<string, unknown> = {
     stripe_subscription_id: subscription.id,
     subscription_ends_at: currentPeriodEnd.toISOString(),
@@ -121,6 +133,13 @@ export async function syncSubscriptionToSupabase(
 
   if (plan && (status === 'active' || status === 'trialing')) {
     updates.plan = plan
+    updates.billing_plan = plan
+  }
+
+  // Set commitment data on first activation
+  if (commitmentMonths > 0 && subscription.metadata.commitment_start) {
+    updates.commitment_months = commitmentMonths
+    updates.commitment_start_date = subscription.metadata.commitment_start
   }
 
   if (status === 'canceled' || status === 'unpaid') {
@@ -147,21 +166,6 @@ export async function handleWebhook(event: Stripe.Event): Promise<void> {
         await supabase
           .from('businesses')
           .update({ stripe_customer_id: session.customer as string })
-          .eq('id', businessId)
-      }
-
-      // For one-time Pro payment
-      if (plan === 'pro' && businessId) {
-        const fiveYearsFromNow = new Date()
-        fiveYearsFromNow.setFullYear(fiveYearsFromNow.getFullYear() + 5)
-
-        await supabase
-          .from('businesses')
-          .update({
-            plan: 'pro',
-            stripe_customer_id: session.customer as string,
-            subscription_ends_at: fiveYearsFromNow.toISOString(),
-          })
           .eq('id', businessId)
       }
 

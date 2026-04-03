@@ -189,6 +189,64 @@ export async function businessRoutes(app: FastifyInstance) {
     }
   })
 
+  // ─── Cancel subscription with ETF ──────────────────────────────────
+  app.patch('/businesses/me/cancel-subscription', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const body = request.body as { confirmEtf?: number }
+
+    const { data: biz } = await supabase
+      .from('businesses')
+      .select('id, billing_plan, plan, commitment_start_date, commitment_months, stripe_subscription_id')
+      .eq('owner_id', userId)
+      .single()
+
+    if (!biz) throw new AppError(404, 'BIZ_NOT_FOUND', 'No business found')
+
+    const plan = biz.billing_plan || biz.plan || 'trial'
+    if (plan === 'trial') throw new AppError(400, 'NO_SUB', 'No active subscription to cancel')
+
+    // Calculate ETF
+    let etf = 0
+    if (biz.commitment_start_date && biz.commitment_months > 0) {
+      const start = new Date(biz.commitment_start_date)
+      const monthsElapsed = Math.max(0, Math.floor((Date.now() - start.getTime()) / (30.44 * 24 * 60 * 60 * 1000)))
+      const monthsRemaining = Math.max(0, biz.commitment_months - monthsElapsed)
+      const rate = plan === 'pro' ? 99 : plan === 'growth' ? 79 : 0
+      etf = monthsRemaining * rate
+    }
+
+    // Require confirmation if ETF applies
+    if (etf > 0 && body.confirmEtf !== etf) {
+      return {
+        ok: false,
+        error: 'ETF_CONFIRMATION_REQUIRED',
+        data: {
+          etf,
+          message: `Cancelling requires an early termination fee of $${etf}. Send confirmEtf: ${etf} to proceed.`,
+        },
+      }
+    }
+
+    // Process cancellation
+    await supabase.from('businesses').update({
+      plan: 'trial',
+      billing_plan: 'trial',
+      shadow_mode: false,
+      shadow_mode_reason: null,
+      early_termination_fee: etf > 0 ? etf : null,
+      commitment_months: 0,
+    }).eq('id', biz.id)
+
+    return {
+      ok: true,
+      data: {
+        cancelled: true,
+        etf,
+        message: etf > 0 ? `Subscription cancelled. Early termination fee: $${etf}` : 'Subscription cancelled.',
+      },
+    }
+  })
+
   // ─── Get verification status ──────────────────────────────────────
   app.get('/businesses/verify/status', async (request) => {
     const { userId } = (request as AuthenticatedRequest).auth

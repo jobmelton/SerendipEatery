@@ -199,6 +199,165 @@ export async function getConsumerAnalytics(userId: string) {
   }
 }
 
+// ─── Full Sale Analytics (comprehensive) ─────────────────────────────────
+
+export async function getFullSaleAnalytics(saleId: string) {
+  const { data: sale } = await supabase
+    .from('flash_sales')
+    .select('*, prizes(*), businesses(name, billing_plan, plan)')
+    .eq('id', saleId)
+    .single()
+
+  if (!sale) throw new AppError(404, 'SALE_NOT_FOUND', 'Sale not found')
+
+  const businessPlan = (sale as any).businesses?.billing_plan || (sale as any).businesses?.plan || 'trial'
+
+  // Notification log
+  const { count: notificationsSent } = await supabase
+    .from('sale_notification_log')
+    .select('id', { count: 'exact', head: true })
+    .eq('flash_sale_id', saleId)
+
+  const { count: notificationsOpened } = await supabase
+    .from('sale_notification_log')
+    .select('id', { count: 'exact', head: true })
+    .eq('flash_sale_id', saleId)
+    .not('opened_at', 'is', null)
+
+  const notifSent = notificationsSent ?? 0
+  const notifOpened = notificationsOpened ?? 0
+  const notificationOpenRate = notifSent > 0 ? Math.round((notifOpened / notifSent) * 100) : 0
+
+  // Spins
+  const spinsTotal = sale.spins_used ?? 0
+  const spinRate = notifSent > 0 ? Math.round((spinsTotal / notifSent) * 100) : 0
+
+  // Visit intents
+  const { data: intents } = await supabase
+    .from('visit_intents')
+    .select('id, state, created_at, user_id, prize_won, spun_at, confirmed_at')
+    .eq('sale_id', saleId)
+
+  const allIntents = intents ?? []
+  const confirmed = allIntents.filter(v => v.state === 'confirmed')
+  const prizesClaimed = allIntents.filter(v => v.prize_won).length
+  const claimRate = spinsTotal > 0 ? Math.round((prizesClaimed / spinsTotal) * 100) : 0
+  const conversionRate = prizesClaimed > 0 ? Math.round((confirmed.length / prizesClaimed) * 100) : 0
+
+  // Missed opportunities
+  const { data: missed } = await supabase
+    .from('missed_opportunities')
+    .select('opportunity_type, user_tier')
+    .eq('flash_sale_id', saleId)
+
+  const allMissed = missed ?? []
+  const missedNotifications = allMissed.filter(m => m.opportunity_type === 'notification_blocked').length
+  const missedSpins = allMissed.filter(m => m.opportunity_type === 'spin_blocked').length
+  const geofenceEntries = allMissed.filter(m => m.opportunity_type === 'geofence_entry').length
+
+  // Total geofence entries (confirmed + missed)
+  const geofenceEntriesTotal = confirmed.length + geofenceEntries
+  const geofenceEntriesMissed = geofenceEntries
+
+  // Prize breakdown
+  const prizes = (sale.prizes ?? []).map((p: any) => {
+    const winners = allIntents.filter(v => v.prize_won === p.name || v.prize_won === p.label)
+    const winnerVisits = winners.filter(v => v.state === 'confirmed')
+    const prizeConversionRate = winners.length > 0 ? Math.round((winnerVisits.length / winners.length) * 100) : 0
+
+    // Best time of day for this prize
+    const hourCounts: Record<number, number> = {}
+    for (const v of winnerVisits) {
+      if (v.confirmed_at) {
+        const h = new Date(v.confirmed_at).getHours()
+        hourCounts[h] = (hourCounts[h] ?? 0) + 1
+      }
+    }
+    const bestHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]
+    const bestTimeOfDay = bestHour ? `${bestHour[0]}:00-${Number(bestHour[0]) + 1}:00` : 'N/A'
+
+    const totalWeight = (sale.prizes ?? []).reduce((s: number, pr: any) => s + (pr.weight ?? pr.max_spins ?? 1), 0)
+    const probability = totalWeight > 0 ? Math.round(((p.weight ?? p.max_spins ?? 1) / totalWeight) * 100) : 0
+
+    return {
+      name: p.label || p.name,
+      probability,
+      timesWon: p.spins_used ?? 0,
+      conversionRate: prizeConversionRate,
+      revenueGenerated: winnerVisits.length * 15, // estimated $15 avg check
+      bestTimeOfDay,
+    }
+  })
+
+  // Time analysis
+  const spinHours: Record<number, number> = {}
+  const visitHours: Record<number, number> = {}
+  const timesToVisit: number[] = []
+
+  for (const v of allIntents) {
+    if (v.spun_at) {
+      const h = new Date(v.spun_at).getHours()
+      spinHours[h] = (spinHours[h] ?? 0) + 1
+    }
+    if (v.confirmed_at) {
+      const h = new Date(v.confirmed_at).getHours()
+      visitHours[h] = (visitHours[h] ?? 0) + 1
+    }
+    if (v.spun_at && v.confirmed_at) {
+      const diff = (new Date(v.confirmed_at).getTime() - new Date(v.spun_at).getTime()) / 60000
+      if (diff > 0 && diff < 120) timesToVisit.push(diff)
+    }
+  }
+
+  const peakSpinEntry = Object.entries(spinHours).sort((a, b) => b[1] - a[1])[0]
+  const peakVisitEntry = Object.entries(visitHours).sort((a, b) => b[1] - a[1])[0]
+  const peakSpinHour = peakSpinEntry ? `${peakSpinEntry[0]}:00` : 'N/A'
+  const peakVisitHour = peakVisitEntry ? `${peakVisitEntry[0]}:00` : 'N/A'
+  const avgTimeToVisit = timesToVisit.length > 0
+    ? Math.round(timesToVisit.reduce((a, b) => a + b, 0) / timesToVisit.length)
+    : 0
+
+  // User tier breakdown
+  const userIds = [...new Set(allIntents.map(v => v.user_id))]
+  const tierBreakdown: Record<string, number> = {
+    explorer: 0, regular: 0, local_legend: 0,
+    foodie_royale: 0, tastemaker: 0, influencer: 0,
+  }
+
+  if (userIds.length > 0) {
+    const { data: users } = await supabase
+      .from('users')
+      .select('consumer_tier')
+      .in('id', userIds.slice(0, 200))
+
+    for (const u of users ?? []) {
+      const tier = u.consumer_tier ?? 'explorer'
+      if (tierBreakdown[tier] !== undefined) tierBreakdown[tier]++
+    }
+  }
+
+  return {
+    notifications_sent: notifSent,
+    notification_open_rate: notificationOpenRate,
+    spins_total: spinsTotal,
+    spin_rate: spinRate,
+    prizes_claimed: prizesClaimed,
+    claim_rate: claimRate,
+    confirmed_visits: confirmed.length,
+    conversion_rate: conversionRate,
+    missed_notifications: missedNotifications,
+    missed_spins: missedSpins,
+    geofence_entries_total: geofenceEntriesTotal,
+    geofence_entries_missed: geofenceEntriesMissed,
+    prizes,
+    peak_spin_hour: peakSpinHour,
+    peak_visit_hour: peakVisitHour,
+    avg_time_to_visit: avgTimeToVisit,
+    tier_breakdown: tierBreakdown,
+    business_plan: businessPlan,
+  }
+}
+
 // ─── Sale Analytics (real-time during sale) ───────────────────────────────
 
 export async function getSaleAnalytics(saleId: string) {

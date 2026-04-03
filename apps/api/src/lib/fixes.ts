@@ -105,6 +105,62 @@ export async function fixTruckSnapshots(): Promise<number> {
   return toDelete.length
 }
 
+// ─── Reset Monthly Visit Counts ──────────────────────────────────────────
+// Runs on 1st of each month, resets Starter/Growth counters and shadow mode
+
+export async function resetMonthlyVisitCounts(): Promise<number> {
+  const now = new Date()
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  // Only run on the 1st of the month (or if never reset this month)
+  const { data: stale, error } = await supabase
+    .from('businesses')
+    .select('id')
+    .in('billing_plan', ['starter', 'growth'])
+    .or(`monthly_visit_reset_at.is.null,monthly_visit_reset_at.lt.${firstOfMonth.toISOString()}`)
+
+  if (error || !stale?.length) return 0
+
+  const ids = stale.map(b => b.id)
+
+  await supabase
+    .from('businesses')
+    .update({
+      monthly_visit_count: 0,
+      shadow_mode: false,
+      shadow_mode_reason: null,
+      shadow_mode_at: null,
+      monthly_visit_reset_at: now.toISOString(),
+    })
+    .in('id', ids)
+
+  console.log(`[fix] Reset monthly visit counts for ${ids.length} businesses`)
+  return ids.length
+}
+
+// ─── Expire Stale Waiting Battles ────────────────────────────────────────
+
+export async function expireWaitingBattles(): Promise<number> {
+  const now = new Date().toISOString()
+
+  const { data, error } = await supabase
+    .from('battles')
+    .update({ status: 'expired', completed_at: now })
+    .eq('status', 'waiting')
+    .lt('expires_at', now)
+    .not('expires_at', 'is', null)
+    .select('id')
+
+  if (error) {
+    console.error('[fix] expireWaitingBattles error:', error.message)
+    return 0
+  }
+
+  const count = data?.length ?? 0
+  if (count > 0) console.log(`[fix] Expired ${count} waiting battles`)
+  return count
+}
+
 // ─── Start All Fix Workers ────────────────────────────────────────────────
 
 export function startFixWorkers(): void {
@@ -119,8 +175,16 @@ export function startFixWorkers(): void {
   // Fix stale truck snapshots every hour
   setInterval(fixTruckSnapshots, 60 * 60 * 1000)
 
+  // Reset monthly visit counts every hour (idempotent — only acts on 1st of month)
+  setInterval(resetMonthlyVisitCounts, 60 * 60 * 1000)
+
+  // Expire stale waiting battles every 5 minutes
+  setInterval(expireWaitingBattles, 5 * 60 * 1000)
+
   // Run once on startup
   fixStuckVisits()
   fixOrphanedBillingEvents()
   fixTruckSnapshots()
+  resetMonthlyVisitCounts()
+  expireWaitingBattles()
 }

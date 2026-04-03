@@ -6,6 +6,7 @@ import {
   getBusinessAnalytics,
   getConsumerAnalytics,
   getSaleAnalytics,
+  getFullSaleAnalytics,
   getPlatformStats,
 } from '../lib/analytics.js'
 
@@ -44,6 +45,26 @@ export async function analyticsRoutes(app: FastifyInstance) {
     }
 
     const analytics = await getSaleAnalytics(saleId)
+    return { ok: true, data: analytics }
+  })
+
+  // GET /analytics/sale/:saleId/full — comprehensive sale metrics
+  app.get('/analytics/sale/:saleId/full', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const { saleId } = request.params as { saleId: string }
+
+    // Verify ownership
+    const { data: sale } = await supabase
+      .from('flash_sales')
+      .select('business_id, businesses!inner(owner_id)')
+      .eq('id', saleId)
+      .single()
+
+    if (!sale || (sale as any).businesses?.owner_id !== userId) {
+      throw new AppError(403, 'NOT_OWNER', 'You do not own this sale')
+    }
+
+    const analytics = await getFullSaleAnalytics(saleId)
     return { ok: true, data: analytics }
   })
 
