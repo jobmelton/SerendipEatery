@@ -14,7 +14,7 @@ const CONSUMER_NAV = [
 
 const BUSINESS_NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/business/setup', label: 'Create Sale', icon: '➕' },
+  { href: '/business/promotions', label: 'Promotions', icon: '🎯' },
   { href: '/analytics', label: 'Analytics', icon: '📈' },
   { href: '/billing', label: 'Settings', icon: '⚙️' },
 ]

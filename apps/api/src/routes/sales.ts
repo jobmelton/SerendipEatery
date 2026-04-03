@@ -144,4 +144,185 @@ export async function salesRoutes(app: FastifyInstance) {
     if (error) throw new AppError(500, 'STATUS_UPDATE_FAILED', 'Failed to update status')
     return { ok: true, data: updated }
   })
+
+  // GET /sales/mine — all sales for authenticated business owner
+  app.get('/sales/mine', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const { status } = request.query as { status?: string }
+
+    // Get all businesses owned by this user
+    const { data: businesses } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('owner_id', userId)
+
+    if (!businesses?.length) return { ok: true, data: [] }
+
+    const bizIds = businesses.map((b) => b.id)
+
+    let query = supabase
+      .from('flash_sales')
+      .select('*, prizes(*)')
+      .in('business_id', bizIds)
+      .order('created_at', { ascending: false })
+
+    if (status) query = query.eq('status', status)
+
+    const { data, error } = await query.limit(100)
+    if (error) throw new AppError(500, 'FETCH_FAILED', 'Failed to fetch sales')
+
+    return { ok: true, data: data ?? [] }
+  })
+
+  // PATCH /sales/:id — edit sale details
+  app.patch('/sales/:id', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const { id } = request.params as { id: string }
+    const body = request.body as Record<string, any>
+
+    // Verify ownership
+    const { data: sale } = await supabase
+      .from('flash_sales')
+      .select('id, status, business_id, businesses!inner(owner_id)')
+      .eq('id', id)
+      .single()
+
+    if (!sale) throw new AppError(404, 'SALE_NOT_FOUND', 'Sale not found')
+    if ((sale as any).businesses?.owner_id !== userId) {
+      throw new AppError(403, 'NOT_OWNER', 'You do not own this business')
+    }
+
+    // Only allow editing scheduled or draft sales
+    if (!['scheduled', 'draft'].includes(sale.status)) {
+      throw new AppError(400, 'CANNOT_EDIT', 'Only scheduled or draft sales can be edited')
+    }
+
+    const allowed = ['starts_at', 'ends_at', 'radius_m', 'max_spins_total', 'status']
+    const updates: Record<string, any> = {}
+    for (const key of allowed) {
+      if (body[key] !== undefined) updates[key] = body[key]
+    }
+
+    const { data: updated, error } = await supabase
+      .from('flash_sales')
+      .update(updates)
+      .eq('id', id)
+      .select('*, prizes(*)')
+      .single()
+
+    if (error) throw new AppError(500, 'UPDATE_FAILED', 'Failed to update sale')
+    return { ok: true, data: updated }
+  })
+
+  // POST /sales/:id/duplicate — clone a sale as new draft
+  app.post('/sales/:id/duplicate', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const { id } = request.params as { id: string }
+
+    const { data: original } = await supabase
+      .from('flash_sales')
+      .select('*, prizes(*), businesses!inner(owner_id)')
+      .eq('id', id)
+      .single()
+
+    if (!original) throw new AppError(404, 'NOT_FOUND', 'Sale not found')
+    if ((original as any).businesses?.owner_id !== userId) throw new AppError(403, 'NOT_OWNER', 'Not your sale')
+
+    const { data: newSale, error } = await supabase
+      .from('flash_sales')
+      .insert({
+        business_id: original.business_id,
+        title: `${original.title || 'Sale'} (copy)`,
+        status: 'draft',
+        starts_at: new Date().toISOString(),
+        ends_at: new Date(Date.now() + 3600000).toISOString(),
+        radius_m: original.radius_m,
+        max_spins_total: original.max_spins_total,
+        spins_used: 0,
+      })
+      .select()
+      .single()
+
+    if (error || !newSale) throw new AppError(500, 'DUP_FAILED', 'Failed to duplicate')
+
+    // Copy prizes
+    if (original.prizes?.length) {
+      await supabase.from('prizes').insert(
+        original.prizes.map((p: any) => ({
+          sale_id: newSale.id,
+          name: p.name,
+          label: p.label,
+          type: p.type,
+          value: p.value,
+          max_spins: p.max_spins,
+          spins_used: 0,
+          weight: p.weight,
+          base_weight: p.base_weight,
+        }))
+      )
+    }
+
+    return { ok: true, data: newSale }
+  })
+
+  // DELETE /sales/:id — delete draft sale
+  app.delete('/sales/:id', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const { id } = request.params as { id: string }
+
+    const { data: sale } = await supabase
+      .from('flash_sales')
+      .select('id, status, businesses!inner(owner_id)')
+      .eq('id', id)
+      .single()
+
+    if (!sale) throw new AppError(404, 'NOT_FOUND', 'Sale not found')
+    if ((sale as any).businesses?.owner_id !== userId) throw new AppError(403, 'NOT_OWNER', 'Not your sale')
+    if (sale.status !== 'draft') throw new AppError(400, 'NOT_DRAFT', 'Only draft sales can be deleted')
+
+    await supabase.from('prizes').delete().eq('sale_id', id)
+    await supabase.from('flash_sales').delete().eq('id', id)
+
+    return { ok: true, data: { deleted: true } }
+  })
+
+  // GET /sales/:id/report — full analytics report
+  app.get('/sales/:id/report', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const { id } = request.params as { id: string }
+
+    const { data: sale } = await supabase
+      .from('flash_sales')
+      .select('*, prizes(*), businesses!inner(owner_id, name)')
+      .eq('id', id)
+      .single()
+
+    if (!sale) throw new AppError(404, 'NOT_FOUND', 'Sale not found')
+    if ((sale as any).businesses?.owner_id !== userId) throw new AppError(403, 'NOT_OWNER', 'Not your sale')
+
+    const { data: visits } = await supabase
+      .from('visit_intents')
+      .select('id, state, created_at, points_earned')
+      .eq('flash_sale_id', id)
+      .order('created_at')
+
+    const { data: billing } = await supabase
+      .from('billing_events')
+      .select('type, amount_cents, created_at')
+      .eq('flash_sale_id', id)
+
+    return {
+      ok: true,
+      data: {
+        sale,
+        visits: visits ?? [],
+        billing: billing ?? [],
+        summary: {
+          totalSpins: sale.spins_used ?? 0,
+          confirmedVisits: (visits ?? []).filter((v: any) => v.state === 'confirmed').length,
+          totalRevenue: (billing ?? []).reduce((s: number, b: any) => s + (b.amount_cents ?? 0), 0) / 100,
+        },
+      },
+    }
+  })
 }
