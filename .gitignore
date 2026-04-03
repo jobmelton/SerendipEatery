@@ -46,3 +46,10 @@ coverage
 *.sh
 CLERK_SETUP.md
 SERENDIPEATERY_CONTEXT.md
+
+# Large binary files
+*.exe
+*.msi
+*.pdf
+supabase/.temp/
+.claude/

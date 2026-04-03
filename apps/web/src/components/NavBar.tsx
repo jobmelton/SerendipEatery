@@ -8,7 +8,7 @@ import { UserButton, useUser } from '@clerk/nextjs'
 const CONSUMER_NAV = [
   { href: '/consumer', label: 'Deals', icon: '🎰' },
   { href: '/wallet', label: 'Lootbox', icon: '🎒' },
-  { href: '/battles', label: 'Battles', icon: '⚔️' },
+  { href: '/battles', label: 'Battles', icon: '✌️', rotate: true },
   { href: '/profile', label: 'Profile', icon: '🎁' },
 ]
 
@@ -85,7 +85,7 @@ export function NavBar({ variant = 'consumer' }: { variant?: 'consumer' | 'busin
                   active ? 'bg-btc/10 text-btc' : 'text-surface/50 hover:text-surface/80'
                 }`}
               >
-                <span className="text-xs">{link.icon}</span>
+                <span className="text-xs" style={(link as any).rotate ? { display: 'inline-block', transform: 'rotate(-45deg)' } : undefined}>{link.icon}</span>
                 <span className="hidden sm:inline">{link.label}</span>
               </Link>
             )

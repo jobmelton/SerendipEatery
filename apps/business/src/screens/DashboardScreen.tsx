@@ -138,7 +138,7 @@ export function DashboardScreen() {
           <Text style={styles.sectionTitle}>Battle Station</Text>
           <View style={styles.battleStationCard}>
             <View style={styles.battleStationHeader}>
-              <Text style={styles.battleStationIcon}>⚔️</Text>
+              <Text style={[styles.battleStationIcon, { transform: [{ rotate: '-45deg' }] }]}>✌️</Text>
               <View>
                 <Text style={styles.battleStationTitle}>Customer Battle QR</Text>
                 <Text style={styles.battleStationSub}>Customers scan and play RPS for prizes</Text>

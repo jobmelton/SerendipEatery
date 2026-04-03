@@ -21,7 +21,7 @@ const STEPS = [
     subtitle: 'Every win goes to your wallet. Use them anytime before they expire.',
   },
   {
-    icon: '⚔️',
+    icon: '✌️',
     title: 'Battle strangers nearby',
     subtitle: 'Rock paper scissors for real prizes. Your next friend is 10 feet away.',
   },

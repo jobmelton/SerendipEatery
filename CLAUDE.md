@@ -1,5 +1,16 @@
 # SerendipEatery — Project Context for Claude Code
 
+## Standing Instructions
+
+These apply to every task without exception:
+
+1. **AUTO-APPROVE** — implement all changes without asking for confirmation. Never pause to ask "should I proceed?" or "is this correct?" — just do it.
+2. **AUTO-COMMIT** — after every completed task, automatically run: `git add -A && git commit -m "[description]" && git push`. Never wait to be told to commit and push.
+3. **AUTO-CONTINUE** — if a task has multiple parts, complete ALL parts before stopping. Never stop halfway through a task.
+4. **NO QUESTIONS** — do not ask clarifying questions mid-task. Make reasonable assumptions and proceed. State assumptions made at the end.
+5. **FIX BUILD ERRORS AUTOMATICALLY** — if a commit causes a build error, check the error, fix it, and push again without being asked.
+6. **BATCH RELATED CHANGES** — when touching a file, check if any related files need the same update and do those too.
+
 ## What This Is
 SerendipEatery is a flash-sale platform for food trucks and restaurants. Businesses launch time-limited flash sales, consumers spin a roulette wheel to win prizes (discounts, free items), then walk to the restaurant within 60 minutes. The platform uses geofencing to confirm visits and charges businesses only for verified foot traffic.
 

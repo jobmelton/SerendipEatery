@@ -60,7 +60,7 @@ export default function LandingPage() {
         }}
         className="bg-btc/10 text-btc font-bold px-8 py-3 rounded-full text-sm border border-btc/30 hover:bg-btc/20 transition mb-8"
       >
-        ✌️ Drop a Challenge
+        <span style={{ display: 'inline-block', transform: 'rotate(-45deg)' }}>✌️</span> Drop a Challenge
       </button>
 
       {/* ─── RPS Challenge Card ─── */}

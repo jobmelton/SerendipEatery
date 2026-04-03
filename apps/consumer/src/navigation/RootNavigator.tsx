@@ -99,7 +99,7 @@ function HomeTabs() {
         component={BattleScreen}
         options={{
           tabBarLabel: 'Battle',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 22 }}>⚔️</Text>,
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 22, transform: [{ rotate: '-45deg' }] }}>✌️</Text>,
         }}
       />
       <Tab.Screen
