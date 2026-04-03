@@ -79,6 +79,57 @@ export async function userRoutes(app: FastifyInstance) {
     return { ok: true, data }
   })
 
+  // POST /users/me/add-business — link a business to existing user
+  app.post('/users/me/add-business', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const { businessId } = request.body as { businessId: string }
+    if (!businessId) throw new AppError(400, 'MISSING_ID', 'businessId required')
+
+    await supabase.from('users').update({
+      is_business_owner: true,
+      linked_business_id: businessId,
+    }).eq('clerk_id', userId)
+
+    await supabase.from('businesses').update({
+      linked_user_id: userId,
+    }).eq('id', businessId)
+
+    return { ok: true, data: { linked: true } }
+  })
+
+  // POST /users/me/switch-mode — switch between consumer/business
+  app.post('/users/me/switch-mode', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const { mode } = request.body as { mode: string }
+    if (mode !== 'consumer' && mode !== 'business') {
+      throw new AppError(400, 'INVALID_MODE', 'Mode must be consumer or business')
+    }
+
+    await supabase.from('users').update({ account_mode: mode }).eq('clerk_id', userId)
+    return { ok: true, data: { mode } }
+  })
+
+  // GET /users/me/accounts — get both consumer and business profiles
+  app.get('/users/me/accounts', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('*, businesses:linked_business_id(*)')
+      .eq('clerk_id', userId)
+      .single()
+
+    return {
+      ok: true,
+      data: {
+        consumer: user ? { points: user.consumer_points, tier: user.loyalty_tier, mode: user.account_mode } : null,
+        business: user?.businesses ?? null,
+        isBusinessOwner: user?.is_business_owner ?? false,
+        currentMode: user?.account_mode ?? 'consumer',
+      },
+    }
+  })
+
   // DELETE /users/me — soft delete account
   app.delete('/users/me', async (request) => {
     const { userId } = (request as AuthenticatedRequest).auth
