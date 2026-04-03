@@ -97,6 +97,15 @@ export function DashboardClient({ user, business, stats, chartData, recentBillin
           <QuickAction href="/pricing" label="Upgrade Plan" icon="⬆️" />
           <QuickAction href="/" label="Back to Home" icon="🏠" />
         </section>
+
+        {/* Consumer Account */}
+        <section className="bg-[#1a1230] rounded-2xl p-5 mt-6" style={{ border: '1px solid rgba(247,148,29,0.1)' }}>
+          <h3 className="text-surface font-bold text-sm mb-1">Want to discover deals too?</h3>
+          <p className="text-surface/40 text-xs mb-3">Your business and consumer accounts share one login.</p>
+          <Link href="/consumer" className="inline-block border border-btc text-btc font-bold px-4 py-2 rounded-lg text-xs hover:bg-btc/10 transition">
+            Switch to Consumer Mode
+          </Link>
+        </section>
       </div>
     </main>
     </>

@@ -62,12 +62,15 @@ function getTierPerks(tierKey: string) {
   return perks
 }
 
+const BIZ_TYPES = ['Restaurant', 'Food Truck', 'Pop-up', 'Ghost Kitchen']
+
 interface Props {
   user: { firstName: string; imageUrl: string }
   profile: {
     consumer_points: number; loyalty_tier: string; revenue_share_pct: number
     auth_provider: string | null; social_username: string | null
     social_avatar_url: string | null; battle_tagline: string | null
+    is_business_owner?: boolean; linked_business_id?: string | null
   }
   referralCode: string | null
   recentActivity: Array<{
@@ -86,6 +89,10 @@ export function ProfileClient({ user, profile, referralCode, recentActivity }: P
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [showBizModal, setShowBizModal] = useState(false)
+  const [bizName, setBizName] = useState('')
+  const [bizType, setBizType] = useState(BIZ_TYPES[0])
+  const hasBusiness = !!profile.linked_business_id
   const [taglineSaved, setTaglineSaved] = useState(false)
   const tier = getTierInfo(profile.loyalty_tier)
   const nextTier = getNextTier(profile.loyalty_tier)
@@ -280,6 +287,66 @@ export function ProfileClient({ user, profile, referralCode, recentActivity }: P
           <Link href="/wallet" className="text-surface/40 text-sm hover:text-surface/60 transition">Wallet</Link>
           <Link href="/consumer" className="text-surface/40 text-sm hover:text-surface/60 transition">Find Sales</Link>
         </div>
+
+        {/* Add Business Account */}
+        <section className="bg-[#1a1230] rounded-2xl p-6 mb-6" style={{ border: '1px solid rgba(247,148,29,0.1)' }}>
+          {hasBusiness ? (
+            <>
+              <h3 className="text-surface font-bold mb-1">Business Account Linked</h3>
+              <p className="text-surface/40 text-sm mb-3">You have both consumer and business accounts.</p>
+              <Link href="/dashboard" className="inline-block bg-btc text-night font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-btc-dark transition">
+                Switch to Business Mode
+              </Link>
+            </>
+          ) : (
+            <>
+              <h3 className="text-surface font-bold mb-1">Own a restaurant or food truck?</h3>
+              <p className="text-surface/40 text-sm mb-3">Add a business account to run flash sales from the same login.</p>
+              <button
+                onClick={() => setShowBizModal(true)}
+                className="border border-btc text-btc font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-btc/10 transition"
+              >
+                Add Business Account
+              </button>
+            </>
+          )}
+        </section>
+
+        {/* Add Business Modal */}
+        {showBizModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="absolute inset-0 bg-black/70" onClick={() => setShowBizModal(false)} />
+            <div className="relative rounded-2xl p-6 max-w-sm w-full" style={{ background: '#1a1230' }}>
+              <h3 className="text-surface font-bold text-lg mb-1">Link a business to your account</h3>
+              <p className="text-surface/40 text-sm mb-4">You'll keep your consumer points and wallet.</p>
+              <div className="space-y-3 mb-4">
+                <div>
+                  <label className="text-surface/50 text-xs block mb-1">Business name</label>
+                  <input value={bizName} onChange={(e) => setBizName(e.target.value)} placeholder="Fuego Tacos"
+                    className="w-full bg-night text-surface border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-btc focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-surface/50 text-xs block mb-1">Type</label>
+                  <select value={bizType} onChange={(e) => setBizType(e.target.value)}
+                    className="w-full bg-night text-surface border border-white/10 rounded-lg px-3 py-2 text-sm">
+                    {BIZ_TYPES.map((t) => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setShowBizModal(false)}
+                  className="flex-1 border border-surface/20 text-surface/60 font-bold py-2.5 rounded-xl text-sm">Cancel</button>
+                <Link
+                  href={`/business/setup?name=${encodeURIComponent(bizName)}&type=${encodeURIComponent(bizType)}`}
+                  onClick={() => setShowBizModal(false)}
+                  className={`flex-1 bg-btc text-night font-bold py-2.5 rounded-xl text-sm text-center hover:bg-btc-dark transition ${!bizName ? 'opacity-40 pointer-events-none' : ''}`}
+                >
+                  Continue Setup
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Delete Account */}
         <div className="mt-12 pt-8 border-t border-red-500/20">
