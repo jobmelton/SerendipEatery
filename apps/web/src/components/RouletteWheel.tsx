@@ -1,19 +1,14 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 
 /**
- * RouletteWheel — SINGLE shared component used everywhere.
+ * RouletteWheel — minimal verified implementation.
  *
- * Coordinate system:
- *   SVG viewBox: 0 0 400 400, center at (200, 200)
- *   Angle 0 = RIGHT (3 o'clock), increases CLOCKWISE (standard SVG)
- *   Segment 0 starts at 0° (3 o'clock)
- *
- * Winning alignment:
- *   Wheel rotates so winning segment lands at TOP (12 o'clock = -90° CSS)
- *   Ball ALWAYS ends at TOP (fixed screen position)
- *   Ball at top + winning segment at top = guaranteed match
+ * Segment 0 starts at TOP (12 o'clock) due to -90° offset in radians.
+ * Winning segment rotates to TOP via CSS transform.
+ * Ball has 2 states: spinning (CSS orbit) or settled (fixed at top).
+ * prizes[winnerIndex] is ALWAYS the displayed prize.
  */
 
 export interface WheelPrize {
@@ -33,43 +28,16 @@ export const DEFAULT_PRIZES: WheelPrize[] = [
   { label: 'Jackpot',     weight: 3,  color: '#FFD700' },
 ]
 
-// ─── Constants ──────────────────────────────────────────────────────────────
-const VB = 400              // viewBox size
-const CX = 200              // center
+const SIZE = 340         // rendered px
+const VB = 400           // viewBox
+const CX = 200
 const CY = 200
-const R = 170               // wheel radius
-const INNER_R = 35          // center hub radius
-const POCKET_R = R * 0.65   // where ball settles (inside segments)
-const OUTER_ORBIT = R + 15  // ball orbit outside wheel
+const R = 170
+const INNER_R = 32
+const POCKET_Y = CY - R * 0.6  // where ball sits inside segment at top
+const ORBIT_TX = 120     // ball orbit translateX radius (in ball-container coords)
 const BALL_SZ = 12
-const DISPLAY_SIZE = 340    // rendered pixel size
-const SCALE = DISPLAY_SIZE / VB
 
-// ─── Segment geometry ───────────────────────────────────────────────────────
-function buildSegments(prizes: WheelPrize[]) {
-  const total = prizes.reduce((s, p) => s + p.weight, 0)
-  let cum = 0
-  return prizes.map((p) => {
-    const startRad = (cum / total) * 2 * Math.PI
-    cum += p.weight
-    const endRad = (cum / total) * 2 * Math.PI
-    const midRad = (startRad + endRad) / 2
-    const sweepDeg = (p.weight / total) * 360
-    const startDeg = ((cum - p.weight) / total) * 360
-    return { ...p, startRad, endRad, midRad, startDeg, sweepDeg }
-  })
-}
-
-function segmentPath(startRad: number, endRad: number) {
-  const x1 = CX + R * Math.cos(startRad)
-  const y1 = CY + R * Math.sin(startRad)
-  const x2 = CX + R * Math.cos(endRad)
-  const y2 = CY + R * Math.sin(endRad)
-  const large = (endRad - startRad) > Math.PI ? 1 : 0
-  return `M${CX},${CY} L${x1},${y1} A${R},${R} 0 ${large} 1 ${x2},${y2} Z`
-}
-
-// ─── Component ──────────────────────────────────────────────────────────────
 export function RouletteWheel({
   prizes = DEFAULT_PRIZES,
   onSpinComplete,
@@ -77,170 +45,105 @@ export function RouletteWheel({
   prizes?: WheelPrize[]
   onSpinComplete?: (prize: WheelPrize, index: number) => void
 }) {
-  const [rotation, setRotation] = useState(0)
+  const [wheelDeg, setWheelDeg] = useState(0)
   const [spinning, setSpinning] = useState(false)
+  const [ballState, setBallState] = useState<'idle' | 'spinning' | 'settling'>('idle')
   const [power, setPower] = useState(0)
   const [holding, setHolding] = useState(false)
   const [hasSpun, setHasSpun] = useState(false)
-  const ballRef = useRef<HTMLDivElement>(null)
-  const rafRef = useRef(0)
-  const pwrRef = useRef(0)
-  const pwrInt = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const segments = buildSegments(prizes)
+  const N = prizes.length
+  const DEG = 360 / N
 
-  // ─── Hold to charge power ───────────────────────────────────────────
+  // ─── Draw each segment ─────────────────────────────────────────────
+  function segPath(i: number) {
+    const startDeg = i * DEG
+    const endDeg = (i + 1) * DEG
+    // -90 offset so segment 0 starts at TOP (12 o'clock)
+    const startRad = (startDeg - 90) * Math.PI / 180
+    const endRad = (endDeg - 90) * Math.PI / 180
+    const x1 = CX + R * Math.cos(startRad)
+    const y1 = CY + R * Math.sin(startRad)
+    const x2 = CX + R * Math.cos(endRad)
+    const y2 = CY + R * Math.sin(endRad)
+    const large = DEG > 180 ? 1 : 0
+    return `M${CX},${CY} L${x1},${y1} A${R},${R} 0 ${large} 1 ${x2},${y2} Z`
+  }
+
+  function labelPos(i: number) {
+    const midDeg = i * DEG + DEG / 2
+    const midRad = (midDeg - 90) * Math.PI / 180
+    const lr = R * 0.58
+    return { x: CX + lr * Math.cos(midRad), y: CY + lr * Math.sin(midRad), deg: midDeg }
+  }
+
+  // ─── Hold to charge ────────────────────────────────────────────────
   const startHold = useCallback(() => {
     if (spinning) return
     setHolding(true)
-    pwrRef.current = 0
     setPower(0)
-    pwrInt.current = setInterval(() => {
-      pwrRef.current = Math.min(pwrRef.current + 100 / 30, 100)
-      setPower(pwrRef.current)
-    }, 100)
-  }, [spinning])
-
-  // ─── Ball animation (rAF) ──────────────────────────────────────────
-  function animateBall(duration: number) {
-    const el = ballRef.current
-    if (!el) return
-    const start = performance.now()
-    const halfPx = DISPLAY_SIZE / 2
-
-    // Ball starts at top, orbits outward then returns to top
-    const orbitPx = OUTER_ORBIT * SCALE
-    const pocketPx = POCKET_R * SCALE
-    const startAngle = -Math.PI / 2 // top = -90°
-    const totalRevolutions = -(5 + Math.random() * 3) * 2 * Math.PI // counter-clockwise
-
-    function easeOut(t: number) { return 1 - Math.pow(1 - t, 3) }
-
-    function tick(now: number) {
-      if (!el) return
-      const t = Math.min((now - start) / duration, 1)
-
-      // Orbit angle: starts at top, sweeps counter-clockwise, ends back at top
-      // We add totalRevolutions but bias the end toward -π/2 (top)
-      const orbitProgress = easeOut(t)
-      const angle = startAngle + totalRevolutions * orbitProgress
-      // At t=1, angle = startAngle + totalRevolutions (some multiple of 2π away from start)
-      // We want it to end at -π/2. totalRevolutions is already calculated to be full loops,
-      // so the fractional part brings it back near startAngle.
-
-      // Radius: outer orbit until t=0.85, then lerp to pocket, ends at pocket at top
-      let radius: number
-      if (t < 0.85) {
-        radius = orbitPx
-      } else if (t < 0.95) {
-        const d = (t - 0.85) / 0.10
-        radius = orbitPx + (pocketPx - orbitPx) * d
-      } else {
-        radius = pocketPx
-      }
-
-      // Bounce at end (t > 0.95)
-      let bounce = 0
-      if (t > 0.95) {
-        bounce = Math.sin((t - 0.95) * 20 * Math.PI) * (1 - t) * 6
-      }
-
-      // At t >= 0.95, force angle toward -π/2 (top)
-      let finalAngle = angle
-      if (t > 0.90) {
-        const blend = Math.min((t - 0.90) / 0.10, 1)
-        // Smoothstep blend
-        const s = blend * blend * (3 - 2 * blend)
-        // Normalize angle to find nearest -π/2 equivalent
-        const targetAngle = -Math.PI / 2
-        const norm = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)
-        let target = targetAngle
-        // Find the closest -π/2 + 2πn to current angle
-        while (target < angle - Math.PI) target += 2 * Math.PI
-        while (target > angle + Math.PI) target -= 2 * Math.PI
-        finalAngle = angle + (target - angle) * s
-      }
-
-      const fr = radius + bounce
-      const bx = halfPx + fr * Math.cos(finalAngle) - BALL_SZ / 2
-      const by = halfPx + fr * Math.sin(finalAngle) - BALL_SZ / 2
-
-      el.style.left = `${bx}px`
-      el.style.top = `${by}px`
-
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(tick)
-      } else {
-        // Snap ball to exact top-center pocket position
-        el.style.left = `${halfPx - BALL_SZ / 2}px`
-        el.style.top = `${halfPx - pocketPx - BALL_SZ / 2}px`
-      }
+    const start = Date.now()
+    const tick = () => {
+      const elapsed = Date.now() - start
+      const p = Math.min(elapsed / 3000 * 100, 100)
+      setPower(p)
+      if (p < 100 && holding) requestAnimationFrame(tick)
     }
+    requestAnimationFrame(tick)
+  }, [spinning, holding])
 
-    rafRef.current = requestAnimationFrame(tick)
-  }
-
-  // ─── Release to spin ────────────────────────────────────────────────
+  // ─── Release to spin ───────────────────────────────────────────────
   const releaseHold = useCallback(() => {
     if (!holding || spinning) return
     setHolding(false)
-    if (pwrInt.current) { clearInterval(pwrInt.current); pwrInt.current = null }
-
-    const pwr = Math.max(pwrRef.current, 15) / 100
     setPower(0)
     setSpinning(true)
     setHasSpun(true)
+    setBallState('spinning')
 
-    // Pick winner using weighted random
+    // Pick winner (weighted random)
     const total = prizes.reduce((s, p) => s + p.weight, 0)
     let rand = Math.random() * total
     let winIdx = 0
-    for (let i = 0; i < prizes.length; i++) {
+    for (let i = 0; i < N; i++) {
       rand -= prizes[i].weight
       if (rand <= 0) { winIdx = i; break }
     }
 
-    // STEP 4: Calculate rotation to land winning segment at TOP (-90° CSS)
-    // Segment center in wheel coordinates (degrees from 3 o'clock, clockwise)
-    const seg = segments[winIdx]
-    const winCenterDeg = seg.startDeg + seg.sweepDeg / 2
+    // Rotate wheel so winning segment lands at TOP
+    // Segment i center = i * DEG + DEG/2 degrees from start
+    // To bring to top (0°): rotate by -(that angle)
+    // Add 5 full spins
+    const segCenter = winIdx * DEG + DEG / 2
+    const spinTo = -segCenter + 5 * 360
 
-    // To bring this segment to top (which is -90° in CSS rotation terms):
-    // We need to rotate the wheel so that winCenterDeg aligns with -90° (top)
-    // CSS rotate(X) rotates clockwise. To put winCenterDeg at top:
-    // rotationNeeded = -90 - winCenterDeg (mod 360)
-    const targetMod = ((-90 - winCenterDeg) % 360 + 360) % 360
+    setWheelDeg(prev => prev + spinTo)
 
-    // Add jitter within segment (±30% of sweep)
-    const jitter = (Math.random() - 0.5) * 0.6 * seg.sweepDeg
-
-    // Add full spins
-    const fullSpins = Math.ceil(3 + pwr * 5) * 360
-    const curMod = ((rotation % 360) + 360) % 360
-    let delta = fullSpins + targetMod + jitter - curMod
-    if (delta < fullSpins) delta += 360
-
-    setRotation((prev) => prev + delta)
-
-    const duration = 3000 + pwr * 2000
-    animateBall(duration)
-
+    // After CSS transition ends (5s): settle ball to top
     setTimeout(() => {
+      setBallState('settling')
       setSpinning(false)
-      console.log('Winner index:', winIdx, 'Prize:', prizes[winIdx].label, 'Wheel rotated to:', (rotation + delta) % 360, 'degrees')
-      onSpinComplete?.(prizes[winIdx], winIdx)
-    }, duration)
-  }, [holding, spinning, rotation, prizes, segments, onSpinComplete])
 
-  // ─── Ball initial position: top of wheel, inside pocket ─────────────
-  const ballInitX = DISPLAY_SIZE / 2 - BALL_SZ / 2
-  const ballInitY = DISPLAY_SIZE / 2 - OUTER_ORBIT * SCALE - BALL_SZ / 2
+      // After ball settles (0.5s transition)
+      setTimeout(() => {
+        setBallState('idle')
+        console.log('Winner:', winIdx, prizes[winIdx].label)
+        onSpinComplete?.(prizes[winIdx], winIdx)
+      }, 600)
+    }, 5000)
+  }, [holding, spinning, prizes, N, DEG, onSpinComplete])
+
+  // ─── Ball position ─────────────────────────────────────────────────
+  // Scale from viewBox to display px
+  const scale = SIZE / VB
+  const ballTopX = CX * scale - BALL_SZ / 2
+  const ballTopY = POCKET_Y * scale - BALL_SZ / 2
 
   return (
     <div className="relative">
       <div
         className="relative cursor-pointer select-none mx-auto"
-        style={{ width: DISPLAY_SIZE, height: DISPLAY_SIZE }}
+        style={{ width: SIZE, height: SIZE }}
         onMouseDown={startHold}
         onMouseUp={releaseHold}
         onMouseLeave={() => { if (holding) releaseHold() }}
@@ -248,56 +151,69 @@ export function RouletteWheel({
         onTouchEnd={releaseHold}
       >
         {/* Ball */}
-        <div
-          ref={ballRef}
-          className="absolute pointer-events-none z-10"
-          style={{
-            width: BALL_SZ, height: BALL_SZ, borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.7)',
-            left: ballInitX, top: ballInitY,
-          }}
-        />
+        {ballState === 'spinning' ? (
+          <div
+            className="absolute z-10 pointer-events-none"
+            style={{ left: SIZE / 2 - BALL_SZ / 2, top: SIZE / 2 - BALL_SZ / 2, width: BALL_SZ, height: BALL_SZ }}
+          >
+            <div
+              className="animate-[ballOrbit_0.4s_linear_infinite]"
+              style={{
+                width: BALL_SZ, height: BALL_SZ, borderRadius: '50%',
+                background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.6)',
+              }}
+            />
+          </div>
+        ) : (
+          <div
+            className="absolute z-10 pointer-events-none"
+            style={{
+              width: BALL_SZ, height: BALL_SZ, borderRadius: '50%',
+              background: 'radial-gradient(circle at 35% 28%, #fff, #d4d4d4 45%, #999)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.6)',
+              left: ballTopX, top: ballTopY,
+              transition: ballState === 'settling' ? 'left 0.5s ease, top 0.5s ease' : 'none',
+            }}
+          />
+        )}
 
         {/* Wheel SVG */}
         <svg
           viewBox={`0 0 ${VB} ${VB}`}
-          width={DISPLAY_SIZE}
-          height={DISPLAY_SIZE}
+          width={SIZE}
+          height={SIZE}
           style={{
-            transform: `rotate(${rotation}deg)`,
-            transition: spinning ? 'transform 4.2s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none',
+            transform: `rotate(${wheelDeg}deg)`,
+            transition: spinning ? 'transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none',
           }}
         >
           {/* Outer gold ring */}
           <circle cx={CX} cy={CY} r={R + 10} fill="none" stroke="#FFD700" strokeWidth="3" />
 
-          {/* Bumps at segment boundaries */}
-          {segments.map((seg, i) => {
-            const bx = CX + (R + 6) * Math.cos(seg.startRad)
-            const by = CY + (R + 6) * Math.sin(seg.startRad)
-            return <circle key={`bump-${i}`} cx={bx} cy={by} r="3.5" fill="#FFD700" />
+          {/* Bumps */}
+          {prizes.map((_, i) => {
+            const a = (i * DEG - 90) * Math.PI / 180
+            return <circle key={`b${i}`} cx={CX + (R + 6) * Math.cos(a)} cy={CY + (R + 6) * Math.sin(a)} r="3.5" fill="#FFD700" />
           })}
 
           {/* Segments */}
-          {segments.map((seg, i) => {
-            const lx = CX + R * 0.55 * Math.cos(seg.midRad)
-            const ly = CY + R * 0.55 * Math.sin(seg.midRad)
-            const midDeg = (seg.startDeg + seg.sweepDeg / 2)
-            const isDark = seg.color === '#2a2a2a' || seg.color === '#9400D3' || seg.color === '#4169E1'
+          {prizes.map((p, i) => {
+            const lp = labelPos(i)
+            const dark = p.color === '#2a2a2a' || p.color === '#9400D3' || p.color === '#4169E1'
             return (
-              <g key={`seg-${i}`}>
-                <path d={segmentPath(seg.startRad, seg.endRad)} fill={seg.color} stroke="#FFD700" strokeWidth="1" />
+              <g key={`s${i}`}>
+                <path d={segPath(i)} fill={p.color} stroke="#FFD700" strokeWidth="1" />
                 <text
-                  x={lx} y={ly}
-                  fill={isDark ? '#fff' : '#1a0e00'}
-                  fontSize={seg.sweepDeg < 20 ? '8' : '11'}
+                  x={lp.x} y={lp.y}
+                  fill={dark ? '#fff' : '#1a0e00'}
+                  fontSize={DEG < 25 ? '8' : '11'}
                   fontWeight="bold"
                   textAnchor="middle"
                   dominantBaseline="central"
-                  transform={`rotate(${midDeg},${lx},${ly})`}
+                  transform={`rotate(${lp.deg},${lp.x},${lp.y})`}
                 >
-                  {seg.label.length > 10 ? seg.label.slice(0, 9) + '…' : seg.label}
+                  {p.label.length > 10 ? p.label.slice(0, 9) + '…' : p.label}
                 </text>
               </g>
             )
@@ -305,7 +221,7 @@ export function RouletteWheel({
 
           {/* Center hub */}
           <circle cx={CX} cy={CY} r={INNER_R + 2} fill="#1a0e00" stroke="#FFD700" strokeWidth="2.5" />
-          <text x={CX} y={CY} fill="#FFD700" fontSize="28" fontWeight="900" textAnchor="middle" dominantBaseline="central" fontFamily="Arial Black,sans-serif">S</text>
+          <text x={CX} y={CY} fill="#FFD700" fontSize="26" fontWeight="900" textAnchor="middle" dominantBaseline="central" fontFamily="Arial Black,sans-serif">S</text>
         </svg>
       </div>
 
@@ -316,6 +232,13 @@ export function RouletteWheel({
       <p className="text-center text-xs mb-4" style={{ color: 'rgba(255,248,242,0.3)' }}>
         {spinning ? '\u00A0' : holding ? 'Release to spin!' : hasSpun ? 'Hold to spin again' : 'Hold and release to spin'}
       </p>
+
+      <style>{`
+        @keyframes ballOrbit {
+          from { transform: rotate(0deg) translateX(${ORBIT_TX}px) rotate(0deg); }
+          to { transform: rotate(-360deg) translateX(${ORBIT_TX}px) rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 }
