@@ -1,4 +1,101 @@
+'use client'
+
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+
+// ─── Tooltip Component ───────────────────────────────────────────────────
+
+let globalCloseTooltip: (() => void) | null = null
+
+function Tooltip({ text }: { text: string }) {
+  const [show, setShow] = useState(false)
+
+  useEffect(() => {
+    if (show) {
+      // Close any other open tooltip
+      if (globalCloseTooltip && globalCloseTooltip !== close) globalCloseTooltip()
+      globalCloseTooltip = close
+    }
+    function close() { setShow(false) }
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as HTMLElement
+      if (show && !target.closest('[data-tooltip]')) setShow(false)
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => {
+      document.removeEventListener('click', handleClickOutside)
+      if (globalCloseTooltip === close) globalCloseTooltip = null
+    }
+  }, [show])
+
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: '4px' }} data-tooltip>
+      <span
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onClick={(e) => { e.stopPropagation(); setShow(!show) }}
+        style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: '14px', height: '14px', borderRadius: '50%',
+          border: '1px solid #a09080', color: '#a09080',
+          fontSize: '9px', fontWeight: '600', cursor: 'help',
+          flexShrink: 0,
+        }}
+      >?</span>
+      {show && (
+        <span style={{
+          position: 'absolute', bottom: '20px', left: '50%',
+          transform: 'translateX(-50%)',
+          background: '#1a0e00', border: '1px solid rgba(247,148,29,0.3)',
+          color: '#fff8f2', fontSize: '11px', padding: '6px 10px',
+          borderRadius: '6px', width: '200px', zIndex: 100,
+          lineHeight: '1.4', pointerEvents: 'none',
+        }}>
+          {text}
+          <span style={{
+            position: 'absolute', bottom: '-5px', left: '50%',
+            width: '8px', height: '8px', background: '#1a0e00',
+            border: '1px solid rgba(247,148,29,0.3)',
+            borderTop: 'none', borderLeft: 'none',
+            transform: 'translateX(-50%) rotate(45deg)',
+          }} />
+        </span>
+      )}
+    </span>
+  )
+}
+
+// ─── Tooltip Map ─────────────────────────────────────────────────────────
+
+const TOOLTIPS: Record<string, string> = {
+  // Free plan
+  'Full access until your first 100-visit month': 'You get unlimited visits until you prove it works. No credit card needed.',
+  'After 100-visit month: 5 visits/month to keep proving ROI': 'Once you hit 100 visits in a month, the following months cap at 5 visits so you can see what you\'re missing.',
+  'See who spun and what they won': 'Full funnel data: who got notified, who spun, what prize they won.',
+  "See exactly how many customers you're missing": 'After your limit is hit, every customer who would have received a notification is counted and shown in your dashboard.',
+  'Full geofence analytics (upgrade to unlock)': 'A 10-meter GPS boundary around your location. Only customers physically inside trigger a confirmed visit.',
+  'Time-of-day optimization (upgrade to unlock)': 'See which hours drive the most visits so you can schedule sales at peak times.',
+
+  // Starter plan
+  'Up to 100 confirmed visits/month': 'A confirmed visit = customer spun the wheel AND physically walked into your location. Verified by GPS.',
+  '$1.50 per confirmed visit · $150 cap': "You'll never pay more than $150 in a month regardless of visits. $1.50 × 100 = $150 maximum.",
+  'Priority support': 'Direct access to the SerendipEatery team. Issues resolved within 4 hours during business hours.',
+
+  // Growth plan
+  'Up to 300 confirmed visits/month': '300 confirmed visits × $1.00 = $300 maximum per month.',
+  '$1.00 per confirmed visit': 'Lower per-visit cost than Starter. Same GPS-verified confirmed visits.',
+  '$0.25 per influenced visit': "An influenced visit = customer didn't spin but walked in within 90 minutes of a nearby sale. Softer signal, lower price.",
+  '$300/mo billing cap': "Hard cap — you never pay more than $300 regardless of how many customers visit.",
+  'Advanced analytics & reports': 'Unlocks time-of-day charts, full geofence heat map, complete tier breakdown, and prize performance data.',
+
+  // Pro plan
+  'Unlimited confirmed visits': 'No caps, no shadow mode, no monthly limits. Pay $99/mo and capture every customer.',
+  'No shadow mode — ever': 'Your promotions never pause. Notifications always send. No missed opportunities.',
+  'Rate locked for 5 years': 'Your $99/mo rate never increases for the entire 5-year commitment period, regardless of future price changes.',
+  'No per-visit charges ever': 'Flat $99/mo. No matter how many customers visit, your bill stays the same.',
+}
+
+// ─── Plan Data ───────────────────────────────────────────────────────────
 
 const plans = [
   {
@@ -21,8 +118,8 @@ const plans = [
     cta: 'Start Free',
     href: '/sign-up',
     highlight: false,
-    badge: null,
-    etfNote: null,
+    badge: null as string | null,
+    etfNote: null as string | null,
   },
   {
     name: 'Starter',
@@ -42,8 +139,8 @@ const plans = [
     cta: 'Get Starter',
     href: '/billing?plan=starter',
     highlight: false,
-    badge: null,
-    etfNote: null,
+    badge: null as string | null,
+    etfNote: null as string | null,
   },
   {
     name: 'Growth',
@@ -92,6 +189,8 @@ const plans = [
     etfNote: 'Early termination: remaining months × $99',
   },
 ]
+
+// ─── Page ────────────────────────────────────────────────────────────────
 
 export default function PricingPage() {
   return (
@@ -146,10 +245,13 @@ export default function PricingPage() {
               <ul className="mt-4 space-y-2.5 flex-1">
                 {plan.features.map((feature) => (
                   <li key={feature.text} className={`flex items-start gap-2 text-sm ${feature.included ? 'text-surface/80' : 'text-surface/30'}`}>
-                    <span className={`mt-0.5 ${feature.included ? 'text-teal' : 'text-red-400/50'}`}>
+                    <span className={`mt-0.5 shrink-0 ${feature.included ? 'text-teal' : 'text-red-400/50'}`}>
                       {feature.included ? '✓' : '✗'}
                     </span>
-                    {feature.text}
+                    <span className="flex items-start flex-wrap">
+                      {feature.text}
+                      {TOOLTIPS[feature.text] && <Tooltip text={TOOLTIPS[feature.text]} />}
+                    </span>
                   </li>
                 ))}
               </ul>
