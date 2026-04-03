@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { NavBar } from '@/components/NavBar'
-import { ShadowModeBanner } from '@/components/ShadowModeBanner'
+import { FreeTierBanner } from '@/components/ShadowModeBanner'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -24,7 +24,10 @@ export default function PromotionsPage() {
   const [sales, setSales] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [shadowInfo, setShadowInfo] = useState<{ shadow_mode: boolean; shadow_mode_reason?: string; shadow_mode_at?: string; missed_count?: number } | null>(null)
+  const [shadowInfo, setShadowInfo] = useState<{
+    plan?: string; shadow_mode?: boolean; shadow_mode_reason?: string; shadow_mode_at?: string;
+    missed_count?: number; free_tier_graduated?: boolean; free_tier_visits_this_month?: number; peak_monthly_visits?: number;
+  } | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -46,13 +49,17 @@ export default function PromotionsPage() {
       <NavBar variant="business" />
       <main className="min-h-screen bg-night px-6 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* Shadow mode banner */}
-          {shadowInfo?.shadow_mode && (
-            <ShadowModeBanner
-              shadowMode={shadowInfo.shadow_mode}
-              reason={shadowInfo.shadow_mode_reason}
+          {/* Free tier / shadow mode banner */}
+          {shadowInfo && (
+            <FreeTierBanner
+              plan={shadowInfo.plan ?? 'trial'}
+              shadowMode={shadowInfo.shadow_mode ?? false}
+              shadowModeReason={shadowInfo.shadow_mode_reason}
               shadowModeAt={shadowInfo.shadow_mode_at}
               missedCount={shadowInfo.missed_count}
+              freeTierGraduated={shadowInfo.free_tier_graduated}
+              visitsThisMonth={shadowInfo.free_tier_visits_this_month}
+              peakMonthlyVisits={shadowInfo.peak_monthly_visits}
             />
           )}
 

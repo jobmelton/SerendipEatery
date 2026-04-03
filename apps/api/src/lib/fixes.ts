@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { sendMonthlyMissedReminder } from './billing.js'
 
 // ─── Fix Stuck Visits ─────────────────────────────────────────────────────
 // Finds visit_intents stuck in spun_away past their 60min window, marks expired
@@ -106,36 +107,100 @@ export async function fixTruckSnapshots(): Promise<number> {
 }
 
 // ─── Reset Monthly Visit Counts ──────────────────────────────────────────
-// Runs on 1st of each month, resets Starter/Growth counters and shadow mode
+// Runs on 1st of each month. Handles paid plans, free tier graduation, and reminders.
 
 export async function resetMonthlyVisitCounts(): Promise<number> {
   const now = new Date()
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  let totalReset = 0
 
-  // Only run on the 1st of the month (or if never reset this month)
-  const { data: stale, error } = await supabase
+  // 1. Reset paid plan (Starter/Growth) monthly counters
+  const { data: paidStale } = await supabase
     .from('businesses')
     .select('id')
     .in('billing_plan', ['starter', 'growth'])
     .or(`monthly_visit_reset_at.is.null,monthly_visit_reset_at.lt.${firstOfMonth.toISOString()}`)
 
-  if (error || !stale?.length) return 0
+  if (paidStale?.length) {
+    await supabase
+      .from('businesses')
+      .update({
+        monthly_visit_count: 0,
+        shadow_mode: false,
+        shadow_mode_reason: null,
+        shadow_mode_at: null,
+        monthly_visit_reset_at: now.toISOString(),
+      })
+      .in('id', paidStale.map(b => b.id))
 
-  const ids = stale.map(b => b.id)
+    totalReset += paidStale.length
+  }
 
-  await supabase
+  // 2. Graduate free tier businesses that had 100+ visits last month
+  const { data: toGraduate } = await supabase
     .from('businesses')
-    .update({
-      monthly_visit_count: 0,
-      shadow_mode: false,
-      shadow_mode_reason: null,
-      shadow_mode_at: null,
-      monthly_visit_reset_at: now.toISOString(),
-    })
-    .in('id', ids)
+    .select('id')
+    .or(`billing_plan.eq.trial,plan.eq.trial`)
+    .eq('free_tier_graduated', false)
+    .gte('free_tier_visits_this_month', 100)
+    .or(`monthly_visit_reset_at.is.null,monthly_visit_reset_at.lt.${firstOfMonth.toISOString()}`)
 
-  console.log(`[fix] Reset monthly visit counts for ${ids.length} businesses`)
-  return ids.length
+  if (toGraduate?.length) {
+    await supabase
+      .from('businesses')
+      .update({
+        free_tier_graduated: true,
+        graduated_at: now.toISOString(),
+      })
+      .in('id', toGraduate.map(b => b.id))
+
+    console.log(`[fix] Graduated ${toGraduate.length} free tier businesses`)
+  }
+
+  // 3. Reset all free tier monthly counters and shadow mode
+  const { data: freeStale } = await supabase
+    .from('businesses')
+    .select('id, free_tier_graduated, free_tier_visits_this_month')
+    .or(`billing_plan.eq.trial,plan.eq.trial`)
+    .or(`monthly_visit_reset_at.is.null,monthly_visit_reset_at.lt.${firstOfMonth.toISOString()}`)
+
+  if (freeStale?.length) {
+    // Send monthly missed reminder to graduated businesses before resetting
+    for (const biz of freeStale) {
+      if (biz.free_tier_graduated) {
+        // Count missed opportunities from last month
+        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+        const { count: missedLastMonth } = await supabase
+          .from('missed_opportunities')
+          .select('id', { count: 'exact', head: true })
+          .eq('business_id', biz.id)
+          .gte('created_at', lastMonthStart.toISOString())
+          .lt('created_at', firstOfMonth.toISOString())
+
+        if ((missedLastMonth ?? 0) > 0) {
+          await sendMonthlyMissedReminder(biz.id, missedLastMonth ?? 0)
+        }
+      }
+    }
+
+    await supabase
+      .from('businesses')
+      .update({
+        free_tier_visits_this_month: 0,
+        shadow_mode: false,
+        shadow_mode_reason: null,
+        shadow_mode_at: null,
+        monthly_visit_reset_at: now.toISOString(),
+      })
+      .in('id', freeStale.map(b => b.id))
+
+    totalReset += freeStale.length
+  }
+
+  if (totalReset > 0) {
+    console.log(`[fix] Reset monthly visit counts for ${totalReset} businesses`)
+  }
+  return totalReset
 }
 
 // ─── Expire Stale Waiting Battles ────────────────────────────────────────
