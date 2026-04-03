@@ -24,6 +24,7 @@ import { evidenceRoutes } from './routes/evidence.js'
 import { analyticsRoutes } from './routes/analytics.js'
 import { adminRoutes } from './routes/admin.js'
 import { battleRoutes } from './routes/battles.js'
+import { battleRealtimeRoutes } from './routes/battles-realtime.js'
 import { clerkWebhookRoutes } from './routes/webhooks/clerk.js'
 import { stripeIdentityWebhookRoutes } from './routes/webhooks/stripe-identity.js'
 
@@ -59,6 +60,7 @@ try {
 
 // ─── Public routes ───────────────────────────────────────────────────────
 app.register(salesRoutes)
+app.register(battleRealtimeRoutes)
 app.register(clerkWebhookRoutes)
 app.register(stripeIdentityWebhookRoutes)
 

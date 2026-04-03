@@ -2,16 +2,35 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { RouletteWheel, type WheelPrize } from '@/components/RouletteWheel'
 import { WinCelebration } from '@/components/WinCelebration'
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 const DEFAULT_CHALLENGE_MSG = "Accept the challenge and meet your fate — or decline and live with regret forever. 👊✋✌️"
 
+function getGuestId(): string {
+  if (typeof window === 'undefined') return ''
+  let id = localStorage.getItem('se_guest_id')
+  if (!id) {
+    id = `guest_${crypto.randomUUID()}`
+    localStorage.setItem('se_guest_id', id)
+  }
+  return id
+}
+
+function getGuestName(): string {
+  if (typeof window === 'undefined') return 'Challenger'
+  return localStorage.getItem('se_guest_name') || 'Challenger'
+}
+
 export default function LandingPage() {
+  const router = useRouter()
   const [cowardToast, setCowardToast] = useState(false)
   const [celebration, setCelebration] = useState<{ prize: string; color: string; isTryAgain: boolean } | null>(null)
   const [showChallengeComposer, setShowChallengeComposer] = useState(false)
   const [challengeMsg, setChallengeMsg] = useState(DEFAULT_CHALLENGE_MSG)
+  const [creating, setCreating] = useState(false)
 
   return (
     <main className="min-h-screen bg-night flex flex-col items-center px-6 pt-10 pb-16">
@@ -80,21 +99,46 @@ export default function LandingPage() {
             <button onClick={() => setChallengeMsg(DEFAULT_CHALLENGE_MSG)}
               className="text-surface/40 text-xs hover:text-surface/60 transition mb-4 block">Restore Default</button>
             <div className="flex flex-col gap-3">
-              <button onClick={() => {
-                const url = `${window.location.origin}/battle/demo?msg=${encodeURIComponent(challengeMsg)}`
-                const sd = { title: 'SerendipEatery Challenge', text: challengeMsg, url }
-                if (navigator.share) navigator.share(sd).catch(() => {})
-                else navigator.clipboard.writeText(`${challengeMsg}\n\n${url}`)
-                setShowChallengeComposer(false)
-              }} className="w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition">
-                📱 AirDrop / Share
+              <button disabled={creating} onClick={async () => {
+                setCreating(true)
+                try {
+                  const res = await fetch(`${API_URL}/battles/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playerId: getGuestId(), playerName: getGuestName(), message: challengeMsg }),
+                  })
+                  const json = await res.json()
+                  if (json.ok) {
+                    const battleUrl = `${window.location.origin}/battle/${json.data.id}`
+                    const sd = { title: 'SerendipEatery Challenge', text: challengeMsg, url: battleUrl }
+                    if (navigator.share) await navigator.share(sd).catch(() => {})
+                    else navigator.clipboard.writeText(`${challengeMsg}\n\n${battleUrl}`)
+                    setShowChallengeComposer(false)
+                    router.push(`/battle/${json.data.id}`)
+                  }
+                } catch {} finally { setCreating(false) }
+              }} className="w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition disabled:opacity-50">
+                {creating ? 'Creating...' : '📱 AirDrop / Share'}
               </button>
-              <button onClick={() => {
-                const url = `${window.location.origin}/battle/demo?msg=${encodeURIComponent(challengeMsg)}`
-                window.open(`sms:?body=${encodeURIComponent(challengeMsg + '\n\n' + url)}`, '_self')
-                setShowChallengeComposer(false)
-              }} className="w-full border border-surface/20 text-surface/60 font-bold py-3 rounded-xl hover:bg-white/5 transition">
-                💬 Send as Text
+              <button disabled={creating} onClick={async () => {
+                setCreating(true)
+                try {
+                  const res = await fetch(`${API_URL}/battles/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playerId: getGuestId(), playerName: getGuestName(), message: challengeMsg }),
+                  })
+                  const json = await res.json()
+                  if (json.ok) {
+                    const battleUrl = `${window.location.origin}/battle/${json.data.id}`
+                    const smsBody = `${challengeMsg}\n\nTap to battle: ${battleUrl}\n\nSerendipEatery — Spin. Win. Connect. Eat.`
+                    window.open(`sms:?body=${encodeURIComponent(smsBody)}`, '_self')
+                    setShowChallengeComposer(false)
+                    router.push(`/battle/${json.data.id}`)
+                  }
+                } catch {} finally { setCreating(false) }
+              }} className="w-full border border-surface/20 text-surface/60 font-bold py-3 rounded-xl hover:bg-white/5 transition disabled:opacity-50">
+                {creating ? 'Creating...' : '💬 Send as Text'}
               </button>
             </div>
             <button onClick={() => setShowChallengeComposer(false)}
