@@ -16,7 +16,7 @@ export default function SignUpPage() {
         path="/sign-up"
         routing="path"
         signInUrl="/sign-in"
-        forceRedirectUrl="/business/onboarding"
+        forceRedirectUrl="/consumer?welcome=true"
       />
     </main>
   )

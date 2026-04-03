@@ -553,6 +553,22 @@ export default function ConsumerPage() {
   const [loading, setLoading] = useState(true)
   const [spinning, setSpinning] = useState<string | null>(null)
   const [spinResult, setSpinResult] = useState<{ prize: string; saleId: string } | null>(null)
+  const [showWelcome, setShowWelcome] = useState(false)
+
+  // Welcome overlay for first-time sign-ups
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('welcome') === 'true' && !localStorage.getItem('serendip_welcomed')) {
+      setShowWelcome(true)
+      localStorage.setItem('serendip_welcomed', 'true')
+      // Clean URL
+      window.history.replaceState({}, '', '/consumer')
+      // Auto-dismiss after 5 seconds
+      const timer = setTimeout(() => setShowWelcome(false), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [])
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -621,6 +637,29 @@ export default function ConsumerPage() {
 
   return (
     <main className="min-h-screen bg-night">
+      {/* Welcome overlay for first-time users */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6 bg-night/95">
+          <div className="text-center max-w-sm">
+            <p className="text-5xl mb-4">🎉</p>
+            <h2 className="text-3xl font-black text-surface mb-2">Welcome to SerendipEatery!</h2>
+            <p className="text-btc text-lg font-bold mb-6">Spin. Win. Connect. Eat.</p>
+            <p className="text-surface/50 text-sm mb-6">Download the app for the full experience</p>
+            <div className="flex gap-3 justify-center mb-4">
+              <Link href="/coming-soon-app" className="bg-btc text-night font-bold px-5 py-2.5 rounded-full text-sm hover:bg-btc-dark transition">
+                Download for iOS
+              </Link>
+              <Link href="/coming-soon-app" className="bg-btc text-night font-bold px-5 py-2.5 rounded-full text-sm hover:bg-btc-dark transition">
+                Download for Android
+              </Link>
+            </div>
+            <button onClick={() => setShowWelcome(false)} className="text-surface/30 text-sm hover:text-surface/50 transition">
+              Skip for now
+            </button>
+          </div>
+        </div>
+      )}
+
       {isSignedIn ? (
         <NavBar variant="consumer" />
       ) : (

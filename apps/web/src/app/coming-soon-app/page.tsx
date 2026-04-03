@@ -35,37 +35,44 @@ export default function ComingSoonAppPage() {
         The app is coming soon
       </h1>
       <p className="text-surface/50 text-center text-lg mb-10 max-w-md">
-        Be the first to know when we launch.
+        Get the full SerendipEatery experience — battles, lootbox, and deals near you
       </p>
 
       {status === 'success' ? (
-        <div className="text-teal font-bold text-lg">You're on the list!</div>
+        <div className="text-center">
+          <p className="text-teal font-bold text-lg mb-2">You're on the list! 🎉</p>
+          <p className="text-surface/40 text-sm">Already on the waitlist? You'll be first to know</p>
+        </div>
       ) : (
-        <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            required
-            className="flex-1 bg-[#1a1230] text-surface border border-white/10 rounded-full px-5 py-3 text-sm placeholder:text-surface/30 focus:outline-none focus:border-btc transition"
-          />
-          <button
-            type="submit"
-            disabled={status === 'loading'}
-            className="bg-btc text-night font-bold px-6 py-3 rounded-full text-sm hover:bg-btc-dark transition disabled:opacity-50"
-          >
-            {status === 'loading' ? 'Saving...' : 'Notify Me'}
-          </button>
-        </form>
+        <>
+          <p className="text-btc/60 text-sm mb-4 font-bold">Notify me when it launches</p>
+          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 w-full max-w-md mb-4">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+              className="flex-1 bg-[#1a1230] text-surface border border-white/10 rounded-full px-5 py-3 text-sm placeholder:text-surface/30 focus:outline-none focus:border-btc transition"
+            />
+            <button
+              type="submit"
+              disabled={status === 'loading'}
+              className="bg-btc text-night font-bold px-6 py-3 rounded-full text-sm hover:bg-btc-dark transition disabled:opacity-50"
+            >
+              {status === 'loading' ? 'Saving...' : 'Notify Me'}
+            </button>
+          </form>
+          <p className="text-surface/30 text-xs">Already on the waitlist? You'll be first to know 🎉</p>
+        </>
       )}
 
       {status === 'error' && (
         <p className="text-red-400 text-sm mt-3">Something went wrong. Try again.</p>
       )}
 
-      <Link href="/" className="mt-10 text-surface/30 text-sm hover:text-surface/50 transition">
-        Back to home
+      <Link href="/consumer" className="mt-10 text-surface/30 text-sm hover:text-surface/50 transition">
+        Back to deals
       </Link>
     </main>
   )
