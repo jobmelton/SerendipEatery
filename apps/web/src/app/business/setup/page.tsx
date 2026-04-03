@@ -141,11 +141,6 @@ export default function BusinessSetupPage() {
         <h1 className="text-2xl font-bold text-surface mb-6">
           {step === 1 ? 'Your Business' : step === 2 ? 'Schedule Your Sale' : step === 3 ? 'Add Prizes' : 'Preview & Launch'}
         </h1>
-        {/* hide the old h1 */}
-        <div className="hidden">
-        </div>
-
-        </div>
 
         {/* ─── Step 1: Business Info ─── */}
         {step === 1 && (
