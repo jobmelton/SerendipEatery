@@ -87,6 +87,10 @@ interface BattleData {
   winner_id: string | null
   expires_at: string | null
   created_at: string
+  is_bot_battle?: boolean
+  double_or_nothing_count?: number
+  stake_multiplier?: number
+  player_win_probability?: number
 }
 
 export default function BattlePage() {
@@ -800,6 +804,36 @@ export default function BattlePage() {
                   <p className="text-surface text-sm">{lootResult.item?.prizeName} from {lootResult.item?.businessName}</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Double or Nothing */}
+          {finalWinner === 'win' && lootClaimed && (
+            <div className="mb-6 max-w-xs mx-auto">
+              <button onClick={async () => {
+                const res = await fetch(`${API_URL}/battles/${id}/double-or-nothing`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ playerId: myId }),
+                })
+                const d = await res.json()
+                if (d.ok && d.data?.newBattleId) {
+                  window.location.href = `/battle/${d.data.newBattleId}`
+                }
+              }}
+                className="w-full py-3 rounded-full font-bold text-sm transition mb-2"
+                style={{ border: '2px solid #F7941D', color: '#F7941D', background: 'transparent', animation: 'pulse 2s ease-in-out infinite' }}>
+                Double or Nothing — go again
+              </button>
+              <p className="text-surface/30 text-xs text-center">
+                {isBotBattle
+                  ? (battle?.double_or_nothing_count ?? 0) >= 2
+                    ? 'You and The House. Equal odds. Go again?'
+                    : (battle?.double_or_nothing_count ?? 0) >= 1
+                      ? 'The House evens the odds. 50/50 from here.'
+                      : 'Your odds drop to 60%. Put your winnings back on the line.'
+                  : 'Put your winnings back on the line. Winner takes all.'}
+              </p>
             </div>
           )}
 

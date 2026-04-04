@@ -96,6 +96,8 @@ async function botAcceptChallenge(battleId: string): Promise<void> {
       defender_name: BOT_NAME,
       status: 'active',
       current_round: 1,
+      is_bot_battle: true,
+      player_win_probability: 0.75,
     })
     .eq('id', battleId)
     .eq('status', 'waiting')
@@ -145,7 +147,8 @@ function watchBattleMoves(battleId: string): void {
 // ─── Bot submits a move ──────────────────────────────────────────────────
 
 async function botRespondToMove(battleId: string, round: number, playerMove: string): Promise<void> {
-  const botMove = generateBotMove(playerMove)
+  const winProb = await getBattleWinProbability(battleId)
+  const botMove = generateBotMove(playerMove, winProb)
 
   // Check if bot already submitted for this round
   const { data: existing } = await supabase
@@ -178,23 +181,40 @@ async function botRespondToMove(battleId: string, round: number, playerMove: str
 }
 
 // ─── Bot move generation ─────────────────────────────────────────────────
-// Bot wins ~45%, player wins ~45%, draw ~10%
+// playerWinProbability controls how often bot throws a losing move
+// 0.75 = bot throws losing move 75% of the time (player advantage)
+// 0.50 = pure random
 
-function generateBotMove(playerMove: string): string {
-  const beats: Record<string, string> = { rock: 'paper', paper: 'scissors', scissors: 'rock' }
+function generateBotMove(playerMove: string, playerWinProbability = 0.5): string {
   const losesTo: Record<string, string> = { rock: 'scissors', paper: 'rock', scissors: 'paper' }
 
   const roll = Math.random()
-  if (roll < 0.45) {
-    // Let player win
+  if (roll < playerWinProbability) {
+    // Bot throws move that LOSES to player's move
     return losesTo[playerMove] ?? MOVES[Math.floor(Math.random() * 3)]
-  } else if (roll < 0.90) {
-    // Bot wins
-    return beats[playerMove] ?? MOVES[Math.floor(Math.random() * 3)]
   } else {
-    // Draw
-    return playerMove
+    // Bot throws random move
+    return MOVES[Math.floor(Math.random() * 3)]
   }
+}
+
+// Get win probability for a battle (based on double-or-nothing count)
+async function getBattleWinProbability(battleId: string): Promise<number> {
+  const { data } = await supabase
+    .from('battles')
+    .select('player_win_probability, is_bot_battle')
+    .eq('id', battleId)
+    .single()
+
+  if (!data?.is_bot_battle) return 0.5
+  return data?.player_win_probability ?? 0.5
+}
+
+// Calculate probability based on double-or-nothing count
+export function getDoubleProbability(count: number): number {
+  if (count <= 0) return 0.75 // initial bot battle
+  if (count === 1) return 0.60
+  return 0.50 // pure fate from count 2+
 }
 
 // ─── Server-side round resolution (for bot games) ────────────────────────

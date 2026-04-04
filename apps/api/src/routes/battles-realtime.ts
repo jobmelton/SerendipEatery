@@ -105,7 +105,32 @@ export async function battleRealtimeRoutes(app: FastifyInstance) {
       throw new AppError(400, 'EXPIRED', 'This challenge has expired')
     }
     if (battle.status === 'active') {
-      throw new AppError(400, 'ALREADY_ACTIVE', 'This battle is already in progress')
+      // Someone already accepted — create a bot battle for this player instead
+      const { data: botBattle, error: botErr } = await supabase
+        .from('battles')
+        .insert({
+          challenger_id: playerId,
+          challenger_name: playerName,
+          defender_id: BOT_USER_ID,
+          defender_name: 'The House',
+          status: 'active',
+          current_round: 1,
+          is_bot_battle: true,
+          player_win_probability: 0.75,
+          challenger_message: battle.challenger_message,
+        })
+        .select()
+        .single()
+
+      if (botErr || !botBattle) throw new AppError(500, 'BOT_BATTLE_FAILED', 'Failed to create bot battle')
+
+      return {
+        ok: true,
+        data: botBattle,
+        redirected: true,
+        new_battle_id: botBattle.id,
+        message: "Someone got there first. The House steps in. Your odds just got better.",
+      }
     }
     if (battle.status === 'completed' || battle.status === 'forfeit') {
       throw new AppError(400, 'ALREADY_DONE', 'This challenge has ended')
@@ -335,6 +360,80 @@ export async function battleRealtimeRoutes(app: FastifyInstance) {
     }).eq('id', id)
 
     return { ok: true, data: { winnerId } }
+  })
+
+  // ─── Double or Nothing ───────────────���──────────────────────────────
+  app.post('/battles/:id/double-or-nothing', async (request) => {
+    const { id } = request.params as { id: string }
+    const body = request.body as { playerId: string }
+
+    if (!body.playerId) throw new AppError(400, 'MISSING_PLAYER', 'playerId required')
+
+    const { data: battle } = await supabase
+      .from('battles')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (!battle) throw new AppError(404, 'NOT_FOUND', 'Battle not found')
+    if (battle.status !== 'completed') throw new AppError(400, 'NOT_DONE', 'Battle not completed')
+    if (battle.winner_id !== body.playerId) throw new AppError(403, 'NOT_WINNER', 'Only the winner can initiate')
+
+    const newCount = (battle.double_or_nothing_count ?? 0) + 1
+    const newStake = Math.min(Math.pow(2, newCount), 8)
+
+    if (battle.is_bot_battle) {
+      // Bot auto-accepts — create new battle with adjusted probability
+      const { getDoubleProbability } = await import('../lib/houseBot.js')
+      const newProb = getDoubleProbability(newCount)
+
+      const { data: newBattle, error } = await supabase
+        .from('battles')
+        .insert({
+          challenger_id: body.playerId,
+          challenger_name: battle.challenger_name,
+          defender_id: BOT_USER_ID,
+          defender_name: 'The House',
+          status: 'active',
+          current_round: 1,
+          is_bot_battle: true,
+          player_win_probability: newProb,
+          double_or_nothing_count: newCount,
+          stake_multiplier: newStake,
+          parent_battle_id: id,
+          challenger_message: battle.challenger_message,
+        })
+        .select()
+        .single()
+
+      if (error || !newBattle) throw new AppError(500, 'FAILED', 'Failed to create double-or-nothing battle')
+
+      return {
+        ok: true,
+        data: {
+          newBattleId: newBattle.id,
+          doubleCount: newCount,
+          stakeMultiplier: newStake,
+          playerWinProbability: newProb,
+          message: newProb === 0.5 ? 'The House evens the odds. Pure fate now.' : `Your odds: ${Math.round(newProb * 100)}%`,
+        },
+      }
+    }
+
+    // P2P: broadcast double-or-nothing request via Realtime (update battle)
+    await supabase.from('battles').update({
+      double_or_nothing_count: newCount,
+      stake_multiplier: newStake,
+    }).eq('id', id)
+
+    return {
+      ok: true,
+      data: {
+        doubleCount: newCount,
+        stakeMultiplier: newStake,
+        waitingForResponse: true,
+      },
+    }
   })
 
   // ─── Get bot lootbox (for loot picking after winning vs bot) ───────
