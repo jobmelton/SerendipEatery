@@ -26,8 +26,10 @@ interface Prize {
   name: string
   type: string
   value: string
-  couponType: 'flash' | 'long-term'
+  couponType: 'flash' | 'long_term' | 'high_value'
   probability: number // 5-95, increments of 5
+  redeemWindowMinutes: number
+  dailyRedemptionCap: string
 }
 
 export default function BusinessSetupPage() {
@@ -51,7 +53,7 @@ export default function BusinessSetupPage() {
 
   // Step 3
   const [prizes, setPrizes] = useState<Prize[]>([
-    { name: '', type: PRIZE_TYPES[0], value: '', couponType: 'flash', probability: 15 },
+    { name: '', type: PRIZE_TYPES[0], value: '', couponType: 'flash', probability: 15, redeemWindowMinutes: 15, dailyRedemptionCap: '' },
   ])
   const [confirmNoTryAgain, setConfirmNoTryAgain] = useState(false)
 
@@ -76,7 +78,7 @@ export default function BusinessSetupPage() {
     const remaining = 100 - assignedTotal
     const newProb = Math.min(Math.max(5, remaining - 5), 95) // leave room for Try Again
     if (assignedTotal + 5 > 100) return // can't add if no room
-    setPrizes([...prizes, { name: '', type: PRIZE_TYPES[0], value: '', couponType: 'flash', probability: Math.min(newProb, 5) > 0 ? 5 : 5 }])
+    setPrizes([...prizes, { name: '', type: PRIZE_TYPES[0], value: '', couponType: 'flash', probability: Math.min(newProb, 5) > 0 ? 5 : 5, redeemWindowMinutes: 15, dailyRedemptionCap: '' }])
   }
 
   const adjustProbability = (i: number, delta: number) => {
@@ -325,13 +327,35 @@ export default function BusinessSetupPage() {
                     className="w-24 bg-night text-surface border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-btc focus:outline-none" />
                 </div>
                 <div className="flex gap-2">
-                  {(['flash', 'long-term'] as const).map((ct) => (
+                  {(['flash', 'long_term', 'high_value'] as const).map((ct) => (
                     <button key={ct} onClick={() => updatePrize(i, 'couponType', ct)}
-                      className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${prize.couponType === ct ? 'bg-btc text-night' : 'bg-night text-surface/40 border border-white/10'}`}>
-                      {ct === 'flash' ? 'Flash (expires with sale)' : 'Long-term (1 year)'}
+                      className={`flex-1 py-2 rounded-lg text-[11px] font-bold transition ${prize.couponType === ct ? 'bg-btc text-night' : 'bg-night text-surface/40 border border-white/10'}`}>
+                      {ct === 'flash' ? 'Flash' : ct === 'long_term' ? 'Long-term' : 'High Value'}
                     </button>
                   ))}
                 </div>
+                {prize.couponType === 'high_value' && (
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-surface/40 text-xs w-28 shrink-0">Redeem window:</span>
+                      <select value={prize.redeemWindowMinutes} onChange={(e) => { const up = [...prizes]; up[i] = { ...up[i], redeemWindowMinutes: Number(e.target.value) }; setPrizes(up) }}
+                        className="flex-1 bg-night text-surface border border-white/10 rounded-lg px-3 py-1.5 text-xs">
+                        <option value={15}>15 minutes</option>
+                        <option value={30}>30 minutes</option>
+                        <option value={60}>60 minutes</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-surface/40 text-xs w-28 shrink-0">Daily cap:</span>
+                      <input type="number" value={prize.dailyRedemptionCap} onChange={(e) => { const up = [...prizes]; up[i] = { ...up[i], dailyRedemptionCap: e.target.value }; setPrizes(up) }}
+                        placeholder="Unlimited" min="1"
+                        className="flex-1 bg-night text-surface border border-white/10 rounded-lg px-3 py-1.5 text-xs focus:border-btc focus:outline-none" />
+                    </div>
+                    <div className="rounded-lg p-2.5 text-[10px] text-surface/40 leading-relaxed" style={{ background: 'rgba(255,215,0,0.05)', border: '1px solid rgba(255,215,0,0.15)' }}>
+                      High value coupons can be traded between users and looted in battles. They never expire until redeemed.
+                    </div>
+                  </div>
+                )}
                 {/* Probability control */}
                 <div className="flex items-center gap-3 pt-1">
                   <span className="text-surface/40 text-xs">Chance:</span>

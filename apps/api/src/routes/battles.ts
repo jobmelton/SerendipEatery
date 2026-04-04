@@ -7,6 +7,7 @@ import { AppError } from '../lib/errors.js'
 import { resolveBattle, spinLootWheel, type Move } from '../lib/battle.js'
 import { awardPoints } from '../lib/loyalty.js'
 import { EARN_POINTS } from '../types/shared.js'
+import { protectLootDuringBattle } from '../lib/coupons.js'
 
 const moveEnum = z.enum(['rock', 'paper', 'scissors'])
 
@@ -401,6 +402,112 @@ export async function battleRoutes(app: FastifyInstance) {
         keptDeal: {
           prizeName: keptDeal.prize_name,
           businessName: keptDeal.business_name,
+        },
+      },
+    }
+  })
+
+  // ─── Get loser's lootable items (only after battle ends) ───────────
+  app.get('/battles/:id/loser-lootbox', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const { id } = request.params as { id: string }
+
+    const { data: battle } = await supabase
+      .from('battles')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (!battle) throw new AppError(404, 'NOT_FOUND', 'Battle not found')
+    if (battle.status !== 'completed') throw new AppError(400, 'NOT_COMPLETED', 'Battle not completed yet')
+    if (battle.winner_id !== userId) throw new AppError(403, 'FORBIDDEN', 'Only the winner can view loser lootbox')
+
+    const loserId = battle.challenger_id === userId ? battle.defender_id : battle.challenger_id
+
+    const { data: lootableItems } = await supabase
+      .from('wallets')
+      .select('id, prize_name, business_name, coupon_type, coupon_code, expires_at')
+      .eq('current_owner_id', loserId)
+      .eq('is_lootable', true)
+      .eq('is_redeemed', false)
+      .or(`loot_protected_until.is.null,loot_protected_until.lt.${new Date().toISOString()}`)
+
+    return { ok: true, data: lootableItems ?? [] }
+  })
+
+  // ─── Loot a specific item from loser ──────────────────────────────
+  app.post('/battles/:id/loot-item', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const { id } = request.params as { id: string }
+    const body = request.body as { walletId?: string }
+
+    const { data: battle } = await supabase
+      .from('battles')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (!battle) throw new AppError(404, 'NOT_FOUND', 'Battle not found')
+    if (battle.status !== 'completed') throw new AppError(400, 'NOT_COMPLETED', 'Battle not completed')
+    if (battle.winner_id !== userId) throw new AppError(403, 'FORBIDDEN', 'Only the winner can loot')
+    if (battle.loot_type) throw new AppError(400, 'ALREADY_LOOTED', 'Loot already claimed')
+
+    const loserId = battle.challenger_id === userId ? battle.defender_id : battle.challenger_id
+
+    // Points scale with battle intensity
+    const challengerWins = (battle.round_results ?? []).filter((r: any) => r.winner === 'challenger').length
+    const defenderWins = (battle.round_results ?? []).filter((r: any) => r.winner === 'defender').length
+    const winnerScore = battle.winner_id === battle.challenger_id ? challengerWins : defenderWins
+    const loserScore = battle.winner_id === battle.challenger_id ? defenderWins : challengerWins
+    const pointsMultiplier = loserScore === 0 ? 1.5 : loserScore === 1 ? 1.2 : 1.0
+
+    if (!body.walletId) {
+      // No item selected — award points instead
+      const basePoints = spinLootWheel()
+      const points = Math.round(basePoints * pointsMultiplier)
+
+      await supabase.from('battles').update({
+        loot_type: 'points',
+        loot_amount: points,
+      }).eq('id', id)
+
+      await awardPoints(userId, points, 'battle_win', id).catch(() => {})
+
+      return { ok: true, data: { type: 'points', amount: points } }
+    }
+
+    // Transfer chosen item
+    const { data: item } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('id', body.walletId)
+      .eq('current_owner_id', loserId)
+      .eq('is_lootable', true)
+      .eq('is_redeemed', false)
+      .single()
+
+    if (!item) throw new AppError(404, 'ITEM_NOT_FOUND', 'Item not available for looting')
+
+    await supabase
+      .from('wallets')
+      .update({ current_owner_id: userId, user_id: userId })
+      .eq('id', body.walletId)
+
+    await supabase.from('battles').update({
+      loot_type: 'coupon',
+      loot_coupon_id: body.walletId,
+    }).eq('id', id)
+
+    return {
+      ok: true,
+      data: {
+        type: 'coupon',
+        item: {
+          id: item.id,
+          prizeName: item.prize_name,
+          businessName: item.business_name,
+          couponType: item.coupon_type,
+          expiresAt: item.expires_at,
         },
       },
     }

@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js'
 import { sendMonthlyMissedReminder } from './billing.js'
+import { deleteExpiredFlashCoupons } from './coupons.js'
 
 // ─── Fix Stuck Visits ─────────────────────────────────────────────────────
 // Finds visit_intents stuck in spun_away past their 60min window, marks expired
@@ -231,6 +232,9 @@ export async function expireWaitingBattles(): Promise<number> {
 export function startFixWorkers(): void {
   console.log('[fix] Starting one-tap fix workers...')
 
+  // Delete expired flash coupons every 5 minutes
+  setInterval(deleteExpiredFlashCoupons, 5 * 60 * 1000)
+
   // Fix stuck visits every 5 minutes
   setInterval(fixStuckVisits, 5 * 60 * 1000)
 
@@ -247,6 +251,7 @@ export function startFixWorkers(): void {
   setInterval(expireWaitingBattles, 5 * 60 * 1000)
 
   // Run once on startup
+  deleteExpiredFlashCoupons()
   fixStuckVisits()
   fixOrphanedBillingEvents()
   fixTruckSnapshots()

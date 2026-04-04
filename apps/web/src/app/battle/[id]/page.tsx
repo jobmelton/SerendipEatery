@@ -106,6 +106,10 @@ export default function BattlePage() {
   const [shareMsg, setShareMsg] = useState(DEFAULT_MSG)
   const [showShareModal, setShowShareModal] = useState(false)
   const [cowardToast, setCowardToast] = useState(false)
+  const [loserLoot, setLoserLoot] = useState<Array<{ id: string; prize_name: string; business_name: string; coupon_type: string }>>([])
+  const [selectedLootId, setSelectedLootId] = useState<string | null>(null)
+  const [lootClaimed, setLootClaimed] = useState(false)
+  const [lootResult, setLootResult] = useState<{ type: string; amount?: number; item?: any } | null>(null)
   const subscriptionRef = useRef<any>(null)
 
   const playerId = useRef('')
@@ -263,6 +267,11 @@ export default function BattlePage() {
     if (b.winner_id === playerId.current) {
       setFinalWinner('win')
       playWinBeep()
+      // Fetch loser's lootable items
+      fetch(`${API_URL}/battles/${b.id}/loser-lootbox`)
+        .then(r => r.json())
+        .then(d => { if (d.ok) setLoserLoot(d.data ?? []) })
+        .catch(() => {})
     } else if (b.winner_id) {
       setFinalWinner('lose')
       playLoseBeep()
@@ -706,6 +715,77 @@ export default function BattlePage() {
                   </div>
                 )
               })}
+            </div>
+          )}
+
+          {/* Loot Picker (winner only) */}
+          {finalWinner === 'win' && !lootClaimed && loserLoot.length > 0 && (
+            <div className="mb-6 max-w-xs mx-auto">
+              <p className="text-surface/50 text-sm mb-3 text-center">Pick one to loot:</p>
+              <div className="space-y-2">
+                {loserLoot.map(item => (
+                  <button key={item.id} onClick={() => setSelectedLootId(item.id)}
+                    className="w-full rounded-xl p-3 text-left transition"
+                    style={{
+                      background: '#1a1230',
+                      border: selectedLootId === item.id ? '2px solid #F7941D' : '1px solid rgba(255,255,255,0.08)',
+                      boxShadow: selectedLootId === item.id ? '0 0 12px rgba(247,148,29,0.3)' : 'none',
+                    }}>
+                    <p className="text-surface font-bold text-sm">{item.prize_name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-surface/40 text-xs">{item.business_name}</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/5 text-surface/30">
+                        {item.coupon_type === 'high_value' ? 'High Value' : item.coupon_type === 'long_term' ? 'Long Term' : 'Flash'}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {selectedLootId && (
+                <button onClick={async () => {
+                  const res = await fetch(`${API_URL}/battles/${id}/loot-item`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playerId: myId, walletId: selectedLootId }),
+                  })
+                  const d = await res.json()
+                  if (d.ok) { setLootResult(d.data); setLootClaimed(true) }
+                }} className="w-full bg-btc text-night font-bold py-3 rounded-xl mt-3 hover:bg-btc-dark transition">
+                  Loot This
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Empty lootbox — points award */}
+          {finalWinner === 'win' && !lootClaimed && loserLoot.length === 0 && (
+            <div className="mb-6 max-w-xs mx-auto text-center">
+              <p className="text-surface/40 text-sm mb-3">No items to loot — bonus points instead!</p>
+              <button onClick={async () => {
+                const res = await fetch(`${API_URL}/battles/${id}/loot-item`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ playerId: myId }),
+                })
+                const d = await res.json()
+                if (d.ok) { setLootResult(d.data); setLootClaimed(true) }
+              }} className="bg-btc text-night font-bold px-8 py-3 rounded-full hover:bg-btc-dark transition">
+                Claim Points
+              </button>
+            </div>
+          )}
+
+          {/* Loot result */}
+          {lootClaimed && lootResult && (
+            <div className="mb-6 max-w-xs mx-auto text-center rounded-xl p-4" style={{ background: '#1a1230', border: '1px solid rgba(255,215,0,0.2)' }}>
+              {lootResult.type === 'points' ? (
+                <p className="text-btc font-black text-2xl">+{lootResult.amount} pts</p>
+              ) : (
+                <div>
+                  <p className="text-teal font-bold">Looted!</p>
+                  <p className="text-surface text-sm">{lootResult.item?.prizeName} from {lootResult.item?.businessName}</p>
+                </div>
+              )}
             </div>
           )}
 
