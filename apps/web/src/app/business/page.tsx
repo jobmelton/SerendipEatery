@@ -49,7 +49,7 @@ export default function BusinessPage() {
 
       {/* CTAs */}
       <Link
-        href="/business/setup"
+        href="/business/onboarding"
         className="bg-btc text-night font-bold text-xl px-12 py-5 rounded-full hover:bg-btc-dark transition"
       >
         Start Free
