@@ -32,6 +32,10 @@ export default function LandingPage() {
   const [showChallengeComposer, setShowChallengeComposer] = useState(false)
   const [challengeMsg, setChallengeMsg] = useState(DEFAULT_CHALLENGE_MSG)
   const [creating, setCreating] = useState(false)
+  const [showFallback, setShowFallback] = useState(false)
+  const [fallbackUrl, setFallbackUrl] = useState('')
+  const [fallbackText, setFallbackText] = useState('')
+  const [copied, setCopied] = useState(false)
 
   return (
     <main className="min-h-screen bg-night flex flex-col items-center px-6 pt-10 pb-16">
@@ -102,7 +106,8 @@ export default function LandingPage() {
             <button onClick={() => setChallengeMsg(DEFAULT_CHALLENGE_MSG)}
               className="text-surface/40 text-xs hover:text-surface/60 transition mb-4 block">Restore Default</button>
             <div className="flex flex-col gap-3">
-              <button disabled={creating} onClick={async () => {
+              <button disabled={creating} onClick={async (e) => {
+                e.preventDefault()
                 setCreating(true)
                 try {
                   const res = await fetch(`${API_URL}/battles/create`, {
@@ -111,19 +116,32 @@ export default function LandingPage() {
                     body: JSON.stringify({ playerId: getGuestId(), playerName: getGuestName(), message: challengeMsg }),
                   })
                   const json = await res.json()
-                  if (json.ok) {
-                    const branchUrl = await createBattleLink({ battleId: json.data.id, challengerName: getGuestName(), message: challengeMsg })
-                    const sd = { title: 'SerendipEatery Challenge', text: challengeMsg, url: branchUrl }
-                    if (navigator.share) await navigator.share(sd).catch(() => {})
-                    else navigator.clipboard.writeText(`${challengeMsg}\n\n${branchUrl}`)
-                    setShowChallengeComposer(false)
-                    router.push(`/battle/${json.data.id}`)
+                  if (!json.ok) return
+
+                  const shareUrl = `${window.location.origin}/battle/${json.data.id}`
+
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({ title: 'SerendipEatery Challenge', text: challengeMsg, url: shareUrl })
+                    } catch (err: any) {
+                      if (err?.name !== 'AbortError') {
+                        setFallbackUrl(shareUrl); setFallbackText(challengeMsg); setShowFallback(true)
+                      }
+                    }
+                  } else {
+                    setFallbackUrl(shareUrl); setFallbackText(challengeMsg); setShowFallback(true)
                   }
-                } catch {} finally { setCreating(false) }
+                  setShowChallengeComposer(false)
+                  router.push(`/battle/${json.data.id}`)
+                } catch {
+                  // API failed — fall back to demo
+                  setFallbackUrl(`${window.location.origin}/battle/demo`); setFallbackText(challengeMsg); setShowFallback(true)
+                } finally { setCreating(false) }
               }} className="w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition disabled:opacity-50">
                 {creating ? 'Creating...' : '📱 AirDrop / Share'}
               </button>
-              <button disabled={creating} onClick={async () => {
+              <button disabled={creating} onClick={async (e) => {
+                e.preventDefault()
                 setCreating(true)
                 try {
                   const res = await fetch(`${API_URL}/battles/create`, {
@@ -132,27 +150,48 @@ export default function LandingPage() {
                     body: JSON.stringify({ playerId: getGuestId(), playerName: getGuestName(), message: challengeMsg }),
                   })
                   const json = await res.json()
-                  if (json.ok) {
-                    const branchUrl = await createBattleLink({ battleId: json.data.id, challengerName: getGuestName(), message: challengeMsg })
-                    const smsBody = `${challengeMsg}\n\nTap to battle: ${branchUrl}\n\nSerendipEatery — Fate has good taste.`
-                    window.open(`sms:?body=${encodeURIComponent(smsBody)}`, '_self')
-                    setShowChallengeComposer(false)
-                    router.push(`/battle/${json.data.id}`)
-                  }
+                  if (!json.ok) return
+
+                  const shareUrl = `${window.location.origin}/battle/${json.data.id}`
+                  const smsBody = `${challengeMsg}\n\nTap to battle: ${shareUrl}\n\nSerendipEatery — Fate has good taste.`
+                  window.location.href = `sms:?body=${encodeURIComponent(smsBody)}`
+                  setShowChallengeComposer(false)
+                  // Don't router.push yet — SMS app opens first, user returns to this page
                 } catch {} finally { setCreating(false) }
               }} className="w-full border border-surface/20 text-surface/60 font-bold py-3 rounded-xl hover:bg-white/5 transition disabled:opacity-50">
                 {creating ? 'Creating...' : '💬 Send as Text'}
               </button>
-              {(() => {
-                const smsBody = `${challengeMsg}\n\nTap to battle: serendipeatery.com/battle/...\n\nSerendipEatery — Fate has good taste.`
-                const info = smsCharInfo(smsBody)
-                return info.warning ? (
-                  <p className="text-red-400/60 text-xs text-center">SMS may split into {info.segments} messages ({info.length}+ chars)</p>
-                ) : null
-              })()}
             </div>
             <button onClick={() => setShowChallengeComposer(false)}
               className="w-full text-center text-surface/30 text-sm mt-3 hover:text-surface/50 transition">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Share Fallback Modal (desktop / no Web Share API) ─── */}
+      {showFallback && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={() => setShowFallback(false)}>
+          <div className="absolute inset-0 bg-black/70" />
+          <div className="relative rounded-2xl p-6 max-w-sm w-full" style={{ background: '#1a1230' }} onClick={(e) => e.stopPropagation()}>
+            <p className="text-surface font-bold text-lg mb-3">Share your challenge</p>
+            <div className="rounded-lg p-3 mb-4 break-all" style={{ background: '#0f0a1e', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <p className="text-btc text-xs">{fallbackUrl}</p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <button onClick={() => {
+                navigator.clipboard.writeText(`${fallbackText}\n\n${fallbackUrl}`)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+              }} className="w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition">
+                {copied ? 'Copied!' : 'Copy Link'}
+              </button>
+              <a href={`sms:?body=${encodeURIComponent(fallbackText + '\n\nTap to battle: ' + fallbackUrl + '\n\nSerendipEatery — Fate has good taste.')}`}
+                className="w-full border border-surface/20 text-surface/60 font-bold py-3 rounded-xl hover:bg-white/5 transition text-center block">
+                💬 Send as Text
+              </a>
+            </div>
+            <button onClick={() => setShowFallback(false)}
+              className="w-full text-center text-surface/30 text-sm mt-3 hover:text-surface/50 transition">Close</button>
           </div>
         </div>
       )}
