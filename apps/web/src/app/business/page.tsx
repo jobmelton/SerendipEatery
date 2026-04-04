@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 const steps = [
   { num: '1', title: 'Set up a flash sale in 2 minutes', subtitle: '' },
   { num: '2', title: 'See exactly where you lose customers', subtitle: '' },
-  { num: '3', title: 'Pay only when they walk through your door', subtitle: '' },
+  { num: '3', title: 'Pay only when it would be stupid not to.', subtitle: '' },
 ]
 
 export default function BusinessPage() {

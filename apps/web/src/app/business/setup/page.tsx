@@ -259,38 +259,38 @@ export default function BusinessSetupPage() {
             </div>
 
             {/* ROI Calculator */}
-            <div className="bg-[#1a1230] rounded-2xl p-5" style={{ border: '1px solid rgba(247,148,29,0.1)' }}>
-              <h4 className="text-surface font-bold mb-3 flex items-center gap-2">📊 Your ROI Estimate</h4>
-              <div className="space-y-2 text-sm mb-4">
-                <div className="flex justify-between"><span className="text-surface/40">Expected customers</span><span className="text-surface">{custNum}</span></div>
-                <div className="flex justify-between"><span className="text-surface/40">Cost per visit</span><span className="text-surface">${COST_PER_VISIT.toFixed(2)}</span></div>
-                <div className="flex justify-between border-t border-white/5 pt-2"><span className="text-surface/40">Max campaign cost</span><span className="text-btc font-bold">${maxCost.toFixed(2)}</span></div>
+            <div className="bg-[#1a1230] rounded-2xl p-5 space-y-4" style={{ border: '1px solid rgba(247,148,29,0.1)' }}>
+              <h4 className="text-surface font-bold flex items-center gap-2">📊 Your ROI Estimate</h4>
+              <div className="flex justify-between items-center">
+                <span className="text-surface/50 text-sm">Campaign cost</span>
+                <div>
+                  <span className="text-surface/30 text-sm line-through mr-2">${maxCost.toFixed(0)}</span>
+                  <span className="bg-teal/20 text-teal text-xs font-bold px-2 py-0.5 rounded-full">FREE until proven</span>
+                </div>
               </div>
-
               <div>
                 <label className="text-surface/40 text-xs block mb-1">Average spend per customer</label>
                 <div className="flex items-center gap-2">
                   <span className="text-surface/30">$</span>
                   <input type="number" value={avgSpend} onChange={(e) => setAvgSpend(e.target.value)} placeholder="15" min="1"
                     className="w-24 bg-night text-surface border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-btc focus:outline-none" />
-                  <span className="text-surface/20 text-xs">(your typical check)</span>
                 </div>
               </div>
-
-              {avgSpendNum > 0 && custNum > 0 && (
-                <div className="mt-4 space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-surface/40">Revenue potential</span><span className="text-surface">${revenuePotential.toLocaleString()}</span></div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-surface/40">ROI</span>
-                    <span className="text-btc font-black text-2xl">{roi.toFixed(0)}x</span>
-                  </div>
-                  {roi > 5 && <p className="text-teal text-xs font-bold">🟢 Great ROI potential!</p>}
-                  {roi >= 2 && roi <= 5 && <p className="text-surface/40 text-xs">Solid return on investment</p>}
-                  {roi > 0 && roi < 2 && <p className="text-yellow-400 text-xs">⚠️ Low ROI — consider increasing average spend or reducing prizes</p>}
-                </div>
-              )}
-
-              <p className="text-surface/20 text-xs mt-3">You only pay for confirmed visits — customers who physically walked in</p>
+              <div className="flex justify-between items-center">
+                <span className="text-surface/50 text-sm">Revenue potential</span>
+                <span className="text-surface font-bold">${revenuePotential.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-surface/50 text-sm">Cost per verified visit</span>
+                <span className="text-surface/30 text-sm">$1.50 (after free tier)</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-surface/50 text-sm">ROI multiplier</span>
+                <span className="text-teal font-black text-2xl">{roi > 0 ? `${roi.toFixed(1)}x` : '—'}</span>
+              </div>
+              <div className="rounded-xl p-3 text-xs text-surface/50 leading-relaxed" style={{ background: 'rgba(29,158,117,0.05)', border: '1px solid rgba(29,158,117,0.15)' }}>
+                No cost until it works. Your first 100 visits are free so you can prove the ROI yourself before paying anything.
+              </div>
             </div>
 
             <div className="flex gap-3 mt-4">
