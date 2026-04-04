@@ -339,7 +339,8 @@ export async function battleRoutes(app: FastifyInstance) {
       return { ok: true, data: { lootType: 'points', amount: points } }
     }
 
-    // Loot type: coupon — steal a random lootable coupon from loser
+    // Loot type: coupon — steal ALL lootable coupons from loser EXCEPT one
+    // Non-negotiable rule: loser always keeps 1 deal
     const loserId = battle.challenger_id === userId ? battle.defender_id : battle.challenger_id
     const { data: loserCoupons } = await supabase
       .from('wallets')
@@ -347,7 +348,7 @@ export async function battleRoutes(app: FastifyInstance) {
       .eq('user_id', loserId)
       .eq('is_lootable', true)
       .gt('expires_at', new Date().toISOString())
-      .limit(10)
+      .order('created_at', { ascending: false })
 
     if (!loserCoupons?.length) {
       // No coupons to steal — fall back to points
@@ -360,26 +361,46 @@ export async function battleRoutes(app: FastifyInstance) {
       return { ok: true, data: { lootType: 'points', amount: points, fallback: true } }
     }
 
-    // Pick a random coupon
-    const stolen = loserCoupons[Math.floor(Math.random() * loserCoupons.length)]
+    // Loser keeps 1 random deal — the rest go to the winner
+    const keptIndex = Math.floor(Math.random() * loserCoupons.length)
+    const keptDeal = loserCoupons[keptIndex]
+    const stolenDeals = loserCoupons.filter((_, i) => i !== keptIndex)
 
-    // Transfer ownership
-    await supabase.from('wallets').update({ user_id: userId }).eq('id', stolen.id)
+    if (stolenDeals.length === 0) {
+      // Loser only had 1 deal — can't steal it. Fall back to points.
+      const points = spinLootWheel()
+      await supabase.from('battles').update({
+        loot_type: 'points',
+        loot_amount: points,
+      }).eq('id', id)
+
+      return { ok: true, data: { lootType: 'points', amount: points, fallback: true, keptDeal: { prizeName: keptDeal.prize_name, businessName: keptDeal.business_name } } }
+    }
+
+    // Transfer all stolen deals to winner
+    const stolenIds = stolenDeals.map(d => d.id)
+    await supabase.from('wallets').update({ user_id: userId }).in('id', stolenIds)
 
     await supabase.from('battles').update({
       loot_type: 'coupon',
-      loot_coupon_id: stolen.id,
+      loot_coupon_id: stolenDeals[0].id,
+      loot_amount: stolenDeals.length,
     }).eq('id', id)
 
     return {
       ok: true,
       data: {
         lootType: 'coupon',
-        coupon: {
-          id: stolen.id,
-          prizeName: stolen.prize_name,
-          businessName: stolen.business_name,
-          expiresAt: stolen.expires_at,
+        stolenCount: stolenDeals.length,
+        stolen: stolenDeals.map(d => ({
+          id: d.id,
+          prizeName: d.prize_name,
+          businessName: d.business_name,
+          expiresAt: d.expires_at,
+        })),
+        keptDeal: {
+          prizeName: keptDeal.prize_name,
+          businessName: keptDeal.business_name,
         },
       },
     }

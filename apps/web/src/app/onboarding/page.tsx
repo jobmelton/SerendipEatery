@@ -7,23 +7,23 @@ import Link from 'next/link'
 const STEPS = [
   {
     icon: '📍',
-    title: 'Find a flash sale near you',
-    subtitle: 'Discover deals at restaurants and food trucks within walking distance.',
+    title: "You're in a room full of strangers.",
+    subtitle: 'One of them has your next meal.',
   },
   {
     icon: '🎰',
-    title: 'Hold to spin, release to launch',
-    subtitle: 'The longer you hold, the harder you spin. Win prizes instantly.',
+    title: "The wheel doesn't care about your plans.",
+    subtitle: 'Spin it anyway.',
   },
   {
     icon: '🎒',
-    title: 'Win deals, fill your wallet',
-    subtitle: 'Every win goes to your wallet. Use them anytime before they expire.',
+    title: 'Win deals. Save them.',
+    subtitle: 'Guard them with your life.',
   },
   {
     icon: '✌️',
-    title: 'Battle strangers nearby',
-    subtitle: 'Rock paper scissors for real prizes. Your next friend is 10 feet away.',
+    title: 'Drop a challenge.',
+    subtitle: 'Fate decides the rest.',
   },
 ]
 

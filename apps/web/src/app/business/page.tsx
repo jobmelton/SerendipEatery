@@ -1,25 +1,20 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { cookies } from 'next/headers'
 
 export const metadata: Metadata = {
   title: 'SerendipEatery for Business',
-  description: 'Run flash sales. Pay per visit.',
+  description: 'Fill your slow hours. Pay nothing until it works.',
 }
 
 const steps = [
-  { num: '1', title: 'Set up a flash sale', subtitle: '2 minutes' },
-  { num: '2', title: 'Monitor results in real time', subtitle: '' },
-  { num: '3', title: 'Monitor ROI', subtitle: 'Free until it pays for itself' },
+  { num: '1', title: 'Set up a flash sale in 2 minutes', subtitle: '' },
+  { num: '2', title: 'See exactly where you lose customers', subtitle: '' },
+  { num: '3', title: 'Pay only when they walk through your door', subtitle: '' },
 ]
 
 export default function BusinessPage() {
-  // Shadow mode banner data would come from the API in a real implementation
-  // For now, we render the structure that the client can hydrate
   return (
     <main className="min-h-screen bg-night flex flex-col items-center justify-center px-6">
-      {/* Shadow Mode Banner — shown when business.shadow_mode = true */}
-      {/* This is rendered client-side via the BusinessShadowBanner component below */}
       {/* Logo */}
       <div className="flex items-baseline gap-0.5 mb-16">
         <span className="font-display text-3xl md:text-4xl font-black text-btc">S</span>
@@ -27,10 +22,13 @@ export default function BusinessPage() {
         <span className="font-display text-3xl md:text-4xl font-black text-btc/40">Eatery</span>
       </div>
 
-      {/* Headline */}
-      <h1 className="text-5xl md:text-7xl font-black text-surface text-center leading-tight mb-16">
-        Easy as <span className="text-btc">1, 2, 3</span>
+      {/* Hero */}
+      <h1 className="text-5xl md:text-7xl font-black text-surface text-center leading-tight mb-4">
+        Fill your <span className="text-btc">slow hours.</span>
       </h1>
+      <p className="text-xl md:text-2xl text-surface/50 text-center mb-16">
+        Pay nothing until it works.
+      </p>
 
       {/* Steps */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 max-w-4xl w-full mb-12">
@@ -40,19 +38,13 @@ export default function BusinessPage() {
               {step.num}
             </div>
             <h2 className="text-xl font-bold text-surface mb-1">{step.title}</h2>
-            {step.subtitle && (
-              <p className="text-surface/40 text-sm">{step.subtitle}</p>
-            )}
           </div>
         ))}
       </div>
 
-      {/* Tagline */}
-      <p className="text-surface/50 text-center text-lg max-w-xl mb-4">
-        Run flash sales. Monitor response rates. Pay when it proves itself.
-      </p>
-      <p className="text-btc/60 text-center text-sm max-w-md mb-12">
-        Your customers meet each other. They come back together.
+      {/* Value prop */}
+      <p className="text-surface/50 text-center text-lg max-w-xl mb-12">
+        No commissions. No contracts. Just customers.
       </p>
 
       {/* CTAs */}
@@ -60,19 +52,14 @@ export default function BusinessPage() {
         href="/business/setup"
         className="bg-btc text-night font-bold text-xl px-12 py-5 rounded-full hover:bg-btc-dark transition"
       >
-        Set Up a Flash Sale
+        Start Free
       </Link>
 
-      <Link
-        href="/business/setup"
-        className="mt-4 text-btc/70 text-sm font-medium hover:text-btc transition"
-      >
-        See How It Works
-      </Link>
+      <p className="mt-4 text-surface/30 text-sm">Zero commission. Ever.</p>
 
       <Link
         href="/"
-        className="mt-6 text-surface/30 text-sm hover:text-surface/50 transition"
+        className="mt-8 text-surface/30 text-sm hover:text-surface/50 transition"
       >
         Back to home
       </Link>

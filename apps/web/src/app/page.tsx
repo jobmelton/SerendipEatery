@@ -8,7 +8,7 @@ import { WinCelebration } from '@/components/WinCelebration'
 import { createBattleLink, smsCharInfo } from '@/lib/branch'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-const DEFAULT_CHALLENGE_MSG = "Accept the challenge and meet your fate — or decline and live with regret forever. 👊✋✌️"
+const DEFAULT_CHALLENGE_MSG = "Accept challenge and fate, or decline and live a life of regret. 👊✋✌️"
 
 function getGuestId(): string {
   if (typeof window === 'undefined') return ''
@@ -47,9 +47,11 @@ export default function LandingPage() {
       </div>
 
       {/* ─── Tagline ─── */}
-      <p className="text-lg md:text-xl font-bold tracking-wider text-surface/50 mb-6">Spin. Win. Connect. Eat.</p>
+      <p className="text-xl md:text-2xl font-bold tracking-wider text-surface/70 mb-1">Fate has good taste.</p>
+      <p className="text-sm text-surface/30 mb-6">You didn't find it. It found you.</p>
 
       {/* ─── Roulette Wheel ─── */}
+      <p className="text-surface/40 text-xs mb-2">You've earned a spin. Fate decides what's next.</p>
       <RouletteWheel onSpinComplete={(prize) => {
         setCelebration({
           prize: prize.label,
@@ -132,7 +134,7 @@ export default function LandingPage() {
                   const json = await res.json()
                   if (json.ok) {
                     const branchUrl = await createBattleLink({ battleId: json.data.id, challengerName: getGuestName(), message: challengeMsg })
-                    const smsBody = `${challengeMsg}\n\nTap to battle: ${branchUrl}\n\nSerendipEatery — Spin. Win. Connect. Eat.`
+                    const smsBody = `${challengeMsg}\n\nTap to battle: ${branchUrl}\n\nSerendipEatery — Fate has good taste.`
                     window.open(`sms:?body=${encodeURIComponent(smsBody)}`, '_self')
                     setShowChallengeComposer(false)
                     router.push(`/battle/${json.data.id}`)
@@ -142,7 +144,7 @@ export default function LandingPage() {
                 {creating ? 'Creating...' : '💬 Send as Text'}
               </button>
               {(() => {
-                const smsBody = `${challengeMsg}\n\nTap to battle: serendipeatery.com/battle/...\n\nSerendipEatery — Spin. Win. Connect. Eat.`
+                const smsBody = `${challengeMsg}\n\nTap to battle: serendipeatery.com/battle/...\n\nSerendipEatery — Fate has good taste.`
                 const info = smsCharInfo(smsBody)
                 return info.warning ? (
                   <p className="text-red-400/60 text-xs text-center">SMS may split into {info.segments} messages ({info.length}+ chars)</p>
@@ -184,18 +186,18 @@ export default function LandingPage() {
         </div>
 
         <h3 className="text-surface font-bold text-[1.3rem] mb-1">Challenge Dropped</h3>
-        <p className="text-btc/60 text-[11px] mb-4">Drop a challenge — earn 15 points</p>
+        <p className="text-btc/60 text-[11px] mb-4">A stranger nearby is feeling lucky. Are you?</p>
 
         <Link href="/battle/demo" className="block w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition mb-1">
-          Accept
+          Accept challenge and fate
         </Link>
-        <p className="text-surface/40 text-[11px] mb-3">Win and loot your challenger</p>
+        <p className="text-surface/40 text-[11px] mb-3">Winner takes the loser's stash</p>
 
         <button onClick={() => { setCowardToast(true); setTimeout(() => setCowardToast(false), 2000) }}
           className="block w-full border border-surface/15 text-surface/30 font-bold py-3 rounded-xl hover:text-surface/50 transition mb-1">
-          Back Down
+          Decline (live with it)
         </button>
-        <p className="text-surface/20 text-[11px]">Live with regrets forever</p>
+        <p className="text-surface/20 text-[11px]">Fate remembers cowards</p>
       </div>
 
       <style>{`
@@ -207,7 +209,7 @@ export default function LandingPage() {
 
       {/* ─── Business link (muted, bottom) ─── */}
       <Link href="/business" className="text-surface/25 text-sm hover:text-surface/40 transition mb-4">
-        I have a business →
+        I own a restaurant or food truck →
       </Link>
 
       {/* Footer */}
@@ -218,7 +220,7 @@ export default function LandingPage() {
           <Link href="/coming-soon-app" className="hover:text-surface/40 transition">Download App</Link>
           <button
             onClick={() => {
-              const sd = { title: 'SerendipEatery', text: 'Spin to win deals at restaurants near you!', url: typeof window !== 'undefined' ? window.location.origin : '' }
+              const sd = { title: 'SerendipEatery', text: 'Fate has good taste. You didn\'t find it — it found you.', url: typeof window !== 'undefined' ? window.location.origin : '' }
               if (typeof navigator !== 'undefined' && navigator.share) navigator.share(sd).catch(() => {})
               else if (typeof navigator !== 'undefined') navigator.clipboard.writeText(sd.url)
             }}

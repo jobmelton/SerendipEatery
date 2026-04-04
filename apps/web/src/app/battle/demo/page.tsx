@@ -88,7 +88,7 @@ function cpuMove(): Move {
   return (['rock', 'paper', 'scissors'] as Move[])[Math.floor(Math.random() * 3)]
 }
 
-const DEFAULT_CHALLENGE_MSG = "Accept the challenge and meet your fate — or decline and live with regret forever. 👊✋✌️"
+const DEFAULT_CHALLENGE_MSG = "Accept challenge and fate, or decline and live a life of regret. 👊✋✌️"
 
 export default function DemoBattlePageWrapper() {
   return (
@@ -358,7 +358,7 @@ function DemoBattlePage() {
         <div className="text-center">
           <p className={`text-4xl font-black mb-2 ${finalResult === 'lose' ? 'animate-[shake_0.3s_ease]' : ''}`}
             style={{ color: finalResult === 'win' ? '#FFD700' : '#E53E3E' }}>
-            {finalResult === 'win' ? 'YOU WIN! 🏆' : 'YOU LOSE 😤'}
+            {finalResult === 'win' ? 'Fate favors the bold.' : 'Fate is a fickle thing.'}
           </p>
           <p className="text-surface/50 text-lg mb-2">{myScore} – {oppScore}</p>
           <p className="text-btc font-black text-lg animate-[floatUp_1.5s_ease-out_forwards] mb-6">
@@ -391,7 +391,7 @@ function DemoBattlePage() {
 
           {/* Sign up CTA */}
           <div className="rounded-2xl p-5 max-w-sm mx-auto text-center" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.1)' }}>
-            <p className="text-surface font-bold mb-1">{finalResult === 'win' ? 'Sign up to keep your prize' : 'Sign up for a rematch'}</p>
+            <p className="text-surface font-bold mb-1">{finalResult === 'win' ? 'Their stash is yours. Sign up to keep it.' : 'One deal survives. Sign up for a rematch.'}</p>
             <p className="text-surface/40 text-sm mb-3">Battle real people for real deals</p>
             <Link href="/sign-up" className="inline-block bg-btc text-night font-bold px-6 py-2.5 rounded-full text-sm hover:bg-btc-dark transition">Sign Up Free</Link>
           </div>

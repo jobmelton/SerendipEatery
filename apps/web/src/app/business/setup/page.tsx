@@ -302,6 +302,11 @@ export default function BusinessSetupPage() {
         {/* ─── Step 3: Prizes with Probability ─── */}
         {step === 3 && (
           <div className="space-y-4">
+            {/* Weighting explanation */}
+            <div className="rounded-xl p-4 text-xs text-surface/50 leading-relaxed" style={{ background: 'rgba(247,148,29,0.05)', border: '1px solid rgba(247,148,29,0.1)' }}>
+              <p className="text-surface/70 font-bold mb-1">How probability works</p>
+              <p>You set the base probability for each prize. The actual spin odds are adjusted by each customer's loyalty tier — higher-tier customers get a slight boost toward better prizes, but the base weights you set here are always the foundation. A customer with 10,000+ points gets the max boost (30%), which means your 15% prize effectively becomes ~19.5% for them.</p>
+            </div>
             {prizes.map((prize, i) => (
               <div key={i} className="bg-[#1a1230] rounded-xl p-4 space-y-3" style={{ border: '1px solid rgba(247,148,29,0.1)' }}>
                 <div className="flex items-center justify-between">

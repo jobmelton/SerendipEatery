@@ -643,7 +643,7 @@ export default function ConsumerPage() {
           <div className="text-center max-w-sm">
             <p className="text-5xl mb-4">🎉</p>
             <h2 className="text-3xl font-black text-surface mb-2">Welcome to SerendipEatery!</h2>
-            <p className="text-btc text-lg font-bold mb-6">Spin. Win. Connect. Eat.</p>
+            <p className="text-btc text-lg font-bold mb-6">Fate has good taste.</p>
             <p className="text-surface/50 text-sm mb-6">Download the app for the full experience</p>
             <div className="flex gap-3 justify-center mb-4">
               <Link href="/coming-soon-app" className="bg-btc text-night font-bold px-5 py-2.5 rounded-full text-sm hover:bg-btc-dark transition">
@@ -709,7 +709,7 @@ export default function ConsumerPage() {
         {!loading && !locationError && (
           <>
             <h1 className="text-2xl font-bold text-surface mb-2">
-              {sales.length > 0 ? 'Flash sales near you' : 'No active sales nearby'}
+              {sales.length > 0 ? 'Flash sales near you' : 'No deals nearby yet. But someone around you is holding one. Find them.'}
             </h1>
             {sales.length === 0 && (
               <p className="text-surface/40 mb-8">Check back soon — sales pop up throughout the day.</p>

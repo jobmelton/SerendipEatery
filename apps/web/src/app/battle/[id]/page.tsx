@@ -31,7 +31,7 @@ const HAND_STYLES = {
 
 type Phase = 'loading' | 'waiting' | 'join' | 'countdown' | 'pick' | 'waitingMove' | 'roundResult' | 'done' | 'error' | 'expired'
 
-const DEFAULT_MSG = "Accept the challenge and meet your fate — or decline and live with regret forever. 👊✋✌️"
+const DEFAULT_MSG = "Accept challenge and fate, or decline and live a life of regret. 👊✋✌️"
 
 function getGuestId(): string {
   if (typeof window === 'undefined') return ''
@@ -522,14 +522,14 @@ export default function BattlePage() {
             </button>
             <button onClick={async () => {
               const branchUrl = await createBattleLink({ battleId: id, challengerName: battle?.challenger_name || undefined, message: challengeMessage })
-              const smsBody = `${challengeMessage}\n\nTap to battle: ${branchUrl}\n\nSerendipEatery — Spin. Win. Connect. Eat.`
+              const smsBody = `${challengeMessage}\n\nTap to battle: ${branchUrl}\n\nSerendipEatery — Fate has good taste.`
               const info = smsCharInfo(smsBody)
               window.open(`sms:?body=${encodeURIComponent(smsBody)}`, '_self')
             }} className="w-full border border-surface/20 text-surface/60 font-bold py-3 rounded-xl">
               💬 Send as Text
             </button>
             {(() => {
-              const smsBody = `${challengeMessage}\n\nTap to battle: ${battleUrl}\n\nSerendipEatery — Spin. Win. Connect. Eat.`
+              const smsBody = `${challengeMessage}\n\nTap to battle: ${battleUrl}\n\nSerendipEatery — Fate has good taste.`
               const info = smsCharInfo(smsBody)
               return info.warning ? (
                 <p className="text-red-400/60 text-xs text-center">SMS will split into {info.segments} messages ({info.length} chars)</p>
@@ -568,15 +568,15 @@ export default function BattlePage() {
           <h2 className="text-2xl font-black text-surface mb-1">
             {battle?.challenger_name || 'Someone'} dropped a challenge!
           </h2>
-          <p className="text-surface/40 text-sm mb-8">First to 3 wins. Winner loots the loser.</p>
+          <p className="text-surface/40 text-sm mb-8">Best of 3 — winner takes all (loser keeps one)</p>
 
           <button onClick={handleJoin} className="w-full bg-btc text-night font-bold text-lg py-4 rounded-full hover:bg-btc-dark transition mb-3">
-            Accept Challenge
+            Accept challenge and fate
           </button>
           <button onClick={handleBackDown} className="w-full border border-surface/15 text-surface/30 font-bold py-3 rounded-full hover:text-surface/50 transition mb-1">
-            Back Down
+            Decline (live with it)
           </button>
-          <p className="text-surface/20 text-[11px]">Live with regrets forever</p>
+          <p className="text-surface/20 text-[11px]">Fate remembers cowards</p>
         </div>
       )}
 
@@ -676,7 +676,10 @@ export default function BattlePage() {
         <div className="text-center">
           <p className={`text-4xl font-black mb-2 ${finalWinner === 'lose' ? 'animate-[shake_0.3s_ease]' : ''}`}
             style={{ color: finalWinner === 'win' ? '#FFD700' : '#E53E3E' }}>
-            {finalWinner === 'win' ? 'YOU WIN! 🏆' : 'YOU LOSE 😤'}
+            {finalWinner === 'win' ? 'Fate favors you today.' : 'Fate is a fickle thing.'}
+          </p>
+          <p className="text-surface/40 text-sm mb-1">
+            {finalWinner === 'win' ? "Their stash is yours. Don't waste it." : 'One deal survives. The rest belong to them now.'}
           </p>
           <p className="text-surface/50 text-lg mb-2">{myScore} – {oppScore}</p>
           <p className="text-btc font-black text-lg animate-[floatUp_1.5s_ease-out_forwards] mb-6">
@@ -714,15 +717,24 @@ export default function BattlePage() {
             <Link href="/" className="w-full text-center py-3 text-sm" style={{ color: '#a09080' }}>← Home</Link>
           </div>
 
-          {/* App CTA */}
-          <div className="rounded-2xl p-5 max-w-sm mx-auto text-center" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.1)' }}>
-            <p className="text-surface font-bold mb-1">Play in the app for the full experience</p>
-            <p className="text-surface/40 text-sm mb-3">Battle real people, keep your winnings, climb the leaderboard</p>
-            <div className="flex gap-3 justify-center mb-3">
-              <Link href="/coming-soon-app" className="border border-surface/20 text-surface/50 text-xs px-4 py-2 rounded-full hover:text-surface/70 transition">iOS</Link>
-              <Link href="/coming-soon-app" className="border border-surface/20 text-surface/50 text-xs px-4 py-2 rounded-full hover:text-surface/70 transition">Android</Link>
-            </div>
-            <Link href="/sign-up" className="inline-block text-btc text-sm hover:underline">or sign up on web →</Link>
+          {/* Claim Loot CTA */}
+          <div className="rounded-2xl p-6 max-w-sm mx-auto text-center" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.15)' }}>
+            {finalWinner === 'win' ? (
+              <>
+                <p className="text-surface font-bold text-lg mb-1">Claim your loot</p>
+                <p className="text-surface/40 text-sm mb-4">Create a free account to keep what fate gave you.</p>
+                <Link href="/sign-up" className="block w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition mb-2">
+                  Claim your loot
+                </Link>
+                <p className="text-surface/20 text-xs">Your prizes are waiting.</p>
+              </>
+            ) : (
+              <>
+                <p className="text-surface font-bold mb-1">Fate is fair. One deal survives.</p>
+                <p className="text-surface/40 text-sm mb-3">Sign up to keep your remaining deal and battle again.</p>
+                <Link href="/sign-up" className="inline-block bg-btc text-night font-bold px-6 py-2.5 rounded-full text-sm hover:bg-btc-dark transition">Sign Up Free</Link>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -774,7 +786,7 @@ export default function BattlePage() {
                   const json = await res.json()
                   if (json.ok) {
                     const branchUrl = await createBattleLink({ battleId: json.data.id, challengerName: getGuestName(), message: shareMsg })
-                    const body = `${shareMsg}\n\nTap to battle: ${branchUrl}\n\nSerendipEatery — Spin. Win. Connect. Eat.`
+                    const body = `${shareMsg}\n\nTap to battle: ${branchUrl}\n\nSerendipEatery — Fate has good taste.`
                     window.open(`sms:?body=${encodeURIComponent(body)}`, '_self')
                   }
                 } catch {}

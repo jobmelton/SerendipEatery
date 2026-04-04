@@ -52,12 +52,22 @@ function resolveBusinessTier(points: number): BusinessTier {
 
 // ─── Tier Boost (single source of truth for spin engine) ──────────────────
 
+// Points ceiling at 10,000 for spin weighting — protects casual players.
+// Above 10,000 (Tastemaker tier): points still accumulate for tier status
+// but don't increase spin odds further.
+const SPIN_WEIGHT_CEILING_TIER: ConsumerTier = 'tastemaker'
+
 /**
  * Returns the boost multiplier for the spin engine.
  * This is THE single source of truth — spin.ts should call this.
+ * Capped at Tastemaker tier (10,000 points) to prevent power users
+ * from gaming the roulette into worthlessness for casual players.
  */
 export function calculateTierBoost(tier: ConsumerTier): number {
-  return TIER_BOOST_PCT[tier] ?? 0
+  // Cap boost at tastemaker level regardless of actual tier
+  const ceilingBoost = TIER_BOOST_PCT[SPIN_WEIGHT_CEILING_TIER] ?? 30
+  const actualBoost = TIER_BOOST_PCT[tier] ?? 0
+  return Math.min(actualBoost, ceilingBoost)
 }
 
 // ─── Tier Progress ────────────────────────────────────────────────────────
