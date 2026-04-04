@@ -273,8 +273,9 @@ function DemoBattlePage() {
             <p className="text-surface/80 text-sm italic leading-relaxed">{challengeMessage}</p>
           </div>
 
-          <h1 className="text-2xl font-black text-surface mb-2">Pick your opening move</h1>
-          <p className="text-surface/40 text-sm mb-8">First to 3 wins</p>
+          <h1 className="text-2xl font-black text-surface mb-1">Challenge The House</h1>
+          <p className="text-surface/40 text-sm mb-2">No opponent needed. The House always has deals to lose.</p>
+          <p className="text-surface/30 text-xs mb-8">First to 3 wins — pick your opening move</p>
           <div className="flex gap-6 justify-center">
             {MOVES.map((m) => (
               <button key={m.key} onClick={() => startMatch(m.key)}

@@ -267,8 +267,12 @@ export default function BattlePage() {
     if (b.winner_id === playerId.current) {
       setFinalWinner('win')
       playWinBeep()
-      // Fetch loser's lootable items
-      fetch(`${API_URL}/battles/${b.id}/loser-lootbox`)
+      // Fetch lootable items — bot lootbox for bot battles, loser lootbox for humans
+      const isBotOpponent = b.defender_id === 'bot_house' || b.challenger_id === 'bot_house'
+      const lootUrl = isBotOpponent
+        ? `${API_URL}/battles/${b.id}/bot-lootbox`
+        : `${API_URL}/battles/${b.id}/loser-lootbox`
+      fetch(lootUrl)
         .then(r => r.json())
         .then(d => { if (d.ok) setLoserLoot(d.data ?? []) })
         .catch(() => {})
@@ -436,6 +440,7 @@ export default function BattlePage() {
   const battleUrl = typeof window !== 'undefined' ? `${window.location.origin}/battle/${id}` : ''
   const challengeMessage = battle?.challenger_message || DEFAULT_MSG
   const opponentName = myRole === 'challenger' ? (battle?.defender_name || 'Opponent') : (battle?.challenger_name || 'Challenger')
+  const isBotBattle = battle?.defender_id === 'bot_house' || battle?.challenger_id === 'bot_house'
 
   return (
     <main className="min-h-screen bg-night flex flex-col items-center justify-center px-6 relative">
@@ -516,8 +521,9 @@ export default function BattlePage() {
           </div>
 
           <div className="text-4xl mb-4 animate-pulse">⏳</div>
-          <h2 className="text-2xl font-black text-surface mb-2">Waiting for opponent...</h2>
-          <p className="text-surface/40 text-sm mb-6">Share the link to start the battle</p>
+          <h2 className="text-2xl font-black text-surface mb-2">Challenge dropped. Waiting for someone to dare...</h2>
+          <p className="text-surface/40 text-sm mb-1">Share the link to start the battle</p>
+          <p className="text-surface/20 text-xs mb-6">If no one accepts in 60 seconds, The House steps in.</p>
 
           {/* Share buttons */}
           <div className="flex flex-col gap-3 mb-6 w-full">
@@ -721,7 +727,9 @@ export default function BattlePage() {
           {/* Loot Picker (winner only) */}
           {finalWinner === 'win' && !lootClaimed && loserLoot.length > 0 && (
             <div className="mb-6 max-w-xs mx-auto">
-              <p className="text-surface/50 text-sm mb-3 text-center">Pick one to loot:</p>
+              <p className="text-surface/50 text-sm mb-3 text-center">
+                {isBotBattle ? 'The House was holding these deals. Pick one.' : 'Pick one to loot:'}
+              </p>
               <div className="space-y-2">
                 {loserLoot.map(item => (
                   <button key={item.id} onClick={() => setSelectedLootId(item.id)}
@@ -743,10 +751,16 @@ export default function BattlePage() {
               </div>
               {selectedLootId && (
                 <button onClick={async () => {
-                  const res = await fetch(`${API_URL}/battles/${id}/loot-item`, {
+                  const endpoint = isBotBattle
+                    ? `${API_URL}/battles/${id}/loot-bot`
+                    : `${API_URL}/battles/${id}/loot-item`
+                  const body = isBotBattle
+                    ? { playerId: myId, botLootboxId: selectedLootId }
+                    : { playerId: myId, walletId: selectedLootId }
+                  const res = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ playerId: myId, walletId: selectedLootId }),
+                    body: JSON.stringify(body),
                   })
                   const d = await res.json()
                   if (d.ok) { setLootResult(d.data); setLootClaimed(true) }

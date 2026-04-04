@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { validate } from '../lib/validate.js'
 import { supabase } from '../lib/supabase.js'
 import { AppError } from '../lib/errors.js'
+import { BOT_USER_ID, getBotLootbox, transferBotItem, isBot } from '../lib/houseBot.js'
 
 const BEATS: Record<string, string> = { rock: 'scissors', scissors: 'paper', paper: 'rock' }
 
@@ -334,5 +335,68 @@ export async function battleRealtimeRoutes(app: FastifyInstance) {
     }).eq('id', id)
 
     return { ok: true, data: { winnerId } }
+  })
+
+  // ─── Get bot lootbox (for loot picking after winning vs bot) ───────
+  app.get('/battles/:id/bot-lootbox', async (request) => {
+    const { id } = request.params as { id: string }
+
+    const { data: battle } = await supabase
+      .from('battles')
+      .select('status, winner_id, defender_id, challenger_id')
+      .eq('id', id)
+      .single()
+
+    if (!battle) throw new AppError(404, 'NOT_FOUND', 'Battle not found')
+    if (battle.status !== 'completed') throw new AppError(400, 'NOT_DONE', 'Battle not completed')
+
+    // Only show if opponent was the bot
+    const isBotBattle = isBot(battle.defender_id) || isBot(battle.challenger_id)
+    if (!isBotBattle) throw new AppError(400, 'NOT_BOT', 'Not a bot battle')
+
+    const items = await getBotLootbox()
+    return { ok: true, data: items }
+  })
+
+  // ─── Loot item from bot ────────────────────────────────────────────
+  app.post('/battles/:id/loot-bot', async (request) => {
+    const { id } = request.params as { id: string }
+    const body = request.body as { playerId: string; botLootboxId: string }
+
+    if (!body.playerId || !body.botLootboxId) {
+      throw new AppError(400, 'MISSING_FIELDS', 'playerId and botLootboxId required')
+    }
+
+    const { data: battle } = await supabase
+      .from('battles')
+      .select('status, winner_id, defender_id, challenger_id, loot_type')
+      .eq('id', id)
+      .single()
+
+    if (!battle) throw new AppError(404, 'NOT_FOUND', 'Battle not found')
+    if (battle.status !== 'completed') throw new AppError(400, 'NOT_DONE', 'Battle not completed')
+    if (battle.winner_id !== body.playerId) throw new AppError(403, 'NOT_WINNER', 'Only winner can loot')
+    if (battle.loot_type) throw new AppError(400, 'ALREADY_LOOTED', 'Already claimed loot')
+
+    const wallet = await transferBotItem(body.botLootboxId, body.playerId)
+    if (!wallet) throw new AppError(404, 'ITEM_GONE', 'Item no longer available')
+
+    await supabase.from('battles').update({
+      loot_type: 'coupon',
+      loot_coupon_id: wallet.id,
+    }).eq('id', id)
+
+    return {
+      ok: true,
+      data: {
+        type: 'coupon',
+        item: {
+          id: wallet.id,
+          prizeName: wallet.prize_name,
+          businessName: wallet.business_name,
+          couponType: wallet.coupon_type,
+        },
+      },
+    }
   })
 }

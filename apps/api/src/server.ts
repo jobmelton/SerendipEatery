@@ -99,4 +99,15 @@ try {
   console.error('Fix workers failed:', err)
 }
 
+// ─── House Bot (non-fatal, after server is listening) ────────────────────
+try {
+  const { watchForUnansweredChallenges, replenishBotLootbox } = await import('./lib/houseBot.js')
+  watchForUnansweredChallenges()
+  // Replenish bot lootbox every 30 minutes
+  setInterval(replenishBotLootbox, 30 * 60 * 1000)
+  replenishBotLootbox() // initial run
+} catch (err) {
+  console.error('House Bot failed:', err)
+}
+
 export default app
