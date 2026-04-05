@@ -28,7 +28,11 @@ export default function ComingSoonAppPage() {
       <div className="flex items-baseline gap-0.5 mb-8">
         <span className="font-display text-3xl md:text-4xl font-black text-btc">S</span>
         <span className="font-display text-3xl md:text-4xl font-black text-surface">erendip</span>
-        <span className="font-display text-3xl md:text-4xl font-black text-btc/40">Eatery</span>
+        <span className="font-display text-3xl md:text-4xl font-black" style={{
+          display: 'inline-block', transform: 'rotate(180deg)',
+          background: 'linear-gradient(to left, #F7941D 0%, #F7941D 40%, transparent 100%)',
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+        }}>Eatery</span>
       </div>
 
       <h1 className="text-3xl md:text-4xl font-black text-surface text-center mb-3">

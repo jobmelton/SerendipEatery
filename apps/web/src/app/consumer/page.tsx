@@ -554,6 +554,7 @@ export default function ConsumerPage() {
   const [spinning, setSpinning] = useState<string | null>(null)
   const [spinResult, setSpinResult] = useState<{ prize: string; saleId: string } | null>(null)
   const [showWelcome, setShowWelcome] = useState(false)
+  const [showNotifPrompt, setShowNotifPrompt] = useState(false)
 
   // Welcome overlay for first-time sign-ups
   useEffect(() => {
@@ -625,6 +626,10 @@ export default function ConsumerPage() {
       .then((r) => r.json())
       .then((data) => {
         setSpinResult({ prize: data.prize?.label || 'You won!', saleId })
+        // Show notification prompt after win (if not already prompted)
+        if (typeof window !== 'undefined' && !localStorage.getItem('se_notif_prompted') && 'Notification' in window && Notification.permission === 'default') {
+          setTimeout(() => setShowNotifPrompt(true), 2000)
+        }
       })
       .catch(() => {
         setSpinResult({ prize: 'Spin failed — try again', saleId })
@@ -637,6 +642,39 @@ export default function ConsumerPage() {
 
   return (
     <main className="min-h-screen bg-night">
+      {/* Notification permission prompt */}
+      {showNotifPrompt && (
+        <div className="fixed bottom-4 left-4 right-4 z-50 max-w-md mx-auto">
+          <div className="rounded-2xl p-5" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.2)' }}>
+            <p className="text-surface font-bold mb-1">Never miss a challenge nearby</p>
+            <p className="text-surface/40 text-sm mb-4">Get notified when someone drops a challenge within 100 feet of you</p>
+            <div className="flex gap-3">
+              <button onClick={async () => {
+                const { requestNotificationPermission, registerServiceWorker, subscribeToPush } = await import('@/lib/pwa')
+                const granted = await requestNotificationPermission()
+                if (granted) {
+                  const reg = await registerServiceWorker()
+                  if (reg) {
+                    const sub = await subscribeToPush(reg)
+                    if (sub) {
+                      await fetch(`${API_URL}/push-subscribe`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ subscription: sub.toJSON(), guestId: localStorage.getItem('se_guest_id') }),
+                      }).catch(() => {})
+                    }
+                  }
+                }
+                localStorage.setItem('se_notif_prompted', 'true')
+                setShowNotifPrompt(false)
+              }} className="flex-1 bg-btc text-night font-bold py-2.5 rounded-xl text-sm">Yes, notify me</button>
+              <button onClick={() => { localStorage.setItem('se_notif_prompted', 'true'); setShowNotifPrompt(false) }}
+                className="text-surface/30 text-sm">Not now</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Welcome overlay for first-time users */}
       {showWelcome && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6 bg-night/95">
@@ -667,7 +705,11 @@ export default function ConsumerPage() {
           <Link href="/" className="flex items-baseline gap-0.5">
             <span className="font-display text-xl font-black text-btc">S</span>
             <span className="font-display text-xl font-black text-surface">erendip</span>
-            <span className="font-display text-xl font-black text-btc/40">Eatery</span>
+            <span className="font-display text-xl font-black" style={{
+              display: 'inline-block', transform: 'rotate(180deg)',
+              background: 'linear-gradient(to left, #F7941D 0%, #F7941D 40%, transparent 100%)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            }}>Eatery</span>
           </Link>
           <div className="flex items-center gap-3">
             <SignInButton mode="modal">

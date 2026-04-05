@@ -1,11 +1,26 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import QRCode from 'qrcode'
 import { RouletteWheel, type WheelPrize } from '@/components/RouletteWheel'
+
+const RESTAURANT_PRIZES: WheelPrize[] = [
+  { label: 'Taco Loco',    weight: 10, color: '#FF1493' },
+  { label: 'Burger Bliss',  weight: 10, color: '#32CD32' },
+  { label: 'Sushi Wave',    weight: 10, color: '#9400D3' },
+  { label: 'Pizza Nova',    weight: 10, color: '#4169E1' },
+  { label: 'Wok & Roll',    weight: 10, color: '#FF4500' },
+  { label: 'Pho Real',      weight: 10, color: '#00CED1' },
+  { label: 'Curry Up',      weight: 10, color: '#FF6347' },
+  { label: 'Gyro Hero',     weight: 10, color: '#7B68EE' },
+  { label: 'Bao Down',      weight: 10, color: '#00FA9A' },
+  { label: 'Falafel King',  weight: 10, color: '#FFD700' },
+]
 import { WinCelebration } from '@/components/WinCelebration'
-import { createBattleLink, smsCharInfo } from '@/lib/branch'
+import { supabase } from '@/lib/supabase'
+import { roundGPS } from '@/lib/pwa'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 const DEFAULT_CHALLENGE_MSG = "Accept challenge and fate, or decline and live a life of regret. 👊✋✌️"
@@ -37,7 +52,180 @@ export default function LandingPage() {
   const [fallbackText, setFallbackText] = useState('')
   const [copied, setCopied] = useState(false)
 
+  // ─── Feature 1: GPS Proximity Room ─────────────────────────────────
+  const [nearbyChallenges, setNearbyChallenges] = useState<Array<{ battleId: string; message: string; challengerName: string }>>([])
+  const proximityChannelRef = useRef<any>(null)
+  const cellRef = useRef<string>('')
+
+  useEffect(() => {
+    // Request GPS after 3 seconds
+    const timer = setTimeout(() => {
+      if (!navigator.geolocation) return
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const gps = roundGPS(pos.coords.latitude, pos.coords.longitude)
+          cellRef.current = gps.cell
+
+          // Join proximity channel
+          const channel = supabase.channel(`proximity:${gps.cell}`)
+          channel
+            .on('broadcast', { event: 'challenge' }, (payload: any) => {
+              const data = payload.payload
+              setNearbyChallenges(prev => {
+                if (prev.some(c => c.battleId === data.battleId)) return prev
+                return [...prev, { battleId: data.battleId, message: data.message, challengerName: data.challengerName }]
+              })
+              // Auto-remove after 2 minutes
+              setTimeout(() => {
+                setNearbyChallenges(prev => prev.filter(c => c.battleId !== data.battleId))
+              }, 120000)
+            })
+            .subscribe()
+
+          // Track presence
+          channel.track({ type: 'online', guestId: getGuestId(), timestamp: Date.now() })
+          proximityChannelRef.current = channel
+        },
+        () => {}, // GPS denied — no proximity features
+        { enableHighAccuracy: false, timeout: 5000 }
+      )
+    }, 3000)
+
+    return () => {
+      clearTimeout(timer)
+      if (proximityChannelRef.current) supabase.removeChannel(proximityChannelRef.current)
+    }
+  }, [])
+
+  // ─── Feature 2: Full Screen Challenge Display + WakeLock ───────────
+  const [showHoldUp, setShowHoldUp] = useState(false)
+  const [holdUpBattleId, setHoldUpBattleId] = useState('')
+  const [holdUpUrl, setHoldUpUrl] = useState('')
+  const [qrDataUrl, setQrDataUrl] = useState('')
+  const [qrPulseGreen, setQrPulseGreen] = useState(false)
+  const wakeLockRef = useRef<any>(null)
+
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen')
+      }
+    } catch {}
+  }
+
+  async function releaseWakeLock() {
+    if (wakeLockRef.current) { await wakeLockRef.current.release(); wakeLockRef.current = null }
+  }
+
+  async function showChallengeHoldUp(battleId: string) {
+    const url = `${window.location.origin}/battle/${battleId}`
+    setHoldUpBattleId(battleId)
+    setHoldUpUrl(url)
+    setShowHoldUp(true)
+    requestWakeLock()
+
+    try {
+      const dataUrl = await QRCode.toDataURL(url, {
+        width: 220,
+        color: { dark: '#F7941D', light: '#0f0a1e' },
+        margin: 1,
+      })
+      setQrDataUrl(dataUrl)
+    } catch {}
+
+    // Broadcast to proximity channel
+    if (proximityChannelRef.current) {
+      proximityChannelRef.current.send({
+        type: 'broadcast',
+        event: 'challenge',
+        payload: { battleId, message: challengeMsg, challengerName: getGuestName() },
+      })
+    }
+
+    // Watch for opponent accepting
+    const channel = supabase.channel(`holdup:${battleId}`)
+    channel.on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'battles',
+      filter: `id=eq.${battleId}`,
+    }, (payload: any) => {
+      if (payload.new?.status === 'active') {
+        // Opponent accepted!
+        setQrPulseGreen(true)
+        setTimeout(() => {
+          releaseWakeLock()
+          setShowHoldUp(false)
+          router.push(`/battle/${battleId}`)
+        }, 1500)
+        supabase.removeChannel(channel)
+      }
+    }).subscribe()
+  }
+
+  function exitHoldUp() {
+    releaseWakeLock()
+    setShowHoldUp(false)
+    setQrPulseGreen(false)
+    router.push(`/battle/${holdUpBattleId}`)
+  }
+
   return (
+    <>
+    {/* ─── Full Screen Challenge Hold-Up ─── */}
+    {showHoldUp && (
+      <div className="fixed inset-0 z-[9999] bg-night flex flex-col items-center justify-center px-6">
+        <button onClick={exitHoldUp} className="absolute top-4 right-4 text-surface/30 text-sm hover:text-surface/50">Exit</button>
+        <p className="text-surface font-bold text-[1.8rem] mb-8">✊ Challenge Dropped</p>
+        {qrDataUrl && (
+          <img src={qrDataUrl} alt="QR Code" width={220} height={220}
+            className={`rounded-xl mb-4 ${qrPulseGreen ? 'animate-[pulseGreen_0.3s_ease_3]' : ''}`}
+            style={{ border: qrPulseGreen ? '3px solid #1D9E75' : '3px solid rgba(247,148,29,0.3)' }} />
+        )}
+        <p className="text-surface/40 text-sm mb-8">Scan to accept your fate</p>
+        <div className="flex gap-3 mb-8">
+          <button onClick={async (e) => {
+            e.preventDefault()
+            if (navigator.share) {
+              try { await navigator.share({ title: 'SerendipEatery Challenge', text: challengeMsg, url: holdUpUrl }) } catch {}
+            } else { setFallbackUrl(holdUpUrl); setFallbackText(challengeMsg); setShowFallback(true) }
+          }} className="bg-btc text-night font-bold px-5 py-2.5 rounded-xl text-sm">AirDrop / Share</button>
+          <a href={`sms:?body=${encodeURIComponent(challengeMsg + '\n\n' + holdUpUrl)}`}
+            className="border border-surface/20 text-surface/60 font-bold px-5 py-2.5 rounded-xl text-sm">Send as Text</a>
+          <button onClick={() => { navigator.clipboard.writeText(holdUpUrl); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+            className="border border-surface/20 text-surface/60 font-bold px-5 py-2.5 rounded-xl text-sm">
+            {copied ? 'Copied!' : 'Copy Link'}
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-surface/30 text-sm">Waiting</span>
+          <span className="flex gap-1">
+            <span className="w-1.5 h-1.5 bg-btc rounded-full animate-[pulse_1s_ease-in-out_infinite]" />
+            <span className="w-1.5 h-1.5 bg-btc rounded-full animate-[pulse_1s_ease-in-out_0.2s_infinite]" />
+            <span className="w-1.5 h-1.5 bg-btc rounded-full animate-[pulse_1s_ease-in-out_0.4s_infinite]" />
+          </span>
+        </div>
+      </div>
+    )}
+
+    {/* ─── Nearby Challenges Card ─── */}
+    {nearbyChallenges.length > 0 && !showHoldUp && (
+      <div className="fixed bottom-4 left-4 right-4 z-40 max-w-md mx-auto">
+        <div className="rounded-2xl p-4 space-y-2" style={{ background: '#1a0e00', border: '2px solid #F7941D', animation: 'pulse 2s ease-in-out infinite' }}>
+          <p className="text-btc font-bold text-sm">{nearbyChallenges.length} challenge{nearbyChallenges.length > 1 ? 's' : ''} nearby</p>
+          {nearbyChallenges.slice(0, 3).map(c => (
+            <div key={c.battleId} className="flex items-center justify-between">
+              <div>
+                <p className="text-surface text-sm font-bold">{c.challengerName}</p>
+                <p className="text-surface/40 text-xs truncate max-w-[200px]">{c.message}</p>
+              </div>
+              <Link href={`/battle/${c.battleId}`} className="bg-btc text-night font-bold px-4 py-1.5 rounded-full text-xs shrink-0">Accept</Link>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
     <main className="min-h-screen bg-night flex flex-col items-center px-6 pt-10 pb-16">
       {/* ─── Logo ─── */}
       <div className="mb-2 flex flex-col items-end">
@@ -45,7 +233,7 @@ export default function LandingPage() {
           <span className="text-btc">S</span><span className="text-surface">erendip</span>
         </div>
         <div className="font-display" style={{ fontSize: '2.3rem', lineHeight: 1, fontWeight: 900, transform: 'rotate(180deg)',
-          background: 'linear-gradient(to right, transparent, #F7941D)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginTop: '-0.1rem' }}>
+          background: 'linear-gradient(to left, #F7941D 0%, #F7941D 40%, transparent 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginTop: '-0.1rem' }}>
           Eatery
         </div>
       </div>
@@ -56,7 +244,7 @@ export default function LandingPage() {
 
       {/* ─── Roulette Wheel ─── */}
       <p className="text-surface/40 text-xs mb-2">You've earned a spin. Fate decides what's next.</p>
-      <RouletteWheel onSpinComplete={(prize) => {
+      <RouletteWheel prizes={RESTAURANT_PRIZES} onSpinComplete={(prize) => {
         setCelebration({
           prize: prize.label,
           color: prize.color,
@@ -132,10 +320,9 @@ export default function LandingPage() {
                     setFallbackUrl(shareUrl); setFallbackText(challengeMsg); setShowFallback(true)
                   }
                   setShowChallengeComposer(false)
-                  router.push(`/battle/${json.data.id}`)
+                  showChallengeHoldUp(json.data.id)
                 } catch {
-                  // API failed — fall back to demo
-                  setFallbackUrl(`${window.location.origin}/battle/demo`); setFallbackText(challengeMsg); setShowFallback(true)
+                  // Network error — still try to show the share fallback but don't use demo URL
                 } finally { setCreating(false) }
               }} className="w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition disabled:opacity-50">
                 {creating ? 'Creating...' : '📱 AirDrop / Share'}
@@ -268,5 +455,12 @@ export default function LandingPage() {
         </div>
       </footer>
     </main>
+    <style>{`
+      @keyframes pulseGreen {
+        0%, 100% { border-color: rgba(29,158,117,0.3); }
+        50% { border-color: #1D9E75; box-shadow: 0 0 20px rgba(29,158,117,0.5); }
+      }
+    `}</style>
+    </>
   )
 }

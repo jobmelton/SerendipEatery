@@ -115,6 +115,7 @@ export default function BattlePage() {
   const [lootClaimed, setLootClaimed] = useState(false)
   const [lootResult, setLootResult] = useState<{ type: string; amount?: number; item?: any } | null>(null)
   const subscriptionRef = useRef<any>(null)
+  const botTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const playerId = useRef('')
 
@@ -180,6 +181,29 @@ export default function BattlePage() {
       }
     })
   }, [id, myId, fetchBattle])
+
+  // Bot timeout: if no human joins within 60s, auto-join The House as bot
+  useEffect(() => {
+    if (phase === 'waiting' && myRole === 'challenger' && id) {
+      botTimeoutRef.current = setTimeout(async () => {
+        try {
+          const res = await fetch(`${API_URL}/battles/${id}/join`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ playerId: 'bot_house', playerName: 'The House' }),
+          })
+          const json = await res.json()
+          if (json.ok) {
+            setBattle(json.data)
+            runCountdown(json.data)
+          }
+        } catch {}
+      }, 60000)
+      return () => {
+        if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
+      }
+    }
+  }, [phase, myRole, id])
 
   // Subscribe to Realtime changes on this battle
   useEffect(() => {
@@ -323,7 +347,7 @@ export default function BattlePage() {
       const res = await fetch(`${API_URL}/battles/${id}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId: myId, challengerName: getGuestName() }),
+        body: JSON.stringify({ playerId: myId, playerName: getGuestName() }),
       })
       const json = await res.json()
       if (!json.ok) {

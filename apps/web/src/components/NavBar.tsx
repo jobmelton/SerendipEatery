@@ -52,7 +52,11 @@ export function NavBar({ variant = 'consumer' }: { variant?: 'consumer' | 'busin
         <Link href="/" className="flex items-baseline gap-0.5 shrink-0">
           <span className="font-display text-lg font-black text-btc">S</span>
           <span className="font-display text-lg font-black text-surface">erendip</span>
-          <span className="font-display text-lg font-black text-btc/40 hidden sm:inline">Eatery</span>
+          <span className="font-display text-lg font-black hidden sm:inline" style={{
+            display: 'inline-block', transform: 'rotate(180deg)',
+            background: 'linear-gradient(to left, #F7941D 0%, #F7941D 40%, transparent 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+          }}>Eatery</span>
         </Link>
 
         {/* Mode switcher (dual accounts only) */}

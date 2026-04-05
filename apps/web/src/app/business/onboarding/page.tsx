@@ -175,7 +175,11 @@ export default function BusinessOnboardingPage() {
         <div className="flex items-baseline gap-0.5">
           <span className="font-display text-xl font-black text-btc">S</span>
           <span className="font-display text-xl font-black text-surface">erendip</span>
-          <span className="font-display text-xl font-black text-btc/40">Eatery</span>
+          <span className="font-display text-xl font-black" style={{
+            display: 'inline-block', transform: 'rotate(180deg)',
+            background: 'linear-gradient(to left, #F7941D 0%, #F7941D 40%, transparent 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+          }}>Eatery</span>
         </div>
         <Link href="/business/promotions" className="text-sm text-surface/40 hover:text-surface transition">
           Skip to Dashboard
