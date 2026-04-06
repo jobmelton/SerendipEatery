@@ -141,7 +141,7 @@ export default function BusinessBattlePage() {
   return (
     <main className="min-h-screen bg-night flex flex-col items-center justify-center px-6 relative">
       {/* Exit button — always visible, no confirmation */}
-      <Link href="/" className="fixed top-4 left-4 z-40" style={{ color: '#a09080', fontSize: '0.9rem' }}>
+      <Link href="/" className="fixed top-4 left-4 z-40" style={{ color: '#b8a898', fontSize: '0.9rem' }}>
         ← Back
       </Link>
       {phase === 'loading' && (
@@ -259,7 +259,7 @@ export default function BusinessBattlePage() {
                 <button onClick={startGame} className="w-full bg-btc text-night font-bold py-3 rounded-full hover:bg-btc-dark transition">
                   Try Again
                 </button>
-                <Link href="/" className="w-full text-center py-3 rounded-full text-sm" style={{ color: '#a09080' }}>
+                <Link href="/" className="w-full text-center py-3 rounded-full text-sm" style={{ color: '#b8a898' }}>
                   ← Home
                 </Link>
               </div>

@@ -13,6 +13,10 @@
   --teal: #1D9E75;
   --purple: #534AB7;
   --red: #A32D2D;
+  --text-primary: #fff8f2;
+  --text-muted: #b8a898;
+  --text-hint: #8a7a6e;
+  --accent: #F7941D;
 }
 
 @layer base {
@@ -51,5 +55,53 @@
     background: var(--surface);
     border: 0.5px solid var(--btc-ghost);
     @apply rounded-2xl;
+  }
+}
+
+/* ─── Accessibility ─────────────────────────────────────────────────── */
+
+/* Touch targets: WCAG 2.1 AA minimum 44x44px */
+button, a, [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Exclude inline text links and tiny decorative elements */
+a.inline-link, span > a, p > a, footer a {
+  min-height: unset;
+  min-width: unset;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus visible for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--btc);
+  outline-offset: 2px;
+}
+
+/* Reduced motion: surgical approach — only disable non-essential animations */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse,
+  .animate-bounce,
+  [class*="animate-[cardPulse"],
+  [class*="animate-[rockPulse"],
+  [class*="animate-[paperPulse"],
+  [class*="animate-[scissorsPulse"],
+  [class*="animate-[confettiFall"],
+  [class*="animate-[floatUp"],
+  [class*="animate-[pulseGreen"] {
+    animation: none !important;
   }
 }

@@ -34,7 +34,7 @@ function Tooltip({ text }: { text: string }) {
   return (
     <span className="relative inline-flex items-center ml-1" data-tip>
       <span onClick={(e) => { e.stopPropagation(); setShow(!show) }} onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}
-        className="inline-flex items-center justify-center w-[14px] h-[14px] rounded-full border border-[#a09080] text-[#a09080] text-[9px] font-semibold cursor-help shrink-0">?</span>
+        className="inline-flex items-center justify-center w-[14px] h-[14px] rounded-full border border-[#b8a898] text-[#b8a898] text-[9px] font-semibold cursor-help shrink-0">?</span>
       {show && (
         <span className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-[#1a0e00] border border-[rgba(247,148,29,0.3)] text-[#fff8f2] text-[11px] px-2.5 py-1.5 rounded-md w-48 z-50 leading-snug pointer-events-none">
           {text}

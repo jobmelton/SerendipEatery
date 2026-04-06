@@ -53,6 +53,7 @@ export function RouletteWheel({
   const [spinning, setSpinning] = useState(false)
   const [power, setPower] = useState(0)
   const [holding, setHolding] = useState(false)
+  const [spinResult, setSpinResult] = useState('')
   const [hasSpun, setHasSpun] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -166,6 +167,7 @@ export function RouletteWheel({
       // Animation complete
       s.animating = false
       setSpinning(false)
+      setSpinResult(`You won ${prizes[s.winIdx].label}`)
       onSpinComplete?.(prizes[s.winIdx], s.winIdx)
     }
   }, [computeBallPos, onSpinComplete, prizes])
@@ -245,7 +247,13 @@ export function RouletteWheel({
 
   return (
     <div className="relative">
+      <div aria-live="polite" aria-atomic="true" className="sr-only" id="spin-result">
+        {spinResult}
+      </div>
       <div
+        role="button"
+        tabIndex={0}
+        aria-label="Hold to spin the roulette wheel, release to launch"
         className="relative cursor-pointer select-none mx-auto"
         style={{ width: SIZE, height: SIZE }}
         onMouseDown={startHold}
@@ -253,6 +261,8 @@ export function RouletteWheel({
         onMouseLeave={endHold}
         onTouchStart={startHold}
         onTouchEnd={endHold}
+        onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') startHold() }}
+        onKeyUp={(e) => { if (e.key === ' ' || e.key === 'Enter') endHold() }}
       >
         {/* Ball — positioned in screen space, does NOT rotate with wheel */}
         <div
@@ -270,6 +280,8 @@ export function RouletteWheel({
 
         {/* Wheel SVG */}
         <svg
+          role="img"
+          aria-label="Roulette wheel with prize segments"
           viewBox={`0 0 ${VB} ${VB}`}
           width={SIZE}
           height={SIZE}
@@ -315,7 +327,7 @@ export function RouletteWheel({
           }} />
         </div>
       </div>
-      <p className="text-center text-xs mb-4" style={{ color: '#a09080' }}>
+      <p className="text-center text-xs mb-4" style={{ color: '#b8a898' }}>
         {spinning ? '\u00A0' : holding ? `${Math.round(power)}% — release to spin!` : 'Hold to power up — release to spin'}
       </p>
     </div>

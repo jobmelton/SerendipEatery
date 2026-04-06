@@ -9,10 +9,10 @@ import { createBattleLink, getBattleWebUrl, smsCharInfo } from '@/lib/branch'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
 type Move = 'rock' | 'paper' | 'scissors'
-const MOVES: { key: Move; icon: string; label: string }[] = [
-  { key: 'rock', icon: '✊', label: 'Rock' },
-  { key: 'paper', icon: '✋', label: 'Paper' },
-  { key: 'scissors', icon: '✌️', label: 'Scissors' },
+const MOVES: { key: Move; icon: string; label: string; aria: string }[] = [
+  { key: 'rock', icon: '✊', label: 'Rock', aria: 'Choose Rock — beats Scissors, loses to Paper' },
+  { key: 'paper', icon: '✋', label: 'Paper', aria: 'Choose Paper — beats Rock, loses to Scissors' },
+  { key: 'scissors', icon: '✌️', label: 'Scissors', aria: 'Choose Scissors — beats Paper, loses to Rock' },
 ]
 const BEATS: Record<Move, Move> = { rock: 'scissors', scissors: 'paper', paper: 'rock' }
 
@@ -479,7 +479,7 @@ export default function BattlePage() {
         } else {
           window.location.href = '/'
         }
-      }} className="fixed top-4 left-4 z-40" style={{ color: '#a09080', fontSize: '0.9rem' }}>
+      }} className="fixed top-4 left-4 z-40" style={{ color: '#b8a898', fontSize: '0.9rem' }}>
         ← Home
       </button>
 
@@ -645,6 +645,7 @@ export default function BattlePage() {
           <div className="flex gap-4 justify-center w-full max-w-sm mx-auto">
             {MOVES.map((m) => (
               <button key={m.key} onClick={() => submitMove(m.key)}
+                aria-label={m.aria}
                 className="flex-1 rounded-2xl flex flex-col items-center justify-center gap-2 transition hover:bg-white/10 active:scale-95"
                 style={{
                   background: '#1a1230',
@@ -866,7 +867,7 @@ export default function BattlePage() {
             <button onClick={() => setShowShareModal(true)} className="w-full border border-btc text-btc font-bold py-3 rounded-full hover:bg-btc/10 transition">
               ✌️ Drop a Challenge
             </button>
-            <Link href="/" className="w-full text-center py-3 text-sm" style={{ color: '#a09080' }}>← Home</Link>
+            <Link href="/" className="w-full text-center py-3 text-sm" style={{ color: '#b8a898' }}>← Home</Link>
           </div>
 
           {/* Claim Loot CTA */}

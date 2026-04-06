@@ -62,7 +62,7 @@ export default function CreateTournamentPage() {
 
   return (
     <main className="min-h-screen bg-night flex flex-col items-center px-6 pt-12 pb-16">
-      <button onClick={() => router.push('/')} className="fixed top-4 left-4 z-40" style={{ color: '#a09080', fontSize: '0.9rem' }}>
+      <button onClick={() => router.push('/')} className="fixed top-4 left-4 z-40" style={{ color: '#b8a898', fontSize: '0.9rem' }}>
         ← Home
       </button>
 

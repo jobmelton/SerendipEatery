@@ -5,10 +5,10 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 type Move = 'rock' | 'paper' | 'scissors'
-const MOVES: { key: Move; icon: string; label: string }[] = [
-  { key: 'rock', icon: '✊', label: 'Rock' },
-  { key: 'paper', icon: '✋', label: 'Paper' },
-  { key: 'scissors', icon: '✌️', label: 'Scissors' },
+const MOVES: { key: Move; icon: string; label: string; aria: string }[] = [
+  { key: 'rock', icon: '✊', label: 'Rock', aria: 'Choose Rock — beats Scissors, loses to Paper' },
+  { key: 'paper', icon: '✋', label: 'Paper', aria: 'Choose Paper — beats Rock, loses to Scissors' },
+  { key: 'scissors', icon: '✌️', label: 'Scissors', aria: 'Choose Scissors — beats Paper, loses to Rock' },
 ]
 const BEATS: Record<Move, Move> = { rock: 'scissors', scissors: 'paper', paper: 'rock' }
 
@@ -240,7 +240,7 @@ function DemoBattlePage() {
 
       {/* Exit */}
       <button onClick={() => isMidGame ? setShowLeaveModal(true) : (window.location.href = '/')}
-        className="fixed top-4 left-4 z-40" style={{ color: '#a09080', fontSize: '0.9rem' }}>← Home</button>
+        className="fixed top-4 left-4 z-40" style={{ color: '#b8a898', fontSize: '0.9rem' }}>← Home</button>
 
       {showLeaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -279,6 +279,7 @@ function DemoBattlePage() {
           <div className="flex gap-6 justify-center">
             {MOVES.map((m) => (
               <button key={m.key} onClick={() => startMatch(m.key)}
+                aria-label={m.aria}
                 className="w-28 h-32 rounded-2xl flex flex-col items-center justify-center gap-2 transition hover:bg-white/10 active:scale-95"
                 style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.2)' }}>
                 <span className="text-5xl">{m.icon}</span>
@@ -324,6 +325,7 @@ function DemoBattlePage() {
           <div className="flex gap-6 justify-center">
             {MOVES.map((m) => (
               <button key={m.key} onClick={() => playRound(m.key)}
+                aria-label={m.aria}
                 className="w-24 h-28 rounded-2xl flex flex-col items-center justify-center gap-1 transition hover:bg-white/10 active:scale-95"
                 style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.15)' }}>
                 <span className="text-4xl">{m.icon}</span>
@@ -387,7 +389,7 @@ function DemoBattlePage() {
             <button onClick={() => setShowShareCustom(true)} className="w-full border border-btc text-btc font-bold py-3 rounded-full hover:bg-btc/10 transition">
               ✌️ Drop a Challenge
             </button>
-            <Link href="/" className="w-full text-center py-3 text-sm" style={{ color: '#a09080' }}>← Home</Link>
+            <Link href="/" className="w-full text-center py-3 text-sm" style={{ color: '#b8a898' }}>← Home</Link>
           </div>
 
           {/* Sign up CTA */}

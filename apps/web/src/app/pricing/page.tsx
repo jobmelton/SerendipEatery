@@ -37,7 +37,7 @@ function Tooltip({ text }: { text: string }) {
         style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           width: '14px', height: '14px', borderRadius: '50%',
-          border: '1px solid #a09080', color: '#a09080',
+          border: '1px solid #b8a898', color: '#b8a898',
           fontSize: '9px', fontWeight: '600', cursor: 'help',
           flexShrink: 0,
         }}

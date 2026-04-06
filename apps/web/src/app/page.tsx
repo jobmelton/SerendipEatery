@@ -444,6 +444,8 @@ export default function LandingPage() {
           <Link href="/pricing" className="hover:text-surface/40 transition">Pricing</Link>
           <Link href="/consumer" className="hover:text-surface/40 transition">Consumer</Link>
           <Link href="/coming-soon-app" className="hover:text-surface/40 transition">Download App</Link>
+          <Link href="/tournament" className="hover:text-surface/40 transition">Tournaments</Link>
+          <Link href="/accessibility" className="hover:text-surface/40 transition">Accessibility</Link>
           <button
             onClick={() => {
               const sd = { title: 'SerendipEatery', text: 'Fate has good taste. You didn\'t find it — it found you.', url: typeof window !== 'undefined' ? window.location.origin : '' }
