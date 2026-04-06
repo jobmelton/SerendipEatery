@@ -242,27 +242,50 @@ export async function battleRealtimeRoutes(app: FastifyInstance) {
         else if (r.winner === 'defender') defenderWins++
       }
 
-      // Check for match end (first to 3)
+      // Check for match end (first to 2 wins)
       let newStatus = 'active'
       let winnerId = null
       let nextRound = round + 1
 
-      if (challengerWins >= 3) {
+      // Count total draws
+      let totalDraws = 0
+      for (const r of updatedResults) {
+        if (r.winner === 'draw') totalDraws++
+      }
+
+      if (challengerWins >= 2) {
         newStatus = 'completed'
         winnerId = battle.challenger_id
-      } else if (defenderWins >= 3) {
+      } else if (defenderWins >= 2) {
         newStatus = 'completed'
         winnerId = battle.defender_id
       }
 
-      // Sudden death: if both at 2 wins after round 4+, first non-draw wins
-      if (round >= 4 && challengerWins === defenderWins && winner !== 'draw') {
-        // This shouldn't happen with first-to-3, but handle edge case
+      // Tournament sudden death: after 10 consecutive draws, next non-draw wins
+      let suddenDeath = false
+      if (newStatus === 'active') {
+        // Count consecutive draws at end of results
+        let consecutiveDraws = 0
+        for (let i = updatedResults.length - 1; i >= 0; i--) {
+          if (updatedResults[i].winner === 'draw') consecutiveDraws++
+          else break
+        }
+        if (consecutiveDraws >= 10 && winner !== 'draw') {
+          // This non-draw round after 10+ draws wins the match regardless
+          newStatus = 'completed'
+          winnerId = winner === 'challenger' ? battle.challenger_id : battle.defender_id
+          suddenDeath = true
+        }
+        if (consecutiveDraws >= 10) suddenDeath = true
       }
 
       const updateData: any = {
         round_results: updatedResults,
         current_round: newStatus === 'completed' ? round : nextRound,
+        challenger_round_wins: challengerWins,
+        defender_round_wins: defenderWins,
+        total_draws: totalDraws,
+        total_rounds_played: round,
       }
 
       if (newStatus === 'completed') {
@@ -301,6 +324,8 @@ export async function battleRealtimeRoutes(app: FastifyInstance) {
           matchComplete: newStatus === 'completed',
           winnerId,
           drawStreak: drawStreakResult,
+          suddenDeath,
+          totalDraws,
         },
       }
     }

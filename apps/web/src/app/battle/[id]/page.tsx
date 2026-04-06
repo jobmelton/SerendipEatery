@@ -327,7 +327,7 @@ export default function BattlePage() {
   async function runCountdown(b: BattleData) {
     setPhase('countdown')
     playBeep(440, 0.15)
-    setCountdownText('FIRST TO 3 WINS')
+    setCountdownText('FIRST TO 2 WINS')
     await delay(1200)
     playBeep(523, 0.15)
     setCountdownText('READY...')
@@ -485,10 +485,13 @@ export default function BattlePage() {
 
       {/* Score bar */}
       {(phase === 'pick' || phase === 'waitingMove' || phase === 'roundResult' || phase === 'done') && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-4 bg-[#1a1230] rounded-full px-5 py-2">
-          <span className="text-teal font-black text-lg">{myScore}</span>
-          <span className="text-surface/30 text-xs">YOU — OPP</span>
-          <span className="text-red-400 font-black text-lg">{oppScore}</span>
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center bg-[#1a1230] rounded-2xl px-5 py-2">
+          <div className="flex items-center gap-4">
+            <span className="text-teal font-black text-lg">{myScore}</span>
+            <span className="text-surface/30 text-xs">YOU — OPP</span>
+            <span className="text-red-400 font-black text-lg">{oppScore}</span>
+          </div>
+          <span className="text-surface/20 text-[10px]">First to 2 wins</span>
         </div>
       )}
 
@@ -611,7 +614,7 @@ export default function BattlePage() {
           <h2 className="text-2xl font-black text-surface mb-1">
             {battle?.challenger_name || 'Someone'} dropped a challenge!
           </h2>
-          <p className="text-surface/40 text-sm mb-8">Best of 3 — winner takes all (loser keeps one)</p>
+          <p className="text-surface/40 text-sm mb-8">First to 2 wins — winner takes all (loser keeps one)</p>
 
           <button onClick={handleJoin} className="w-full bg-btc text-night font-bold text-lg py-4 rounded-full hover:bg-btc-dark transition mb-3">
             Accept challenge and fate
@@ -636,10 +639,10 @@ export default function BattlePage() {
       {phase === 'pick' && (
         <div className="text-center">
           <p className="text-surface/40 text-sm mb-2">Round {currentRound}</p>
-          {currentRound >= 4 && myScore === 2 && oppScore === 2 && (
-            <p className="text-red-400 font-black text-lg mb-2 animate-pulse">SUDDEN DEATH</p>
+          {myScore === 1 && oppScore === 1 && (
+            <p className="text-red-400 font-black text-lg mb-2 animate-pulse">ONE WIN EACH — NEXT WIN TAKES IT!</p>
           )}
-          {(myScore === 2 || oppScore === 2) && !(myScore === 2 && oppScore === 2) && (
+          {((myScore === 1 && oppScore === 0) || (oppScore === 1 && myScore === 0)) && (
             <p className="text-btc font-bold text-sm mb-2">Match point!</p>
           )}
           <div className="flex gap-4 justify-center w-full max-w-sm mx-auto">
@@ -649,7 +652,7 @@ export default function BattlePage() {
                 className="flex-1 rounded-2xl flex flex-col items-center justify-center gap-2 transition hover:bg-white/10 active:scale-95"
                 style={{
                   background: '#1a1230',
-                  border: currentRound >= 4 && myScore === 2 && oppScore === 2
+                  border: myScore === 1 && oppScore === 1
                     ? '2px solid rgba(239,68,68,0.3)'
                     : '1px solid rgba(247,148,29,0.15)',
                   minHeight: 88,

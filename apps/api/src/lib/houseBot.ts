@@ -257,11 +257,21 @@ async function resolveRoundServerSide(battleId: string, round: number, moves: an
     else if (r.winner === 'defender') ds++
   }
 
-  const updateData: any = { round_results: results, current_round: round + 1 }
+  let totalDraws = 0
+  for (const r of results) { if (r.winner === 'draw') totalDraws++ }
 
-  if (cs >= 3 || ds >= 3) {
+  const updateData: any = {
+    round_results: results,
+    current_round: round + 1,
+    challenger_round_wins: cs,
+    defender_round_wins: ds,
+    total_draws: totalDraws,
+    total_rounds_played: round,
+  }
+
+  if (cs >= 2 || ds >= 2) {
     updateData.status = 'completed'
-    updateData.winner_id = cs >= 3 ? battle.challenger_id : battle.defender_id
+    updateData.winner_id = cs >= 2 ? battle.challenger_id : battle.defender_id
     updateData.completed_at = new Date().toISOString()
     updateData.rounds_played = round
   }

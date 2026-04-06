@@ -28,8 +28,8 @@ function resolveRound(challengerMove: Move, defenderMove: Move, challengerId: st
 }
 
 /**
- * Resolve a battle: best 2 of 3.
- * If tied after 3 rounds, continue with sudden-death (up to 3 more rounds).
+ * Resolve a battle: first to 2 wins.
+ * Draws don't count — match continues until someone reaches 2 round wins.
  */
 export function resolveBattle(
   challengerMoves: Move[],
@@ -55,11 +55,8 @@ export function resolveBattle(
     if (winnerId === challengerId) challengerWins++
     else if (winnerId === defenderId) defenderWins++
 
-    // Best 2 of 3: early exit if someone has 2 wins
-    if (i < 3 && (challengerWins >= 2 || defenderWins >= 2)) break
-
-    // Sudden death (rounds 4+): first non-draw wins
-    if (i >= 3 && winnerId !== null) break
+    // First to 2 wins
+    if (challengerWins >= 2 || defenderWins >= 2) break
   }
 
   let finalWinner: string | null = null

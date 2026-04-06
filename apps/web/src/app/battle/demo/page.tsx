@@ -62,7 +62,7 @@ const LOSE_PHRASES = ['Ooh!', 'Tough break!', 'Ouch!']
 function randomPick(arr: string[]) { return arr[Math.floor(Math.random() * arr.length)] }
 
 function playIntroSequence(onDone: () => void) {
-  // FIRST TO 3 WINS — ascending
+  // FIRST TO 2 WINS — ascending
   setTimeout(() => playBeep(440, 0.15), 0)
   setTimeout(() => playBeep(494, 0.15), 200)
   setTimeout(() => playBeep(523, 0.15), 400)
@@ -144,10 +144,10 @@ function DemoBattlePage() {
     // Speech fires FIRST, graphics follow with delay
     setPhase('intro')
 
-    // "FIRST TO 3 WINS"
-    if (!muted) { speak('First to 3 wins!', { rate: 0.8, pitch: 1.3 }); playIntroSequence(() => {}) }
+    // "FIRST TO 2 WINS"
+    if (!muted) { speak('First to 2 wins!', { rate: 0.8, pitch: 1.3 }); playIntroSequence(() => {}) }
     await delay(200)
-    setIntroText('FIRST TO 3 WINS')
+    setIntroText('FIRST TO 2 WINS')
 
     // "READY"
     await delay(1000)
@@ -201,18 +201,16 @@ function DemoBattlePage() {
 
     // Check for match end
     setTimeout(() => {
-      if (ms >= 3) {
+      if (ms >= 2) {
         setFinalResult('win'); setPhase('done')
         if (!muted) { playWinBeep(); speak('You win! Amazing!', { rate: 1.1, pitch: 1.4 }) }
-      } else if (os >= 3) {
+      } else if (os >= 2) {
         setFinalResult('lose'); setPhase('done')
         if (!muted) { playLoseBeep(); speak('You lose! Better luck next time!', { rate: 0.7, pitch: 0.8 }) }
-      } else if (ms === 2 && os === 2 && rn >= 4) {
-        setPhase('suddenDeath')
-        if (!muted) speak('Sudden death!', { rate: 0.6, pitch: 0.9 })
       } else {
         // Check for match point
-        if ((ms === 2 || os === 2) && !muted) speak('Match point!', { rate: 0.7, pitch: 1.0 })
+        if (ms === 1 && os === 1 && !muted) speak('One win each — next win takes it!', { rate: 0.7, pitch: 1.0 })
+        else if ((ms === 1 || os === 1) && !muted) speak('Match point!', { rate: 0.7, pitch: 1.0 })
         setPhase('nextPick')
       }
     }, 1500)
@@ -275,7 +273,7 @@ function DemoBattlePage() {
 
           <h1 className="text-2xl font-black text-surface mb-1">Challenge The House</h1>
           <p className="text-surface/40 text-sm mb-2">No opponent needed. The House always has deals to lose.</p>
-          <p className="text-surface/30 text-xs mb-8">First to 3 wins — pick your opening move</p>
+          <p className="text-surface/30 text-xs mb-8">First to 2 wins — pick your opening move</p>
           <div className="flex gap-6 justify-center">
             {MOVES.map((m) => (
               <button key={m.key} onClick={() => startMatch(m.key)}
