@@ -436,6 +436,23 @@ export async function battleRealtimeRoutes(app: FastifyInstance) {
     }
   })
 
+  // ─── Save push subscription (guest-compatible) ─────────────────────
+  app.post('/push-subscribe', async (request) => {
+    const body = request.body as { subscription: any; guestId?: string; proximityCell?: string }
+    if (!body.subscription || !body.guestId) {
+      throw new AppError(400, 'MISSING', 'subscription and guestId required')
+    }
+
+    await supabase.from('push_subscriptions').delete().eq('guest_id', body.guestId)
+    await supabase.from('push_subscriptions').insert({
+      guest_id: body.guestId,
+      subscription: body.subscription,
+      proximity_cell: body.proximityCell ?? null,
+    })
+
+    return { ok: true }
+  })
+
   // ─── Get bot lootbox (for loot picking after winning vs bot) ───────
   app.get('/battles/:id/bot-lootbox', async (request) => {
     const { id } = request.params as { id: string }

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
 import { dark } from '@clerk/themes'
+import { PWAInit } from '@/components/PWAInit'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -23,7 +24,13 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
+    apple: '/icon-192.png',
+  },
+  manifest: '/manifest.json',
+  other: {
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'black-translucent',
+    'apple-mobile-web-app-title': 'SerendipEatery',
   },
 }
 
@@ -52,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <html lang="en">
         <body className="bg-night text-white antialiased">
+          <PWAInit />
           {children}
         </body>
       </html>

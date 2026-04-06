@@ -173,4 +173,30 @@ export async function userRoutes(app: FastifyInstance) {
 
     return { ok: true, data: { deleted: true } }
   })
+
+  // ─── Save push subscription ───────────────────────────────────────
+  app.post('/users/me/push-subscription', async (request) => {
+    const { userId } = (request as AuthenticatedRequest).auth
+    const body = request.body as { subscription: any; guestId?: string; proximityCell?: string }
+
+    if (!body.subscription) throw new AppError(400, 'MISSING_SUB', 'subscription required')
+
+    // Upsert — replace existing subscription for this user
+    await supabase
+      .from('push_subscriptions')
+      .delete()
+      .eq('user_id', userId)
+
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .insert({
+        user_id: userId,
+        guest_id: body.guestId ?? null,
+        subscription: body.subscription,
+        proximity_cell: body.proximityCell ?? null,
+      })
+
+    if (error) throw new AppError(500, 'SUB_FAILED', 'Failed to save subscription')
+    return { ok: true }
+  })
 }
