@@ -4,6 +4,7 @@ import { validate } from '../lib/validate.js'
 import { supabase } from '../lib/supabase.js'
 import { AppError } from '../lib/errors.js'
 import { BOT_USER_ID, getBotLootbox, transferBotItem, isBot } from '../lib/houseBot.js'
+import { checkDrawStreak } from '../lib/badges.js'
 
 const BEATS: Record<string, string> = { rock: 'scissors', scissors: 'paper', paper: 'rock' }
 
@@ -284,6 +285,12 @@ export async function battleRealtimeRoutes(app: FastifyInstance) {
         })
       } catch {}
 
+      // Check draw streak for traveling badge
+      let drawStreakResult = null
+      try {
+        drawStreakResult = await checkDrawStreak(id, battle.challenger_id, battle.defender_id, winner)
+      } catch {}
+
       return {
         ok: true,
         data: {
@@ -293,6 +300,7 @@ export async function battleRealtimeRoutes(app: FastifyInstance) {
           defenderWins,
           matchComplete: newStatus === 'completed',
           winnerId,
+          drawStreak: drawStreakResult,
         },
       }
     }

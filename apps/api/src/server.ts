@@ -26,6 +26,7 @@ import { adminRoutes } from './routes/admin.js'
 import { battleRoutes } from './routes/battles.js'
 import { battleRealtimeRoutes } from './routes/battles-realtime.js'
 import { tournamentRoutes } from './routes/tournaments.js'
+import { badgeRoutes } from './routes/badges.js'
 import { clerkWebhookRoutes } from './routes/webhooks/clerk.js'
 import { stripeIdentityWebhookRoutes } from './routes/webhooks/stripe-identity.js'
 
@@ -63,6 +64,7 @@ try {
 app.register(salesRoutes)
 app.register(battleRealtimeRoutes)
 app.register(tournamentRoutes)
+app.register(badgeRoutes)
 app.register(clerkWebhookRoutes)
 app.register(stripeIdentityWebhookRoutes)
 

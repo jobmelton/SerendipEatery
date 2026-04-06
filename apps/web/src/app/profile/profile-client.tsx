@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { NavBar } from '@/components/NavBar'
+import { ProfileBadges } from '@/components/ProfileBadges'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -249,6 +250,9 @@ export function ProfileClient({ user, profile, referralCode, recentActivity }: P
             <p className="text-surface/30 text-sm">Referral code not available yet</p>
           )}
         </section>
+
+        {/* Badges */}
+        <ProfileBadges />
 
         {/* Recent Activity */}
         <section className="bg-[#1a1230] rounded-2xl p-6">

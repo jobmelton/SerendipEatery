@@ -54,6 +54,24 @@ export async function sendPushToProximityCell(cell: string, payload: PushPayload
   }
 }
 
+export async function sendPushToGuest(guestId: string, payload: PushPayload): Promise<void> {
+  const { data: subs } = await supabase
+    .from('push_subscriptions')
+    .select('id, subscription')
+    .eq('guest_id', guestId)
+
+  for (const { id, subscription } of subs ?? []) {
+    try {
+      await webpush.sendNotification(subscription, JSON.stringify(payload))
+      await supabase.from('push_subscriptions').update({ last_used_at: new Date().toISOString() }).eq('id', id)
+    } catch (err: any) {
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        await supabase.from('push_subscriptions').delete().eq('id', id)
+      }
+    }
+  }
+}
+
 function getNearbyCells(cell: string): string[] {
   const [lat, lng] = cell.split(':').map(Number)
   const cells: string[] = []
