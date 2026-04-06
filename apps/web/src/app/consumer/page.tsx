@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useUser, SignInButton } from '@clerk/nextjs'
 import { NavBar } from '@/components/NavBar'
+import { SerendipEateryLogo } from '@/components/SerendipEateryLogo'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -702,14 +703,8 @@ export default function ConsumerPage() {
         <NavBar variant="consumer" />
       ) : (
         <header className="flex items-center justify-between px-6 py-4 max-w-5xl mx-auto">
-          <Link href="/" className="flex items-baseline gap-0.5">
-            <span className="font-display text-xl font-black text-btc">S</span>
-            <span className="font-display text-xl font-black text-surface">erendip</span>
-            <span className="font-display text-xl font-black" style={{
-              display: 'inline-block', transform: 'rotate(180deg)',
-              background: 'linear-gradient(to left, #F7941D 0%, #F7941D 40%, transparent 100%)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-            }}>Eatery</span>
+          <Link href="/">
+            <SerendipEateryLogo size="md" />
           </Link>
           <div className="flex items-center gap-3">
             <SignInButton mode="modal">

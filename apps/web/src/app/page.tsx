@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import QRCode from 'qrcode'
 import { RouletteWheel, type WheelPrize } from '@/components/RouletteWheel'
+import { SerendipEateryLogo } from '@/components/SerendipEateryLogo'
 
 const RESTAURANT_PRIZES: WheelPrize[] = [
   { label: 'Taco Loco',    weight: 10, color: '#FF1493' },
@@ -228,14 +229,8 @@ export default function LandingPage() {
 
     <main className="min-h-screen bg-night flex flex-col items-center px-6 pt-10 pb-16">
       {/* ─── Logo ─── */}
-      <div className="mb-2 flex flex-col items-end">
-        <div style={{ fontSize: '2.5rem', lineHeight: 1, fontWeight: 900 }} className="font-display">
-          <span className="text-btc">S</span><span className="text-surface">erendip</span>
-        </div>
-        <div className="font-display" style={{ fontSize: '2.3rem', lineHeight: 1, fontWeight: 900, transform: 'rotate(180deg)',
-          background: 'linear-gradient(to left, #F7941D 0%, #F7941D 40%, transparent 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginTop: '-0.1rem' }}>
-          Eatery
-        </div>
+      <div className="mb-2">
+        <SerendipEateryLogo size="lg" />
       </div>
 
       {/* ─── Tagline ─── */}

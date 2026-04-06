@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { UserButton, useUser } from '@clerk/nextjs'
+import { SerendipEateryLogo } from '@/components/SerendipEateryLogo'
 
 const CONSUMER_NAV = [
   { href: '/consumer', label: 'Deals', icon: '🎰' },
@@ -49,14 +50,8 @@ export function NavBar({ variant = 'consumer' }: { variant?: 'consumer' | 'busin
     <nav className="bg-night border-b border-white/5 sticky top-0 z-30">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
         {/* Logo */}
-        <Link href="/" className="flex items-baseline gap-0.5 shrink-0">
-          <span className="font-display text-lg font-black text-btc">S</span>
-          <span className="font-display text-lg font-black text-surface">erendip</span>
-          <span className="font-display text-lg font-black hidden sm:inline" style={{
-            display: 'inline-block', transform: 'rotate(180deg)',
-            background: 'linear-gradient(to left, #F7941D 0%, #F7941D 40%, transparent 100%)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-          }}>Eatery</span>
+        <Link href="/" className="shrink-0">
+          <SerendipEateryLogo size="sm" />
         </Link>
 
         {/* Mode switcher (dual accounts only) */}

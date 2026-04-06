@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { SerendipEateryLogo } from '@/components/SerendipEateryLogo'
 
 export default function ComingSoonAppPage() {
   const [email, setEmail] = useState('')
@@ -25,14 +26,8 @@ export default function ComingSoonAppPage() {
 
   return (
     <main className="min-h-screen bg-night flex flex-col items-center justify-center px-6">
-      <div className="flex items-baseline gap-0.5 mb-8">
-        <span className="font-display text-3xl md:text-4xl font-black text-btc">S</span>
-        <span className="font-display text-3xl md:text-4xl font-black text-surface">erendip</span>
-        <span className="font-display text-3xl md:text-4xl font-black" style={{
-          display: 'inline-block', transform: 'rotate(180deg)',
-          background: 'linear-gradient(to left, #F7941D 0%, #F7941D 40%, transparent 100%)',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-        }}>Eatery</span>
+      <div className="mb-8">
+        <SerendipEateryLogo size="lg" />
       </div>
 
       <h1 className="text-3xl md:text-4xl font-black text-surface text-center mb-3">
