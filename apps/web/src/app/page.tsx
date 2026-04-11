@@ -53,6 +53,49 @@ export default function LandingPage() {
   const [fallbackText, setFallbackText] = useState('')
   const [copied, setCopied] = useState(false)
 
+  // ─── Guinness World Record Banner ──────────────────────────────────
+  const [recordAttempt, setRecordAttempt] = useState<{ status: string; record_name: string; target_date: string | null; registrationCount: number } | null>(null)
+  const [recordCountdown, setRecordCountdown] = useState('')
+  const [liveCount, setLiveCount] = useState(0)
+
+  useEffect(() => {
+    fetch(`${API_URL}/record/current`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.ok && json.data) {
+          setRecordAttempt(json.data)
+          setLiveCount(json.data.registrationCount)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!recordAttempt?.target_date || recordAttempt.status === 'active') return
+    const target = new Date(recordAttempt.target_date).getTime()
+    const tick = () => {
+      const diff = Math.max(0, target - Date.now())
+      const d = Math.floor(diff / 86400000)
+      const h = Math.floor((diff % 86400000) / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      setRecordCountdown(`${d}d ${h}h ${m}m`)
+    }
+    tick()
+    const iv = setInterval(tick, 60000)
+    return () => clearInterval(iv)
+  }, [recordAttempt])
+
+  useEffect(() => {
+    if (recordAttempt?.status !== 'active') return
+    const iv = setInterval(() => {
+      fetch(`${API_URL}/record/count`)
+        .then(r => r.json())
+        .then(json => { if (json.ok) setLiveCount(json.data.count) })
+        .catch(() => {})
+    }, 5000)
+    return () => clearInterval(iv)
+  }, [recordAttempt?.status])
+
   // ─── Feature 1: GPS Proximity Room ─────────────────────────────────
   const [nearbyChallenges, setNearbyChallenges] = useState<Array<{ battleId: string; message: string; challengerName: string }>>([])
   const proximityChannelRef = useRef<any>(null)
@@ -228,6 +271,23 @@ export default function LandingPage() {
     )}
 
     <main className="min-h-screen bg-night flex flex-col items-center px-6 pt-10 pb-16">
+      {/* ─── Guinness World Record Banner ─── */}
+      {recordAttempt?.status === 'active' && (
+        <a href="/record" className="w-full max-w-md mb-4 block">
+          <div className="rounded-2xl px-4 py-3 text-center animate-pulse" style={{ background: '#1a0e00', border: '2px solid #FFD700' }}>
+            <p className="text-sm font-bold" style={{ color: '#FFD700' }}>🏅 LIVE: {liveCount.toLocaleString()} players in the record attempt</p>
+          </div>
+        </a>
+      )}
+      {recordAttempt?.status === 'upcoming' && recordAttempt.target_date && (
+        <a href="/record" className="w-full max-w-md mb-4 block">
+          <div className="rounded-2xl px-4 py-3 text-center" style={{ background: '#1a1230', border: '1px solid rgba(255,215,0,0.3)' }}>
+            <p className="text-xs font-bold" style={{ color: '#FFD700' }}>🏅 World Record Attempt in {recordCountdown}</p>
+            <p className="text-surface/30 text-[10px]">{liveCount.toLocaleString()} registered · serendipeatery.com/record</p>
+          </div>
+        </a>
+      )}
+
       {/* ─── Logo ─── */}
       <div className="mb-2">
         <SerendipEateryLogo size="lg" />
@@ -441,6 +501,8 @@ export default function LandingPage() {
           <Link href="/coming-soon-app" className="hover:text-surface/40 transition">Download App</Link>
           <Link href="/tournament" className="hover:text-surface/40 transition">Tournaments</Link>
           <Link href="/accessibility" className="hover:text-surface/40 transition">Accessibility</Link>
+          <Link href="/record" className="hover:text-surface/40 transition">World Record</Link>
+          <Link href="/press" className="hover:text-surface/40 transition">Press</Link>
           <button
             onClick={() => {
               const sd = { title: 'SerendipEatery', text: 'Fate has good taste. You didn\'t find it — it found you.', url: typeof window !== 'undefined' ? window.location.origin : '' }

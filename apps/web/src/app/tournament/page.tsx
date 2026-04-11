@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -28,6 +29,14 @@ export default function CreateTournamentPage() {
   const [hostName, setHostName] = useState(getGuestName())
   const [creating, setCreating] = useState(false)
   const [needsName, setNeedsName] = useState(!getGuestName())
+  const [recordBanner, setRecordBanner] = useState<{ status: string; record_name: string; target_date: string | null; registrationCount: number } | null>(null)
+
+  useEffect(() => {
+    fetch(`${API_URL}/record/current`)
+      .then(r => r.json())
+      .then(json => { if (json.ok && json.data) setRecordBanner(json.data) })
+      .catch(() => {})
+  }, [])
 
   async function handleCreate() {
     if (!hostName.trim()) {
@@ -65,6 +74,23 @@ export default function CreateTournamentPage() {
       <button onClick={() => router.push('/')} className="fixed top-4 left-4 z-40" style={{ color: '#b8a898', fontSize: '0.9rem' }}>
         ← Home
       </button>
+
+      {/* Guinness banner */}
+      {recordBanner && (recordBanner.status === 'upcoming' || recordBanner.status === 'active') && (
+        <Link href="/record" className="w-full max-w-sm mb-6 block">
+          <div className="rounded-2xl px-4 py-4 text-center" style={{ background: '#1a0e00', border: '2px solid #FFD700' }}>
+            <p className="text-sm font-bold" style={{ color: '#FFD700' }}>🏅 GUINNESS WORLD RECORD ATTEMPT</p>
+            <p className="text-surface/60 text-xs mt-1">{recordBanner.record_name}</p>
+            <p className="text-surface/40 text-xs">Target: {(10000).toLocaleString()} players · {recordBanner.registrationCount.toLocaleString()} registered</p>
+            {recordBanner.target_date && (
+              <p className="text-surface/30 text-[10px] mt-1">
+                {new Date(recordBanner.target_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </p>
+            )}
+            <p className="text-btc text-xs font-bold mt-2">Register to Participate →</p>
+          </div>
+        </Link>
+      )}
 
       <div className="text-4xl mb-4">🏆</div>
       <h1 className="text-3xl font-black text-surface mb-2">Create Tournament</h1>
