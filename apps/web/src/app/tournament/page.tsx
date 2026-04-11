@@ -29,6 +29,7 @@ export default function CreateTournamentPage() {
   const [hostName, setHostName] = useState(getGuestName())
   const [creating, setCreating] = useState(false)
   const [needsName, setNeedsName] = useState(!getGuestName())
+  const [error, setError] = useState('')
   const [recordBanner, setRecordBanner] = useState<{ status: string; record_name: string; target_date: string | null; registrationCount: number } | null>(null)
 
   useEffect(() => {
@@ -48,6 +49,7 @@ export default function CreateTournamentPage() {
     localStorage.setItem('se_guest_name', hostName.trim())
 
     setCreating(true)
+    setError('')
     try {
       const res = await fetch(`${API_URL}/tournaments/create`, {
         method: 'POST',
@@ -60,11 +62,19 @@ export default function CreateTournamentPage() {
           maxPlayers,
         }),
       })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `Server error ${res.status}`)
+      }
       const json = await res.json()
       if (json.ok) {
-        router.push(`/tournament/${json.data.id}`)
+        window.location.href = `/tournament/${json.data.id}`
+      } else {
+        setError(json.error || 'Failed to create tournament')
       }
-    } catch {} finally {
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong. Try again.')
+    } finally {
       setCreating(false)
     }
   }
@@ -177,6 +187,7 @@ export default function CreateTournamentPage() {
         </div>
 
         {/* Create button */}
+        {error && <p className="text-red-400 text-xs text-center">{error}</p>}
         <button
           onClick={handleCreate}
           disabled={creating}
