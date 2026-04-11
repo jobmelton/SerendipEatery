@@ -29,34 +29,7 @@
   }
 }
 
-@layer components {
-  .btn-primary {
-    @apply w-full py-3 px-6 rounded-full font-bold text-sm cursor-pointer border-none;
-    background: var(--btc);
-    color: var(--night);
-    transition: background 0.15s;
-  }
-  .btn-primary:hover { background: var(--btc-dark); }
-  .btn-primary:active { transform: scale(0.98); }
-
-  .btn-ghost {
-    @apply w-full py-3 px-6 rounded-full font-bold text-sm cursor-pointer bg-transparent;
-    border: 0.5px solid rgba(247,148,29,0.3);
-    color: rgba(255,255,255,0.5);
-  }
-
-  .card-dark {
-    background: var(--warm-dark);
-    border: 0.5px solid rgba(247,148,29,0.2);
-    @apply rounded-2xl;
-  }
-
-  .card-warm {
-    background: var(--surface);
-    border: 0.5px solid var(--btc-ghost);
-    @apply rounded-2xl;
-  }
-}
+@layer components {}
 
 /* ─── Accessibility ─────────────────────────────────────────────────── */
 
@@ -66,8 +39,8 @@ button, a, [role="button"] {
   min-width: 44px;
 }
 
-/* Exclude inline text links and tiny decorative elements */
-a.inline-link, span > a, p > a, footer a {
+/* Exclude inline text links and small elements from touch target rule */
+span > a, p > a, footer a {
   min-height: unset;
   min-width: unset;
 }
