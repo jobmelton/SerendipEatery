@@ -36,6 +36,8 @@ interface TournamentData {
   winner_id: string | null
   winner_name: string | null
   created_at: string
+  stakes?: string | null
+  auto_start?: boolean
 }
 
 interface PlayerData {
@@ -78,6 +80,8 @@ export default function TournamentPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [copied, setCopied] = useState(false)
+  const [invitePhones, setInvitePhones] = useState('')
+  const [inviteStatus, setInviteStatus] = useState('')
   const [showQrFull, setShowQrFull] = useState(false)
   const [confetti, setConfetti] = useState(false)
   const wakeLockRef = useRef<any>(null)
@@ -296,7 +300,11 @@ export default function TournamentPage() {
             <h1 className="text-2xl font-black text-surface">{tournament.name}</h1>
             <p className="text-surface/40 text-sm">
               {tournament.format === 'double_elimination' ? 'Double Elimination' : 'Single Elimination'} · Max {tournament.max_players}
+              {tournament.auto_start !== false ? ' · Starts when full' : ''}
             </p>
+            {tournament.stakes && (
+              <p className="text-btc font-bold text-sm mt-2">Winner decides: {tournament.stakes}</p>
+            )}
           </div>
 
           {/* Join code */}
@@ -355,6 +363,42 @@ export default function TournamentPage() {
               <span className="w-1.5 h-1.5 bg-btc rounded-full animate-[pulse_1s_ease-in-out_0.4s_infinite]" />
             </span>
           </div>
+
+          {isHost && (
+            <div className="mb-4 rounded-2xl p-4" style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.15)' }}>
+              <p className="text-surface/50 text-xs font-bold mb-2">TEXT INVITES</p>
+              <textarea
+                value={invitePhones}
+                onChange={(e) => setInvitePhones(e.target.value)}
+                placeholder="Phone numbers, one per line"
+                rows={3}
+                className="w-full rounded-xl px-3 py-2 text-surface text-sm mb-2 focus:outline-none"
+                style={{ background: '#0f0a1e', border: '1px solid rgba(247,148,29,0.15)' }}
+              />
+              <button
+                onClick={async () => {
+                  const phones = invitePhones.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean)
+                  if (!phones.length) return
+                  setInviteStatus('Sending…')
+                  try {
+                    const res = await fetch(`${API_URL}/tournaments/${id}/invite`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ phones, fromName: tournament.host_name }),
+                    })
+                    const json = await res.json()
+                    setInviteStatus(json.ok ? `Sent ${json.data.sent} invite${json.data.sent === 1 ? '' : 's'}` : (json.error || 'Failed'))
+                  } catch {
+                    setInviteStatus('Failed to send')
+                  }
+                }}
+                className="w-full bg-btc text-night font-bold py-2.5 rounded-xl text-sm"
+              >
+                Text them the code
+              </button>
+              {inviteStatus && <p className="text-surface/40 text-xs mt-2 text-center">{inviteStatus}</p>}
+            </div>
+          )}
 
           {/* Start button (host only) */}
           {isHost && players.length >= 2 && (

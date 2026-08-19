@@ -169,5 +169,58 @@ export function useApi() {
       const token = await getAuthToken()
       return request<any>('POST', `/battles/${battleId}/loot`, token, { lootType })
     },
+
+    // ─── World-record tournament ────────────────────────────────────
+    async recordGate() {
+      const token = await getAuthToken()
+      return request<{
+        attempt: any | null
+        participant: any | null
+        currentMatch: any | null
+        unlocked: boolean
+        lockReason: string
+        showUnlockCta: boolean
+      }>('GET', '/record/gate', token)
+    },
+
+    async recordRegister(body: {
+      name: string
+      email: string
+      phone: string
+      consentGiven: boolean
+      smsConsent: boolean
+      ageConfirmed: boolean
+      userId?: string
+    }) {
+      const token = await getAuthToken()
+      return request<{ participant: any; participantNumber?: number; alreadyRegistered?: boolean }>(
+        'POST', '/record/register', token, body,
+      )
+    },
+
+    async recordSendOtp(phone: string) {
+      const token = await getAuthToken()
+      return request<{ expiresAt: string }>('POST', '/record/otp/send', token, { phone })
+    },
+
+    async recordVerifyOtp(phone: string, code: string) {
+      const token = await getAuthToken()
+      return request<{ participant: any }>('POST', '/record/otp/verify', token, { phone, code })
+    },
+
+    async recordStartMatch() {
+      const token = await getAuthToken()
+      return request<{ battleId: string }>('POST', '/record/me/match/start', token)
+    },
+
+    async recordSyncMatch() {
+      const token = await getAuthToken()
+      return request<{ completed: boolean }>('POST', '/record/me/match/sync', token)
+    },
+
+    async recordUnlockSeen() {
+      const token = await getAuthToken()
+      return request<unknown>('POST', '/record/unlock-seen', token)
+    },
   }), [getAuthToken])
 }

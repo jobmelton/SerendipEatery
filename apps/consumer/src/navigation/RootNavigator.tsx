@@ -2,7 +2,7 @@ import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { useAuth } from '@clerk/clerk-expo'
-import { Text } from 'react-native'
+import { ActivityIndicator, Text, View } from 'react-native'
 import { HomeScreen } from '../screens/HomeScreen'
 import { SaleDetailScreen } from '../screens/SaleDetailScreen'
 import { SpinScreen } from '../screens/SpinScreen'
@@ -15,6 +15,10 @@ import { BattleArenaScreen } from '../screens/BattleArenaScreen'
 import { WalletScreen } from '../screens/WalletScreen'
 import { SignInScreen } from '../screens/auth/SignInScreen'
 import { SignUpScreen } from '../screens/auth/SignUpScreen'
+import { RecordHomeScreen } from '../screens/record/RecordHomeScreen'
+import { RecordUnlockScreen } from '../screens/record/RecordUnlockScreen'
+import { RecordGateProvider, useRecordGate } from '../lib/recordGate'
+import { colors } from '../lib/theme'
 
 // ─── Type Definitions ─────────────────────────────────────────────────────
 
@@ -55,7 +59,12 @@ export type AuthStackParamList = {
   SignUp: undefined
 }
 
-export type RootStackParamList = MainStackParamList & AuthStackParamList
+export type RecordStackParamList = {
+  RecordHome: undefined
+  BattleArena: { battleId: string }
+}
+
+export type RootStackParamList = MainStackParamList & AuthStackParamList & RecordStackParamList
 
 export type TabParamList = {
   Home: undefined
@@ -136,6 +145,37 @@ function AuthNavigator() {
   )
 }
 
+const RecordStack = createNativeStackNavigator<RecordStackParamList>()
+
+function RecordNavigator() {
+  return (
+    <RecordStack.Navigator screenOptions={{ headerShown: false }}>
+      <RecordStack.Screen name="RecordHome" component={RecordHomeScreen} />
+      <RecordStack.Screen
+        name="BattleArena"
+        component={BattleArenaScreen}
+        options={{ gestureEnabled: false }}
+      />
+    </RecordStack.Navigator>
+  )
+}
+
+function GatedMain() {
+  const { gate, loading } = useRecordGate()
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.night, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    )
+  }
+
+  if (!gate.unlocked) return <RecordNavigator />
+  if (gate.showUnlockCta) return <RecordUnlockScreen />
+  return <MainNavigator />
+}
+
 function MainNavigator() {
   return (
     <MainStack.Navigator screenOptions={{ headerShown: false }}>
@@ -169,7 +209,13 @@ export function RootNavigator() {
 
   return (
     <NavigationContainer>
-      {isSignedIn ? <MainNavigator /> : <AuthNavigator />}
+      {isSignedIn ? (
+        <RecordGateProvider>
+          <GatedMain />
+        </RecordGateProvider>
+      ) : (
+        <AuthNavigator />
+      )}
     </NavigationContainer>
   )
 }

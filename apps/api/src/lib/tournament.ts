@@ -346,3 +346,116 @@ export async function generateJoinCode(): Promise<string> {
   }
   return code
 }
+
+/** Start a social/friend tournament that is still in lobby. */
+export async function startSocialTournament(id: string): Promise<{ matches: any[] }> {
+  const { data: tournament } = await supabase
+    .from('tournaments')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (!tournament) throw new Error('NOT_FOUND')
+  if (tournament.status !== 'lobby') return { matches: [] }
+
+  const { data: players } = await supabase
+    .from('tournament_players')
+    .select('player_id, player_name, seed')
+    .eq('tournament_id', id)
+    .order('seed')
+
+  if (!players || players.length < 2) throw new Error('NOT_ENOUGH')
+
+  const shuffled = players.map((p, i) => ({
+    playerId: p.player_id,
+    playerName: p.player_name,
+    seed: i + 1,
+  }))
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const tempSeed = shuffled[i].seed
+    shuffled[i].seed = shuffled[j].seed
+    shuffled[j].seed = tempSeed
+  }
+
+  for (const p of shuffled) {
+    await supabase.from('tournament_players')
+      .update({ seed: p.seed })
+      .eq('tournament_id', id)
+      .eq('player_id', p.playerId)
+  }
+
+  const bracket = tournament.format === 'double_elimination'
+    ? generateDoubleBracket(shuffled)
+    : generateSingleBracket(shuffled)
+
+  for (const match of bracket) {
+    await supabase.from('tournament_matches').insert({
+      tournament_id: id,
+      round: match.round,
+      match_index: match.matchIndex,
+      bracket_type: match.bracketType,
+      player1_id: match.player1Id,
+      player1_name: match.player1Name,
+      player2_id: match.player2Id,
+      player2_name: match.player2Name,
+      winner_id: match.winnerId,
+      status: match.status,
+    })
+  }
+
+  const byeMatches = bracket.filter((m) => m.status === 'bye' && m.winnerId)
+  for (const bye of byeMatches) {
+    await advanceWinner(id, {
+      round: bye.round,
+      matchIndex: bye.matchIndex,
+      bracketType: bye.bracketType,
+      winnerId: bye.winnerId!,
+      loserId: '',
+    })
+  }
+
+  await supabase.from('tournaments').update({
+    status: 'active',
+    current_round: 1,
+    started_at: new Date().toISOString(),
+  }).eq('id', id)
+
+  const { data: matches } = await supabase
+    .from('tournament_matches')
+    .select('*')
+    .eq('tournament_id', id)
+    .order('round')
+    .order('match_index')
+
+  await supabase.channel(`tournament:${id}`).send({
+    type: 'broadcast',
+    event: 'tournament_started',
+    payload: { bracket: matches },
+  })
+
+  // Dry-run evidence: social brackets prove the engine before the official freeze
+  const { data: attempt } = await supabase
+    .from('record_attempts')
+    .select('id')
+    .in('status', ['upcoming', 'registration', 'frozen', 'active'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (attempt) {
+    await supabase.from('record_evidence').insert({
+      attempt_id: attempt.id,
+      evidence_type: 'social_bracket_test',
+      data: {
+        tournamentId: id,
+        playerCount: players.length,
+        format: tournament.format,
+        stakes: tournament.stakes ?? null,
+        joinCode: tournament.join_code,
+      },
+    })
+  }
+
+  return { matches: matches ?? [] }
+}

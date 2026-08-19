@@ -29,6 +29,8 @@ export default function RecordPage() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [consent, setConsent] = useState(false)
+  const [smsConsent, setSmsConsent] = useState(false)
+  const [ageConfirmed, setAgeConfirmed] = useState(false)
   const [agreeDate, setAgreeDate] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [registered, setRegistered] = useState(false)
@@ -81,7 +83,7 @@ export default function RecordPage() {
   }, [])
 
   async function handleRegister() {
-    if (!name.trim() || !email.trim() || !consent) return
+    if (!name.trim() || !email.trim() || !phone.trim() || !consent || !smsConsent || !ageConfirmed) return
     setSubmitting(true)
     setError('')
     try {
@@ -91,8 +93,10 @@ export default function RecordPage() {
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim(),
-          phone: phone.trim() || undefined,
+          phone: phone.trim(),
           consentGiven: consent,
+          smsConsent,
+          ageConfirmed,
           guestId: getGuestId(),
         }),
       })
@@ -101,6 +105,7 @@ export default function RecordPage() {
       setRegistered(true)
       setParticipantNumber(json.data.participantNumber)
       setParticipantId(json.data.participant.id)
+      try { localStorage.setItem('se_record_participant_id', json.data.participant.id) } catch {}
       setCount(prev => prev + 1)
     } catch {
       setError('Connection failed. Try again.')
@@ -112,7 +117,8 @@ export default function RecordPage() {
   const targetDate = attempt?.target_date ? new Date(attempt.target_date) : null
   const dateStr = targetDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
   const timeStr = targetDate?.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-  const progress = attempt ? Math.min(100, (count / attempt.target_participants) * 100) : 0
+  const threshold = (attempt as any)?.auto_start_threshold || attempt?.target_participants || 50000
+  const progress = attempt ? Math.min(100, (count / threshold) * 100) : 0
 
   if (loading) {
     return (
@@ -136,13 +142,14 @@ export default function RecordPage() {
   return (
     <main className="min-h-screen bg-night flex flex-col items-center px-6 pt-10 pb-16">
       <Link href="/" className="fixed top-4 left-4 z-40" style={{ color: '#b8a898', fontSize: '0.9rem' }}>← Home</Link>
+      <Link href="/record/apply" className="fixed top-4 right-4 z-40 text-btc text-xs font-bold">Guinness form →</Link>
 
       {/* Hero */}
       <p className="text-6xl mb-4">🏅</p>
       <p className="text-btc font-bold text-sm tracking-widest mb-1">GUINNESS WORLD RECORD ATTEMPT</p>
       <h1 className="text-3xl md:text-4xl font-black text-surface text-center mb-2">{attempt.record_name}</h1>
       <p className="text-surface/40 text-sm text-center mb-6">
-        {dateStr}{timeStr ? ` at ${timeStr}` : ''}
+        {dateStr}{timeStr ? ` at ${timeStr}` : 'Starts by itself at 50,000 verified signups — first to two, SMS when you are up.'}
       </p>
 
       {/* Countdown */}
@@ -172,7 +179,7 @@ export default function RecordPage() {
           <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
             style={{ width: `${progress}%`, background: 'linear-gradient(90deg, #F7941D, #FFD700)' }} />
         </div>
-        <p className="text-surface/30 text-xs text-right">Target: {attempt.target_participants.toLocaleString()}</p>
+        <p className="text-surface/30 text-xs text-right">Auto-starts at {threshold.toLocaleString()} verified players</p>
       </div>
 
       {/* Registration / Success */}
@@ -188,16 +195,26 @@ export default function RecordPage() {
               <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email (for certificate)"
                 className="w-full rounded-xl px-4 py-3 text-surface focus:outline-none"
                 style={{ background: '#0f0a1e', border: '1px solid rgba(247,148,29,0.15)' }} />
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" placeholder="Phone (optional — SMS reminder)"
+              <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" placeholder="Mobile number (required — we text you when you're up)"
                 className="w-full rounded-xl px-4 py-3 text-surface focus:outline-none"
                 style={{ background: '#0f0a1e', border: '1px solid rgba(247,148,29,0.15)' }} />
             </div>
 
             <div className="space-y-2 mb-4">
               <label className="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" checked={ageConfirmed} onChange={(e) => setAgeConfirmed(e.target.checked)}
+                  className="mt-1 accent-btc" />
+                <span className="text-surface/60 text-xs">I am 13 or older</span>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
                 <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)}
                   className="mt-1 accent-btc" />
                 <span className="text-surface/60 text-xs">I consent to being listed as an official participant in this Guinness World Record attempt</span>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)}
+                  className="mt-1 accent-btc" />
+                <span className="text-surface/60 text-xs">Text me when I am up. First to two. I can reply by opening the SerendipEatery app.</span>
               </label>
               <label className="flex items-start gap-2 cursor-pointer">
                 <input type="checkbox" checked={agreeDate} onChange={(e) => setAgreeDate(e.target.checked)}
@@ -208,7 +225,7 @@ export default function RecordPage() {
 
             {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
 
-            <button onClick={handleRegister} disabled={submitting || !name.trim() || !email.trim() || !consent}
+            <button onClick={handleRegister} disabled={submitting || !name.trim() || !email.trim() || !phone.trim() || !consent || !smsConsent || !ageConfirmed}
               className="w-full bg-btc text-night font-bold py-3 rounded-xl hover:bg-btc-dark transition disabled:opacity-50">
               {submitting ? 'Registering...' : '🏅 Register for the Record'}
             </button>
@@ -220,7 +237,12 @@ export default function RecordPage() {
             <p className="text-3xl mb-2">🎉</p>
             <p className="text-surface font-bold text-lg mb-1">You're registered!</p>
             <p className="text-btc font-black text-3xl mb-1">Participant #{participantNumber}</p>
-            <p className="text-surface/40 text-sm">See you on {dateStr}</p>
+            <p className="text-surface/40 text-sm mb-2">See you on {dateStr}</p>
+            <p className="text-surface/60 text-xs mb-4">Verify this phone in the app. Unverified numbers are dropped at freeze.</p>
+            <Link href="/tournament" className="block w-full bg-btc text-night font-bold py-3 rounded-xl mb-3">
+              Settle tonight with friends →
+            </Link>
+            <p className="text-surface/40 text-xs">Winner picks dinner, the movie, who pays. Same bracket engine. Every friend night is a dry run for the record.</p>
           </div>
 
           {/* Share */}

@@ -250,6 +250,29 @@ export function startFixWorkers(): void {
   // Expire stale waiting battles every 5 minutes
   setInterval(expireWaitingBattles, 5 * 60 * 1000)
 
+  // World-record tournament: SMS, reminders, forfeits, completed battles
+  let recordTickRunning = false
+  const tickRecord = async () => {
+    if (recordTickRunning) return
+    recordTickRunning = true
+    try {
+      const { tickRecordMatches, maybeAutoStartOfficial } = await import('./record-engine.js')
+      const auto = await maybeAutoStartOfficial()
+      if (auto.started || (auto.count && auto.count % 100 === 0)) {
+        console.log('[fix] record auto-start', auto)
+      }
+      const result = await tickRecordMatches()
+      if (result.notified || result.reminders || result.forfeits || result.completed) {
+        console.log('[fix] record tick', result)
+      }
+    } catch (err) {
+      console.error('[fix] record tick failed', err)
+    } finally {
+      recordTickRunning = false
+    }
+  }
+  setInterval(tickRecord, 60 * 1000)
+
   // Run once on startup
   deleteExpiredFlashCoupons()
   fixStuckVisits()
@@ -257,4 +280,5 @@ export function startFixWorkers(): void {
   fixTruckSnapshots()
   resetMonthlyVisitCounts()
   expireWaitingBattles()
+  tickRecord()
 }

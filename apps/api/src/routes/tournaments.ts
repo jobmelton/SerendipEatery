@@ -4,24 +4,67 @@ import { validate } from '../lib/validate.js'
 import { supabase } from '../lib/supabase.js'
 import { AppError } from '../lib/errors.js'
 import {
-  generateSingleBracket,
-  generateDoubleBracket,
   advanceWinner,
   generateJoinCode,
+  startSocialTournament,
 } from '../lib/tournament.js'
+import { getCurrentAttempt } from '../lib/record-engine.js'
+import { sendSms, toE164 } from '../lib/sms.js'
 
 const createSchema = z.object({
   hostId: z.string().min(1),
   hostName: z.string().min(1).max(30).default('Host'),
-  name: z.string().min(1).max(50).default('RPS Tournament'),
+  name: z.string().min(1).max(80).default('Tonight\'s RPS'),
   format: z.enum(['single_elimination', 'double_elimination']).default('single_elimination'),
-  maxPlayers: z.number().int().min(2).max(64).default(16),
+  maxPlayers: z.number().int().min(2).max(64).default(8),
+  stakes: z.string().max(140).optional(),
+  autoStart: z.boolean().optional(),
+  recordParticipantId: z.string().uuid().optional(),
+  userId: z.string().optional(),
+  guestId: z.string().optional(),
 })
 
 const joinSchema = z.object({
   playerId: z.string().min(1),
   playerName: z.string().min(1).max(30).default('Player'),
+  recordParticipantId: z.string().uuid().optional(),
+  userId: z.string().optional(),
+  guestId: z.string().optional(),
 })
+
+const inviteSchema = z.object({
+  phones: z.array(z.string().min(7).max(20)).min(1).max(32),
+  fromName: z.string().min(1).max(30).optional(),
+})
+
+async function requireVerifiedRecordPlayer(opts: {
+  recordParticipantId?: string
+  userId?: string
+  guestId?: string
+}) {
+  const attempt = await getCurrentAttempt()
+  if (!attempt) return null
+
+  let query = supabase.from('record_participants').select('id, phone_verified_at, legal_name, participant_name, guest_id, user_id')
+    .eq('attempt_id', attempt.id)
+
+  if (opts.recordParticipantId) {
+    const { data } = await query.eq('id', opts.recordParticipantId).maybeSingle()
+    if (data?.phone_verified_at) return data
+  }
+  if (opts.userId) {
+    const { data } = await supabase.from('record_participants').select('id, phone_verified_at, legal_name, participant_name, guest_id, user_id')
+      .eq('attempt_id', attempt.id).eq('user_id', opts.userId).maybeSingle()
+    if (data?.phone_verified_at) return data
+  }
+  if (opts.guestId) {
+    const { data } = await supabase.from('record_participants').select('id, phone_verified_at, legal_name, participant_name, guest_id, user_id')
+      .eq('attempt_id', attempt.id).eq('guest_id', opts.guestId).maybeSingle()
+    if (data?.phone_verified_at) return data
+  }
+
+  throw new AppError(403, 'NEED_RECORD_REGISTRATION', 'Register and verify your phone for the Guinness attempt first — then you can play with friends.')
+}
 
 const startSchema = z.object({
   hostId: z.string().min(1),
@@ -37,7 +80,9 @@ export async function tournamentRoutes(app: FastifyInstance) {
   app.post('/tournaments/create', {
     preHandler: validate(createSchema),
   }, async (request) => {
-    const { hostId, hostName, name, format, maxPlayers } = request.body as z.infer<typeof createSchema>
+    const { hostId, hostName, name, format, maxPlayers, stakes, autoStart, recordParticipantId, userId, guestId } = request.body as z.infer<typeof createSchema>
+
+    await requireVerifiedRecordPlayer({ recordParticipantId, userId, guestId: guestId || hostId })
 
     const joinCode = await generateJoinCode()
 
@@ -47,6 +92,10 @@ export async function tournamentRoutes(app: FastifyInstance) {
         host_id: hostId,
         host_name: hostName,
         name,
+        stakes: stakes?.trim() || null,
+        kind: 'social',
+        auto_start: autoStart !== false,
+        requires_record: true,
         join_code: joinCode,
         format,
         max_players: maxPlayers,
@@ -122,11 +171,12 @@ export async function tournamentRoutes(app: FastifyInstance) {
     preHandler: validate(joinSchema),
   }, async (request) => {
     const { id } = request.params as { id: string }
-    const { playerId, playerName } = request.body as z.infer<typeof joinSchema>
+    const { playerId, playerName, recordParticipantId, userId, guestId } = request.body as z.infer<typeof joinSchema>
+    await requireVerifiedRecordPlayer({ recordParticipantId, userId, guestId: guestId || playerId })
 
     const { data: tournament } = await supabase
       .from('tournaments')
-      .select('status, max_players')
+      .select('status, max_players, auto_start')
       .eq('id', id)
       .single()
 
@@ -177,7 +227,16 @@ export async function tournamentRoutes(app: FastifyInstance) {
       payload: { player },
     })
 
-    return { ok: true, data: player }
+    const filled = (count ?? 0) + 1
+    if (tournament.auto_start !== false && filled >= tournament.max_players) {
+      try {
+        await startSocialTournament(id)
+      } catch (err) {
+        console.error('[tournament] auto-start failed', err)
+      }
+    }
+
+    return { ok: true, data: player, autoStarted: filled >= (tournament.max_players ?? 99) }
   })
 
   // ─── Leave Tournament (lobby only) ───────────────────────────────────
@@ -227,95 +286,48 @@ export async function tournamentRoutes(app: FastifyInstance) {
     if (tournament.host_id !== hostId) throw new AppError(403, 'NOT_HOST', 'Only the host can start')
     if (tournament.status !== 'lobby') throw new AppError(400, 'NOT_LOBBY', 'Tournament already started')
 
-    const { data: players } = await supabase
-      .from('tournament_players')
-      .select('player_id, player_name, seed')
-      .eq('tournament_id', id)
-      .order('seed')
+    try {
+      const result = await startSocialTournament(id)
+      return { ok: true, data: result }
+    } catch (err) {
+      if (err instanceof Error && err.message === 'NOT_ENOUGH') {
+        throw new AppError(400, 'NOT_ENOUGH', 'Need at least 2 players')
+      }
+      throw err
+    }
+  })
 
-    if (!players || players.length < 2) {
-      throw new AppError(400, 'NOT_ENOUGH', 'Need at least 2 players')
+  // ─── SMS invites ─────────────────────────────────────────────────────
+  app.post('/tournaments/:id/invite', {
+    preHandler: validate(inviteSchema),
+  }, async (request) => {
+    const { id } = request.params as { id: string }
+    const { phones, fromName } = request.body as z.infer<typeof inviteSchema>
+
+    const { data: tournament } = await supabase
+      .from('tournaments')
+      .select('id, name, join_code, stakes, status')
+      .eq('id', id)
+      .single()
+    if (!tournament) throw new AppError(404, 'NOT_FOUND', 'Tournament not found')
+    if (tournament.status !== 'lobby') throw new AppError(400, 'NOT_LOBBY', 'Tournament already started')
+
+    const web = process.env.CLERK_WEB_URL || 'https://serendip.app'
+    const joinUrl = `${web}/tournament/join/${tournament.join_code}`
+    const recordUrl = `${web}/record`
+    const who = fromName || 'A friend'
+    const stakes = tournament.stakes ? ` Winner decides: ${tournament.stakes}.` : ''
+
+    let sent = 0
+    for (const raw of phones) {
+      const to = toE164(raw)
+      if (!to) continue
+      const body = `${who} invited you to ${tournament.name} (code ${tournament.join_code}).${stakes} Join: ${joinUrl} — Register for the 50,000-player Guinness RPS attempt first: ${recordUrl}`
+      await sendSms({ to, body, template: 'social_invite' })
+      sent++
     }
 
-    // Shuffle seeds for fairness
-    const shuffled = players.map((p, i) => ({
-      playerId: p.player_id,
-      playerName: p.player_name,
-      seed: i + 1,
-    }))
-
-    // Randomize seed order
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      const tempSeed = shuffled[i].seed
-      shuffled[i].seed = shuffled[j].seed
-      shuffled[j].seed = tempSeed
-    }
-
-    // Update seeds
-    for (const p of shuffled) {
-      await supabase.from('tournament_players')
-        .update({ seed: p.seed })
-        .eq('tournament_id', id)
-        .eq('player_id', p.playerId)
-    }
-
-    // Generate bracket
-    const bracket = tournament.format === 'double_elimination'
-      ? generateDoubleBracket(shuffled)
-      : generateSingleBracket(shuffled)
-
-    // Insert matches
-    for (const match of bracket) {
-      await supabase.from('tournament_matches').insert({
-        tournament_id: id,
-        round: match.round,
-        match_index: match.matchIndex,
-        bracket_type: match.bracketType,
-        player1_id: match.player1Id,
-        player1_name: match.player1Name,
-        player2_id: match.player2Id,
-        player2_name: match.player2Name,
-        winner_id: match.winnerId,
-        status: match.status,
-      })
-    }
-
-    // Process byes — advance winners from bye matches
-    const byeMatches = bracket.filter(m => m.status === 'bye' && m.winnerId)
-    for (const bye of byeMatches) {
-      await advanceWinner(id, {
-        round: bye.round,
-        matchIndex: bye.matchIndex,
-        bracketType: bye.bracketType,
-        winnerId: bye.winnerId!,
-        loserId: '',
-      })
-    }
-
-    // Update tournament status
-    await supabase.from('tournaments').update({
-      status: 'active',
-      current_round: 1,
-      started_at: new Date().toISOString(),
-    }).eq('id', id)
-
-    // Fetch final state
-    const { data: matches } = await supabase
-      .from('tournament_matches')
-      .select('*')
-      .eq('tournament_id', id)
-      .order('round')
-      .order('match_index')
-
-    // Broadcast tournament started
-    await supabase.channel(`tournament:${id}`).send({
-      type: 'broadcast',
-      event: 'tournament_started',
-      payload: { bracket: matches },
-    })
-
-    return { ok: true, data: { matches: matches ?? [] } }
+    return { ok: true, data: { sent } }
   })
 
   // ─── Start a Match (creates battle) ──────────────────────────────────

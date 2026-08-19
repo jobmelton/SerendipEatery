@@ -1,0 +1,11 @@
+{
+  "name": "serendipeatery-guinness-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "form": "node generate_application_form.mjs"
+  },
+  "dependencies": {
+    "pdfkit": "^0.17.1"
+  }
+}

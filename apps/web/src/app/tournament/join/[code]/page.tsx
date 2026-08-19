@@ -80,11 +80,18 @@ export default function JoinTournamentPage() {
       const res = await fetch(`${API_URL}/tournaments/${tournament!.id}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId: getGuestId(), playerName: playerName.trim() }),
+        body: JSON.stringify({
+          playerId: getGuestId(),
+          playerName: playerName.trim(),
+          guestId: getGuestId(),
+          recordParticipantId: localStorage.getItem('se_record_participant_id') || undefined,
+        }),
       })
       const json = await res.json()
       if (json.ok) {
         router.push(`/tournament/${tournament!.id}`)
+      } else if (json.code === 'NEED_RECORD_REGISTRATION') {
+        router.push(`/record?next=/tournament/join/${code}`)
       } else {
         setError(json.error || 'Failed to join')
       }

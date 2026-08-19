@@ -23,7 +23,8 @@ function getGuestName(): string {
 
 export default function CreateTournamentPage() {
   const router = useRouter()
-  const [name, setName] = useState('RPS Tournament')
+  const [name, setName] = useState("Tonight's RPS")
+  const [stakes, setStakes] = useState('Winner picks what we do tonight')
   const [format, setFormat] = useState<'single_elimination' | 'double_elimination'>('single_elimination')
   const [maxPlayers, setMaxPlayers] = useState(8)
   const [hostName, setHostName] = useState(getGuestName())
@@ -57,9 +58,13 @@ export default function CreateTournamentPage() {
         body: JSON.stringify({
           hostId: getGuestId(),
           hostName: hostName.trim(),
-          name: name.trim() || 'RPS Tournament',
+          name: name.trim() || "Tonight's RPS",
+          stakes: stakes.trim() || undefined,
           format,
           maxPlayers,
+          autoStart: true,
+          guestId: getGuestId(),
+          recordParticipantId: localStorage.getItem('se_record_participant_id') || undefined,
         }),
       })
       if (!res.ok) {
@@ -70,6 +75,10 @@ export default function CreateTournamentPage() {
       if (json.ok) {
         window.location.href = `/tournament/${json.data.id}`
       } else {
+        if (json.code === 'NEED_RECORD_REGISTRATION') {
+          window.location.href = '/record?next=/tournament'
+          return
+        }
         setError(json.error || 'Failed to create tournament')
       }
     } catch (err: any) {
@@ -86,12 +95,14 @@ export default function CreateTournamentPage() {
       </button>
 
       {/* Guinness banner */}
-      {recordBanner && (recordBanner.status === 'upcoming' || recordBanner.status === 'active') && (
+      {recordBanner && (
         <Link href="/record" className="w-full max-w-sm mb-6 block">
           <div className="rounded-2xl px-4 py-4 text-center" style={{ background: '#1a0e00', border: '2px solid #FFD700' }}>
             <p className="text-sm font-bold" style={{ color: '#FFD700' }}>🏅 GUINNESS WORLD RECORD ATTEMPT</p>
             <p className="text-surface/60 text-xs mt-1">{recordBanner.record_name}</p>
-            <p className="text-surface/40 text-xs">Target: {(10000).toLocaleString()} players · {recordBanner.registrationCount.toLocaleString()} registered</p>
+            <p className="text-surface/40 text-xs">
+              Auto-starts at {(recordBanner as any).auto_start_threshold?.toLocaleString?.() || '50,000'} verified · {recordBanner.registrationCount.toLocaleString()} in
+            </p>
             {recordBanner.target_date && (
               <p className="text-surface/30 text-[10px] mt-1">
                 {new Date(recordBanner.target_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -103,8 +114,8 @@ export default function CreateTournamentPage() {
       )}
 
       <div className="text-4xl mb-4">🏆</div>
-      <h1 className="text-3xl font-black text-surface mb-2">Create Tournament</h1>
-      <p className="text-surface/40 text-sm mb-8">Rock Paper Scissors. Winner takes glory.</p>
+      <h1 className="text-3xl font-black text-surface mb-2">Settle tonight</h1>
+      <p className="text-surface/40 text-sm mb-8">Invite friends. First to two. Winner decides. Starts by itself when the lobby is full. You must be registered for the 50,000-player record to play — that&apos;s how we test the bracket.</p>
 
       <div className="w-full max-w-sm space-y-5">
         {/* Host name */}
@@ -119,6 +130,18 @@ export default function CreateTournamentPage() {
             style={{ background: '#1a1230', border: needsName ? '2px solid #E53E3E' : '1px solid rgba(247,148,29,0.15)' }}
           />
           {needsName && <p className="text-red-400 text-xs mt-1">Enter your name first</p>}
+        </div>
+
+        <div>
+          <label className="text-surface/50 text-xs font-bold block mb-1">Winner decides</label>
+          <input
+            value={stakes}
+            onChange={(e) => setStakes(e.target.value.slice(0, 140))}
+            placeholder="What we eat / who pays / the movie…"
+            maxLength={140}
+            className="w-full rounded-xl px-4 py-3 text-surface focus:outline-none"
+            style={{ background: '#1a1230', border: '1px solid rgba(247,148,29,0.15)' }}
+          />
         </div>
 
         {/* Tournament name */}
